@@ -1,0 +1,97 @@
+{
+    "serviceMode":"inout",
+    "log": {
+        "enabled": true,
+        "console": true,
+        "type": "rolling",
+        "path": ""
+    },
+    "inputs": {
+        "maxMessageSize": -1,
+        "queue": {
+            "maxSize": 10240000,
+            "maxCount": 2000
+        },
+        "buffer": {
+            "path": "buffer",
+            "prefix": "bf",
+            "extension": "buf",
+            "timestampKey":"@timestamp",
+            "timestampFormat":"2006-01-02T15:04:05.999-07:00",
+            "flush": {
+                "count": 1000,
+                "size": 1024000
+            }
+        },
+        "producers": [
+            {
+                "type": "redis",
+                "params":[
+                    { "name": "command", "value": "psubscribe" },                    
+                    { "name": "compressed", "value": false },
+                    { "name": "server", "value": "localhost:6379" },
+                    { "name": "password", "value": null },
+                    { "name": "channel", "value": "logstas*" }
+                ]
+            }
+        ]
+    },
+    "outputs": {
+        "dataPath": "completed\\",
+        "dataPattern": "bf-*.buf",
+        "bulkCount": 5000,
+        "flushOnEvery": 10,
+        "sleepOnEvery": 5,
+        "sleepForMillisec": 1,
+        "maxMessageSize": -1,
+        "consumers": [
+            { 
+                "type": "redis",
+                "params": [
+                    { "name": "command", "value": "publish" },
+                    { "name": "compressed", "value": false },
+                    { "name": "server", "value": "localhost:6379" },
+                    { "name": "password", "value": null },
+                    { "name": "channel", "value": "logstash" }
+                ]
+            },
+            { 
+                "type": "elasticsearch",            
+                "params":[
+                    { "name": "url", "value": "http://localhost:9200" },
+                    { "name": "userName", "value": null },
+                    { "name": "password", "value": null },
+                    { "name": "maxRetries", "value": 3 },
+                    { "name": "compression", "value": false },
+                    { "name": "concurrency", "value": 5 },
+                    { "name": "chunkLength", "value": 400 },
+                    { "name": "proxy.url", "value": null },
+                    { "name": "proxy.userName", "value": null },
+                    { "name": "proxy.password", "value": null },
+                    { "name": "index.prefix", "value": "logstash" },
+                    { "name": "index.type", "value": "backend_log" },
+                    { "name": "index.utc", "value": false },
+                    { "name": "index.switchMode", "value": "daily" },
+                    { "name": "index.switchDailyHour", "value": 3 },
+                    { "name": "healthcheck.enabled", "value": false },
+                    { "name": "healthcheck.interval", "value": 60 },
+                    { "name": "healthcheck.timeout", "value": -1 },
+                    { "name": "healthcheck.timeoutStartup", "value": -1 },
+                    { "name": "sniffing.enabled", "value": false },
+                    { "name": "sniffing.interval", "value": 60 },
+                    { "name": "sniffing.timeout", "value": -1 },
+                    { "name": "sniffing.timeoutStartup", "value": -1 },
+                    { "name": "logging.error.enabled", "value": true },
+                    { "name": "logging.error.type", "value": "rolling" },
+                    { "name": "logging.error.path", "value": "./eserrorlogs" },
+                    { "name": "logging.info.enabled", "value": false },
+                    { "name": "logging.info.type", "value": "rolling" },
+                    { "name": "logging.info.path", "value": "./esinfologs" },
+                    { "name": "logging.trace.enabled", "value": false },
+                    { "name": "logging.trace.type", "value": "rolling" },
+                    { "name": "logging.trace.path", "value": "./estracelogs" }
+                ]
+            }
+        ]
+    }
+}
