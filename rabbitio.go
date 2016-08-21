@@ -10,24 +10,33 @@ import (
 )
 
 type rabbitIO struct {
-	port         int
-	host         string
-	command      string
-	username     string
-	password     string
-	vhost        string
-	queue        string
-	key          string
-	tag          string
-	exchange     string
-	exchangeType string
-	compressed   bool
-	connected    bool
-	timeout      time.Duration
-	connFunc     func(*amqp.Connection, *amqp.Channel) error
-	conn         *amqp.Connection
-	channel      *amqp.Channel
-	logger       Logger
+	port            int
+	host            string
+	username        string
+	password        string
+	vhost           string
+	exchange        string
+	exchangeType    string
+	queue           string
+	key             string
+	tag             string
+	contentType     string
+	exchangeDeclare bool
+	queueBind       bool
+	durable         bool // durable
+	autoDelete      bool // delete when unused/complete
+	exclusive       bool // exclusive
+	nowait          bool // no-wait
+	internal        bool
+	autoAck         bool
+	noLocal         bool
+	compressed      bool
+	connected       bool
+	timeout         time.Duration
+	connFunc        func(*amqp.Connection, *amqp.Channel) error
+	conn            *amqp.Connection
+	channel         *amqp.Channel
+	logger          Logger
 }
 
 func newRabbitIO(logger Logger, params map[string]interface{}) *rabbitIO {
@@ -49,6 +58,7 @@ func newRabbitIO(logger Logger, params map[string]interface{}) *rabbitIO {
 		tag          string
 		exchange     string
 		exchangeType string
+		contentType  string
 		timeout      time.Duration
 	)
 
@@ -124,23 +134,60 @@ func newRabbitIO(logger Logger, params map[string]interface{}) *rabbitIO {
 		password = strings.TrimSpace(s)
 	}
 
-	var compressed bool
+	contentType, ok = params["contentType"].(string)
+	if ok {
+		contentType = strings.ToLower(strings.TrimSpace(contentType))
+	}
+
+	var (
+		exchangeDeclare bool
+		queueBind       bool
+		durable         bool // durable
+		autoDelete      bool // delete when unused/complete
+		exclusive       bool // exclusive
+		nowait          bool // no-wait
+		autoAck         bool
+		internal        bool
+		noLocal         bool
+		compressed      bool
+	)
+
+	exchangeDeclare, ok = params["exchangeDeclare"].(bool)
+	queueBind, ok = params["queueBind"].(bool)
+	durable, ok = params["durable"].(bool)
+	autoDelete, ok = params["autoDelete"].(bool)
+	exclusive, ok = params["exclusive"].(bool)
+	nowait, ok = params["nowait"].(bool)
+	internal, ok = params["internal"].(bool)
+	autoAck, ok = params["autoAck"].(bool)
+	noLocal, ok = params["noLocal"].(bool)
+
 	compressed, ok = params["compressed"].(bool)
 
 	rio := &rabbitIO{
-		host:         host,
-		port:         port,
-		vhost:        vhost,
-		username:     username,
-		password:     password,
-		compressed:   compressed,
-		timeout:      timeout,
-		queue:        queue,
-		key:          key,
-		tag:          tag,
-		exchange:     exchange,
-		exchangeType: exchangeType,
-		logger:       logger,
+		host:            host,
+		port:            port,
+		vhost:           vhost,
+		username:        username,
+		password:        password,
+		exchangeDeclare: exchangeDeclare,
+		exchange:        exchange,
+		exchangeType:    exchangeType,
+		queueBind:       queueBind,
+		queue:           queue,
+		key:             key,
+		tag:             tag,
+		durable:         durable,
+		autoDelete:      autoDelete,
+		exclusive:       exclusive,
+		nowait:          nowait,
+		internal:        internal,
+		autoAck:         autoAck,
+		noLocal:         noLocal,
+		timeout:         timeout,
+		compressed:      compressed,
+		contentType:     contentType,
+		logger:          logger,
 	}
 
 	return rio
@@ -282,4 +329,64 @@ func (rio *rabbitIO) Connect() {
 			}
 		}
 	}
+}
+
+func (rio *rabbitIO) funcSubscribe(conn *amqp.Connection, channel *amqp.Channel) error {
+	var err error
+	defer func() {
+		subsErr, _ := recover().(error)
+		if err == nil {
+			err = subsErr
+		}
+	}()
+
+	if rio.channel == nil {
+		return nil
+	}
+
+	if rio.exchangeDeclare {
+		err = rio.channel.ExchangeDeclare(
+			rio.exchange,     // name of the exchange
+			rio.exchangeType, // type
+			rio.durable,      // durable
+			rio.autoDelete,   // delete when complete
+			rio.internal,     // internal
+			rio.nowait,       // noWait
+			nil,              // arguments
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	var queue amqp.Queue
+	queue, err = rio.channel.QueueDeclare(
+		rio.queue,      // name of the queue
+		rio.durable,    // durable
+		rio.autoDelete, // delete when unused/complete
+		rio.exclusive,  // exclusive
+		rio.nowait,     // noWait
+		nil,            // arguments
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if rio.queueBind {
+		err = rio.channel.QueueBind(
+			queue.Name,   // name of the queue
+			rio.key,      // bindingKey
+			rio.exchange, // sourceExchange
+			rio.nowait,   // noWait
+			nil,          // arguments
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }

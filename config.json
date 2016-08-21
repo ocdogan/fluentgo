@@ -33,6 +33,30 @@
                     { "name": "password", "value": null },
                     { "name": "channel", "value": "logstas*" }
                 ]
+            },
+            {
+                "type": "rabbit",
+                "params": [
+                    { "name": "host", "value": "localhost" },                    
+                    { "name": "port", "value": "5672" },
+                    { "name": "compressed", "value": false },                    
+                    { "name": "vhost", "value": null },
+                    { "name": "username", "value": null },                    
+                    { "name": "password", "value": null },
+                    { "name": "exchangeDeclare", "value": false },
+                    { "name": "exchange", "value": "logstash" },
+                    { "name": "exchangeType", "value": "logstash" },
+                    { "name": "queueBind", "value": false },
+                    { "name": "queue", "value": "logs" },
+                    { "name": "key", "value": "log" },
+                    { "name": "tag", "value": null },
+                    { "name": "timeout", "value": -1 },
+                    { "name": "durable", "value": false },
+                    { "name": "deleteWhenUsused", "value": false },
+                    { "name": "exclusive", "value": false },
+                    { "name": "nowait", "value": false },
+                    { "name": "autoAck", "value": false }
+                ]
             }
         ]
     },
@@ -90,6 +114,32 @@
                     { "name": "logging.trace.enabled", "value": false },
                     { "name": "logging.trace.type", "value": "rolling" },
                     { "name": "logging.trace.path", "value": "./estracelogs" }
+                ]
+            },
+            {
+                "type": "rabbit",
+                "params": [
+                    { "name": "host", "value": "localhost" },                    
+                    { "name": "port", "value": "5672" },
+                    { "name": "compressed", "value": false },                    
+                    { "name": "vhost", "value": null },
+                    { "name": "username", "value": null },                    
+                    { "name": "password", "value": null },
+                    { "name": "exchangeDeclare", "value": false },
+                    { "name": "exchange", "value": "logstash" },
+                    { "name": "exchangeType", "value": "logstash" },
+                    { "name": "queueBind", "value": false },
+                    { "name": "queue", "value": "logs" },
+                    { "name": "key", "value": "log" },
+                    { "name": "tag", "value": null },
+                    { "name": "timeout", "value": -1 },
+                    { "name": "durable", "value": false },
+                    { "name": "deleteWhenUsused", "value": false },
+                    { "name": "exclusive", "value": false },
+                    { "name": "nowait", "value": false },
+                    { "name": "autoAck", "value": false },
+                    { "name": "mandatory", "value": false },
+                    { "name": "immediate", "value": false }
                 ]
             }
         ]

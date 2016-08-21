@@ -1,6 +1,10 @@
 package main
 
-import "github.com/streadway/amqp"
+import (
+	"strings"
+
+	"github.com/streadway/amqp"
+)
 
 type rabbitIn struct {
 	rabbitIO
@@ -60,61 +64,27 @@ func (ri *rabbitIn) funcSubscribe(conn *amqp.Connection, channel *amqp.Channel) 
 		}
 	}()
 
-	if ri.channel == nil {
-		return nil
-	}
-
-	err = ri.channel.ExchangeDeclare(
-		ri.exchange,     // name of the exchange
-		ri.exchangeType, // type
-		true,            // durable
-		false,           // delete when complete
-		false,           // internal
-		false,           // noWait
-		nil,             // arguments
-	)
-
-	if err != nil {
-		return err
-	}
-
-	var queue amqp.Queue
-	queue, err = ri.channel.QueueDeclare(
-		ri.queue, // name of the queue
-		true,     // durable
-		false,    // delete when usused
-		false,    // exclusive
-		false,    // noWait
-		nil,      // arguments
-	)
-
-	if err != nil {
-		return err
-	}
-
-	err = ri.channel.QueueBind(
-		queue.Name,  // name of the queue
-		ri.key,      // bindingKey
-		ri.exchange, // sourceExchange
-		false,       // noWait
-		nil,         // arguments
-	)
-
+	err = ri.funcSubscribe(conn, channel)
 	if err != nil {
 		return err
 	}
 
 	ri.deliveries, err = channel.Consume(
-		ri.queue, // name
-		ri.tag,   // consumerTag,
-		false,    // noAck
-		false,    // exclusive
-		false,    // noLocal
-		false,    // noWait
-		nil,      // arguments
+		ri.queue,     // name
+		ri.tag,       // consumerTag,
+		ri.autoAck,   // noAck
+		ri.exclusive, // exclusive
+		ri.noLocal,   // noLocal
+		ri.nowait,    // noWait
+		nil,          // arguments
 	)
 
 	return err
+}
+
+func (ri *rabbitIn) validContentType(contentType string) bool {
+	return ri.contentType == "" || ri.contentType == "*" ||
+		ri.contentType == strings.ToLower(contentType)
 }
 
 func (ri *rabbitIn) funcReceive() {
@@ -139,7 +109,7 @@ func (ri *rabbitIn) funcReceive() {
 			ri.Connect()
 
 			msg.Ack(false)
-			if len(msg.Body) > 0 {
+			if len(msg.Body) > 0 && ri.contentType == "" {
 				go ri.queueMessage(msg.Body, maxMessageSize, compressed)
 			}
 		}
