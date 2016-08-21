@@ -109,7 +109,7 @@ func (ri *rabbitIn) funcReceive() {
 			ri.Connect()
 
 			msg.Ack(false)
-			if len(msg.Body) > 0 && ri.contentType == "" {
+			if len(msg.Body) > 0 && ri.validContentType(msg.ContentType) {
 				go ri.queueMessage(msg.Body, maxMessageSize, compressed)
 			}
 		}
