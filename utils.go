@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"os"
 	"time"
 )
@@ -100,4 +102,23 @@ func maxDuration(a, b time.Duration) time.Duration {
 		return a
 	}
 	return b
+}
+
+func compress(data []byte) []byte {
+	if len(data) > 0 {
+		var buff bytes.Buffer
+		gzipW := gzip.NewWriter(&buff)
+
+		if gzipW != nil {
+			defer gzipW.Close()
+
+			n, err := gzipW.Write(data)
+			if err != nil {
+				return data
+			} else if n > 0 {
+				return buff.Bytes()
+			}
+		}
+	}
+	return nil
 }

@@ -47,7 +47,12 @@ func main() {
 		logger.Println(msg)
 	}
 
+	process(smode, config, logger, quitSignal)
+}
+
+func process(smode string, config *fluentConfig, logger Logger, quitSignal <-chan bool) {
 	logger.Println("Starting service...")
+	defer logger.Println("Stopping service...")
 
 	var (
 		im          *inManager
@@ -56,16 +61,20 @@ func main() {
 		omCompleted <-chan bool
 	)
 
-	if smode == "in" || smode == "inout" {
+	if smode == in || smode == inout {
 		im = newInManager(config, logger)
 		imCompleted = im.Process()
 	}
 
-	if smode == "out" || smode == "inout" {
+	if smode == out || smode == inout {
 		om = newOutManager(config, logger)
 		omCompleted = om.Process()
 	}
 
+	waitManagers(im, om, imCompleted, omCompleted, quitSignal)
+}
+
+func waitManagers(im *inManager, om *outManager, imCompleted, omCompleted, quitSignal <-chan bool) {
 	imactive := im != nil
 	omactive := om != nil
 
@@ -75,20 +84,18 @@ func main() {
 			if !imactive && im != nil {
 				im.Close()
 			}
-			imactive = true
+			imactive = false
 
 			if !omactive && om != nil {
 				om.Close()
 			}
-			omactive = true
+			omactive = false
 		case <-imCompleted:
-			imactive = true
+			imactive = false
 		case <-omCompleted:
-			omactive = true
+			omactive = false
 		}
 	}
-
-	logger.Println("Stopping service...")
 }
 
 func getServiceMode(config *fluentConfig) (smode string, ok bool) {
@@ -100,8 +107,8 @@ func getServiceMode(config *fluentConfig) (smode string, ok bool) {
 
 	smode = strings.ToLower(smode)
 
-	if !(smode == "in" || smode == "out") {
-		smode = "inout"
+	if !(smode == in || smode == out) {
+		smode = inout
 		ok = false
 	}
 	return smode, ok

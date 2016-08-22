@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
 	"strings"
 
 	"github.com/garyburd/redigo/redis"
@@ -30,9 +28,15 @@ func newRedisOut(manager InOutManager, config *inOutConfig) *redisOut {
 
 	rio := newRedisIO(manager.GetLogger(), params)
 	if rio != nil {
+		const (
+			publish = "PUBLISH"
+			lpush   = "LPUSH"
+			rpush   = "RPUSH"
+		)
+
 		cmd := strings.ToUpper(rio.command)
-		if !(cmd == "PUBLISH" || cmd == "LPUSH" || cmd == "RPUSH") {
-			rio.command = "PUBLISH"
+		if !(cmd == publish || cmd == lpush || cmd == rpush) {
+			rio.command = publish
 		}
 
 		ro := &redisOut{
@@ -66,25 +70,6 @@ func (ro *redisOut) funcPing(conn redis.Conn) error {
 		err = conn.Send("PING")
 	}
 	return err
-}
-
-func (ro *redisOut) compress(data []byte) []byte {
-	if len(data) > 0 {
-		var buff bytes.Buffer
-		gzipW := gzip.NewWriter(&buff)
-
-		if gzipW != nil {
-			defer gzipW.Close()
-
-			n, err := gzipW.Write(data)
-			if err != nil {
-				return data
-			} else if n > 0 {
-				return buff.Bytes()
-			}
-		}
-	}
-	return nil
 }
 
 func (ro *redisOut) funcChannel() string {
@@ -125,7 +110,7 @@ func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
 					conn = ro.conn
 					if conn != nil {
 						if ro.compressed {
-							msg = string(ro.compress([]byte(msg)))
+							msg = string(compress([]byte(msg)))
 						}
 						conn.Send(ro.command, channel, msg)
 					}

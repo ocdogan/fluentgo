@@ -1,11 +1,6 @@
 package main
 
-import (
-	"bytes"
-	"compress/gzip"
-
-	"github.com/streadway/amqp"
-)
+import "github.com/streadway/amqp"
 
 type rabbitOut struct {
 	rabbitIO
@@ -54,25 +49,6 @@ func newRabbitOut(manager InOutManager, config *inOutConfig) *rabbitOut {
 	return nil
 }
 
-func (ro *rabbitOut) compress(data []byte) []byte {
-	if len(data) > 0 {
-		var buff bytes.Buffer
-		gzipW := gzip.NewWriter(&buff)
-
-		if gzipW != nil {
-			defer gzipW.Close()
-
-			n, err := gzipW.Write(data)
-			if err != nil {
-				return data
-			} else if n > 0 {
-				return buff.Bytes()
-			}
-		}
-	}
-	return nil
-}
-
 func (ro *rabbitOut) funcChannel() string {
 	return ""
 }
@@ -113,7 +89,7 @@ func (ro *rabbitOut) funcSendMessagesChunk(messages []string, channel string) {
 					if channel != nil {
 						body = []byte(msg)
 						if ro.compressed {
-							body = ro.compress(body)
+							body = compress(body)
 						}
 						if len(body) > 0 {
 							sendErr = channel.Publish(
@@ -139,13 +115,13 @@ func (ro *rabbitOut) funcWait() {
 		recover()
 		l := ro.GetLogger()
 		if l != nil {
-			l.Println("Stoping 'REDISOUT'...")
+			l.Println("Stoping 'RABBITOUT'...")
 		}
 	}()
 
 	l := ro.GetLogger()
 	if l != nil {
-		l.Println("Starting 'REDISOUT'...")
+		l.Println("Starting 'RABBITOUT'...")
 	}
 
 	<-ro.completed

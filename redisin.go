@@ -30,11 +30,18 @@ func newRedisIn(manager InOutManager, config *inOutConfig) *redisIn {
 	rio := newRedisIO(manager.GetLogger(), params)
 	if rio != nil {
 		cmd := strings.ToUpper(rio.command)
-		if !(cmd == "PSUBSCRIBE" || cmd == "SUBSCRIBE") {
-			if strings.ContainsAny(rio.channel, "*?") {
-				cmd = "PSUBSCRIBE"
+
+		const (
+			subs       = "SUBSCRIBE"
+			psubs      = "PSUBSCRIBE"
+			psubschars = "*?"
+		)
+
+		if !(cmd == psubs || cmd == subs) {
+			if strings.ContainsAny(rio.channel, psubschars) {
+				cmd = psubs
 			} else {
-				cmd = "SUBSCRIBE"
+				cmd = subs
 			}
 			rio.command = cmd
 		}
