@@ -81,15 +81,19 @@ func waitManagers(im *inManager, om *outManager, imCompleted, omCompleted, quitS
 	for imactive || omactive {
 		select {
 		case <-quitSignal:
-			if !imactive && im != nil {
-				im.Close()
+			if imactive {
+				imactive = false
+				if im != nil {
+					im.Close()
+				}
 			}
-			imactive = false
 
-			if !omactive && om != nil {
-				om.Close()
+			if omactive {
+				omactive = false
+				if om != nil {
+					om.Close()
+				}
 			}
-			omactive = false
 		case <-imCompleted:
 			imactive = false
 		case <-omCompleted:
