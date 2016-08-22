@@ -16,13 +16,6 @@ import (
 	"github.com/cloudfoundry/gosigar"
 )
 
-const (
-	minBufferSize  = 8 * 1024
-	maxBufferSize  = 10 * 1024 * 1024
-	minBufferCount = 10
-	maxBufferCount = 1000
-)
-
 type inProvider interface {
 	Run()
 	Enabled() bool
