@@ -28,12 +28,6 @@ func newRedisOut(manager InOutManager, config *inOutConfig) *redisOut {
 
 	rio := newRedisIO(manager.GetLogger(), params)
 	if rio != nil {
-		const (
-			publish = "PUBLISH"
-			lpush   = "LPUSH"
-			rpush   = "RPUSH"
-		)
-
 		cmd := strings.ToUpper(rio.command)
 		if !(cmd == publish || cmd == lpush || cmd == rpush) {
 			rio.command = publish

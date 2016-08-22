@@ -31,12 +31,6 @@ func newRedisIn(manager InOutManager, config *inOutConfig) *redisIn {
 	if rio != nil {
 		cmd := strings.ToUpper(rio.command)
 
-		const (
-			subs       = "SUBSCRIBE"
-			psubs      = "PSUBSCRIBE"
-			psubschars = "*?"
-		)
-
 		if !(cmd == psubs || cmd == subs) {
 			if strings.ContainsAny(rio.channel, psubschars) {
 				cmd = psubs
