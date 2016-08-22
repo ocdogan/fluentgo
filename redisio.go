@@ -66,7 +66,7 @@ func newRedisIO(logger Logger, params map[string]interface{}) *redisIO {
 	}
 
 	var compressed bool
-	compressed, ok = params["compressed"].(bool)
+	compressed, _ = params["compressed"].(bool)
 
 	rio := &redisIO{
 		db:         db,
