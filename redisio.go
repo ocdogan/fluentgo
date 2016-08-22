@@ -128,7 +128,7 @@ func (rio *redisIO) Connect() {
 		conn = getPool(rio.server, rio.password, rio.logger).Get()
 
 		if conn != nil {
-			connErr = conn.Send("SELECT", rio.db)
+			conn.Do("SELECT", rio.db)
 
 			if rio.connFunc != nil {
 				connErr = func() error {
