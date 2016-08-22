@@ -12,16 +12,9 @@ import (
 	"time"
 )
 
-const (
-	defaultOutBulkCount = 50
-)
-
 type outSender interface {
-	Run()
-	Enabled() bool
-	Processing() bool
+	ioClient
 	Send(messages []string)
-	Close()
 }
 
 type outManager struct {

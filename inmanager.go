@@ -17,10 +17,7 @@ import (
 )
 
 type inProvider interface {
-	Run()
-	Enabled() bool
-	Processing() bool
-	Close()
+	ioClient
 }
 
 type bufferFile struct {

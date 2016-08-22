@@ -17,4 +17,6 @@ const (
 	maxBufferSize  = 10 * 1024 * 1024
 	minBufferCount = 10
 	maxBufferCount = 1000
+
+	defaultOutBulkCount = 50
 )
