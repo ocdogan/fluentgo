@@ -30,12 +30,11 @@ func newRedisIn(manager InOutManager, config *inOutConfig) *redisIn {
 	rio := newRedisIO(manager.GetLogger(), params)
 	if rio != nil {
 		cmd := strings.ToUpper(rio.command)
-
-		if !(cmd == psubs || cmd == subs) {
-			if strings.ContainsAny(rio.channel, psubschars) {
-				cmd = psubs
+		if !(cmd == psubscribe || cmd == subscribe) {
+			if strings.ContainsAny(rio.channel, psubscribechars) {
+				cmd = psubscribe
 			} else {
-				cmd = subs
+				cmd = subscribe
 			}
 			rio.command = cmd
 		}
@@ -68,32 +67,44 @@ func (ri *redisIn) funcUnsubscribe() {
 }
 
 func (ri *redisIn) funcSubscribe(conn redis.Conn) error {
-	var err error
+	var subsErr error
 	defer func() {
-		subsErr, _ := recover().(error)
-		if err == nil {
-			err = subsErr
+		err, _ := recover().(error)
+		if subsErr == nil {
+			subsErr = err
 		}
 	}()
 
 	psConn := &redis.PubSubConn{Conn: conn}
 
-	if ri.command == "PSUBSCRIBE" {
-		err = psConn.PSubscribe(ri.channel)
+	if ri.command == psubscribe {
+		subsErr = psConn.PSubscribe(ri.channel)
 	} else {
-		err = psConn.Subscribe(ri.channel)
+		subsErr = psConn.Subscribe(ri.channel)
 	}
 
-	if err == nil {
+	if subsErr == nil {
 		ri.pConn = psConn
 	} else {
 		ri.pConn = nil
 	}
-	return err
+	return subsErr
 }
 
 func (ri *redisIn) funcReceive() {
-	defer recover()
+	defer func() {
+		recover()
+
+		l := ri.GetLogger()
+		if l != nil {
+			l.Println("Stoping 'REDISIN'...")
+		}
+	}()
+
+	l := ri.GetLogger()
+	if l != nil {
+		l.Println("Starting 'REDISIN'...")
+	}
 
 	completed := false
 

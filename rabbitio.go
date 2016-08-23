@@ -152,17 +152,17 @@ func newRabbitIO(logger Logger, params map[string]interface{}) *rabbitIO {
 		compressed      bool
 	)
 
-	exchangeDeclare, _ = params["exchangeDeclare"].(bool)
-	queueBind, _ = params["queueBind"].(bool)
-	durable, _ = params["durable"].(bool)
-	autoDelete, _ = params["autoDelete"].(bool)
-	exclusive, _ = params["exclusive"].(bool)
-	nowait, _ = params["nowait"].(bool)
-	internal, _ = params["internal"].(bool)
-	autoAck, _ = params["autoAck"].(bool)
-	noLocal, _ = params["noLocal"].(bool)
+	exchangeDeclare, ok = params["exchangeDeclare"].(bool)
+	queueBind, ok = params["queueBind"].(bool)
+	durable, ok = params["durable"].(bool)
+	autoDelete, ok = params["autoDelete"].(bool)
+	exclusive, ok = params["exclusive"].(bool)
+	nowait, ok = params["nowait"].(bool)
+	internal, ok = params["internal"].(bool)
+	autoAck, ok = params["autoAck"].(bool)
+	noLocal, ok = params["noLocal"].(bool)
 
-	compressed, _ = params["compressed"].(bool)
+	compressed, ok = params["compressed"].(bool)
 
 	rio := &rabbitIO{
 		host:            host,

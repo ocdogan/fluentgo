@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"io/ioutil"
 	"os"
 	"time"
 )
@@ -112,6 +113,21 @@ func compress(data []byte) []byte {
 				return data
 			} else if n > 0 {
 				return buff.Bytes()
+			}
+		}
+	}
+	return nil
+}
+
+func decompress(data []byte) []byte {
+	if len(data) > 0 {
+		cmpReader, err := gzip.NewReader(bytes.NewReader(data))
+		if err == nil && cmpReader != nil {
+			defer cmpReader.Close()
+
+			data, err = ioutil.ReadAll(cmpReader)
+			if err != nil {
+				return data
 			}
 		}
 	}

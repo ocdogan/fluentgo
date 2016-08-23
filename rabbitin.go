@@ -88,7 +88,19 @@ func (ri *rabbitIn) validContentType(contentType string) bool {
 }
 
 func (ri *rabbitIn) funcReceive() {
-	defer recover()
+	defer func() {
+		recover()
+
+		l := ri.GetLogger()
+		if l != nil {
+			l.Println("Stoping 'RABBITIN'...")
+		}
+	}()
+
+	l := ri.GetLogger()
+	if l != nil {
+		l.Println("Starting 'RABBITIN'...")
+	}
 
 	completed := false
 

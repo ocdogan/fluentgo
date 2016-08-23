@@ -11,11 +11,6 @@ import (
 	"time"
 )
 
-const (
-	minLogSize = 2 * 1024
-	maxLogSize = 10 * 1024 * 1024
-)
-
 var (
 	newline = []byte("\n")
 )

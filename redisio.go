@@ -66,7 +66,7 @@ func newRedisIO(logger Logger, params map[string]interface{}) *redisIO {
 	}
 
 	var compressed bool
-	compressed, _ = params["compressed"].(bool)
+	compressed, ok = params["compressed"].(bool)
 
 	rio := &redisIO{
 		db:         db,
@@ -91,11 +91,52 @@ func (rio *redisIO) funcAfterClose() {
 	}
 }
 
-func (rio *redisIO) tryToCloseConn(conn redis.Conn) {
+func (rio *redisIO) tryToCloseConn(conn redis.Conn) error {
+	var closeErr error
 	if conn != nil {
-		defer recover()
-		conn.Close()
+		defer func() {
+			err := recover()
+			if closeErr == nil {
+				closeErr, _ = err.(error)
+			}
+		}()
+		closeErr = conn.Close()
 	}
+	return closeErr
+}
+
+func (rio *redisIO) selectDb(conn redis.Conn) error {
+	var connErr error
+	defer func() {
+		err := recover()
+		if err != nil && connErr == nil {
+			defer recover()
+			connErr, _ = err.(error)
+			rio.tryToCloseConn(conn)
+		}
+	}()
+
+	_, connErr = conn.Do("SELECT", rio.db)
+	return connErr
+}
+
+func (rio *redisIO) runConnFunc(conn redis.Conn) error {
+	var funcErr error
+
+	cfn := rio.connFunc
+	if cfn != nil {
+		defer func() {
+			err := recover()
+			if err != nil && funcErr == nil {
+				defer recover()
+				funcErr, _ = err.(error)
+				conn.Close()
+			}
+		}()
+
+		funcErr = cfn(conn)
+	}
+	return funcErr
 }
 
 func (rio *redisIO) Connect() {
@@ -128,28 +169,12 @@ func (rio *redisIO) Connect() {
 		conn = getPool(rio.server, rio.password, rio.logger).Get()
 
 		if conn != nil {
-			conn.Do("SELECT", rio.db)
-
-			if rio.connFunc != nil {
-				connErr = func() error {
-					var connFuncErr error
-					defer func() {
-						err := recover()
-						if err != nil {
-							defer recover()
-							connFuncErr, _ = err.(error)
-							conn.Close()
-						}
-					}()
-
-					connFuncErr = rio.connFunc(conn)
-					return connFuncErr
-				}()
-
-				if connErr != nil && rio.logger != nil {
-					rio.logger.Println(connErr)
-				}
+			connErr = rio.selectDb(conn)
+			if connErr != nil && rio.logger != nil {
+				rio.logger.Println(connErr)
 			}
+
+			connErr = rio.runConnFunc(conn)
 		}
 
 		if connErr == nil {
