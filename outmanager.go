@@ -213,8 +213,8 @@ func (m *outManager) trySend(messages []string) (ret []string) {
 				wg := WorkGroup{}
 
 				for _, out := range m.outputs {
-					wg.Add(1)
 					if m.Processing() && out.Enabled() {
+						wg.Add(1)
 						go m.send(out, messages, &wg)
 					}
 				}
@@ -279,6 +279,7 @@ func (m *outManager) processOutputs() {
 				atomic.CompareAndSwapInt32(&m.processingFiles, 0, 1) {
 				go m.processFiles()
 			}
+			time.Sleep(time.Millisecond)
 		}
 
 		if completed {

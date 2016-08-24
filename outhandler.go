@@ -85,63 +85,60 @@ func (o *outHandler) Send(messages []string) {
 		}
 	}()
 
-	destination := o.GetDestination()
-	if destination != "" {
-		mlen := len(messages)
-		if mlen > 0 {
-			chunkCount := mlen / o.chunkLength
-			if mlen%o.chunkLength > 0 {
-				chunkCount++
-			}
+	mlen := len(messages)
+	if mlen > 0 {
+		chunkCount := mlen / o.chunkLength
+		if mlen%o.chunkLength > 0 {
+			chunkCount++
+		}
 
-			var (
-				chunkLen, chunkStart, chunkEnd int
-			)
+		var (
+			chunkLen, chunkStart, chunkEnd int
+		)
 
-			if o.concurrency > 1 && chunkCount > 1 {
-				wg := WorkGroup{}
-				lastIndex := chunkCount - 1
+		destination := o.GetDestination()
+		if o.concurrency > 1 && chunkCount > 1 {
+			wg := WorkGroup{}
+			lastIndex := chunkCount - 1
 
-				for i := 0; i < chunkCount; i++ {
-					if o.Processing() {
-						return
-					}
-
-					chunkStart = i * o.chunkLength
-					chunkEnd = minInt(chunkStart+o.chunkLength, mlen)
-
-					chunkLen = chunkEnd - chunkStart
-					if chunkLen > 0 {
-						wg.Add(1)
-
-						chunk := make([]string, chunkLen)
-						copy(chunk, messages[chunkStart:chunkEnd])
-
-						go o.sendChunkAsync(chunk, destination, &wg)
-					}
-
-					if i == lastIndex || wg.Count() == o.concurrency {
-						wg.Wait()
-					}
+			for i := 0; i < chunkCount; i++ {
+				if !o.Processing() {
+					return
 				}
 
-				wg.Wait()
-			} else {
-				for i := 0; i < chunkCount; i++ {
-					if o.Processing() {
-						return
-					}
+				chunkStart = i * o.chunkLength
+				chunkEnd = minInt(chunkStart+o.chunkLength, mlen)
 
-					chunkStart = i * o.chunkLength
-					chunkEnd = minInt(chunkStart+o.chunkLength, mlen)
+				chunkLen = chunkEnd - chunkStart
+				if chunkLen > 0 {
+					chunk := make([]string, chunkLen)
+					copy(chunk, messages[chunkStart:chunkEnd])
 
-					chunkLen = chunkEnd - chunkStart
-					if chunkLen > 0 {
-						chunk := make([]string, chunkLen)
-						copy(chunk, messages[chunkStart:chunkEnd])
+					wg.Add(1)
+					go o.sendChunkAsync(chunk, destination, &wg)
+				}
 
-						o.sendChunk(chunk, destination)
-					}
+				if i == lastIndex || wg.Count() == o.concurrency {
+					wg.Wait()
+				}
+			}
+
+			wg.Wait()
+		} else {
+			for i := 0; i < chunkCount; i++ {
+				if !o.Processing() {
+					return
+				}
+
+				chunkStart = i * o.chunkLength
+				chunkEnd = minInt(chunkStart+o.chunkLength, mlen)
+
+				chunkLen = chunkEnd - chunkStart
+				if chunkLen > 0 {
+					chunk := make([]string, chunkLen)
+					copy(chunk, messages[chunkStart:chunkEnd])
+
+					o.sendChunk(chunk, destination)
 				}
 			}
 		}

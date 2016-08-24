@@ -185,6 +185,8 @@ func newElasticOut(manager InOutManager, config *inOutConfig) *elasticOut {
 		indexPrefix: indexPrefix,
 	}
 
+	eo.iotype = "ELASTICOUT"
+
 	eo.runFunc = eo.funcWait
 	eo.afterCloseFunc = eo.funcAfterClose
 	eo.getDestinationFunc = eo.funcGetIndexName

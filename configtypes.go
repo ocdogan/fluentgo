@@ -70,6 +70,9 @@ type outputsConfig struct {
 }
 
 type fluentConfig struct {
+	MemProfile  string        `json:"memprofile"`
+	CPUProfile  string        `json:"cpuprofile"`
+	ProfileURL  string        `json:"profileURL"`
 	ServiceMode string        `json:"serviceMode"`
 	Log         logConfig     `json:"log"`
 	Inputs      inputsConfig  `json:"inputs"`

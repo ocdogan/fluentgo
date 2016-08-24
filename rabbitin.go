@@ -34,6 +34,8 @@ func newRabbitIn(manager InOutManager, config *inOutConfig) *rabbitIn {
 			inHandler: *ih,
 		}
 
+		ri.iotype = "RABBITIN"
+
 		ri.runFunc = ri.funcReceive
 		ri.connFunc = ri.funcSubscribe
 		ri.afterCloseFunc = ri.funcUnsubscribe

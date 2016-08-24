@@ -7,10 +7,14 @@ import (
 	"time"
 )
 
-func scheduleMemProfiler(memproFile string, quit <-chan bool) {
+func scheduleMemProfiler(memproFile string, logger Logger, quit <-chan bool) {
 	defer recover()
 
 	if memproFile != "" {
+		if logger != nil {
+			logger.Printf("Profiling memory to %s", memproFile)
+		}
+
 		ticker := time.NewTicker(1 * time.Second)
 		go func() {
 			defer recover()

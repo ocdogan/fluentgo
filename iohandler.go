@@ -6,6 +6,7 @@ import (
 
 type ioHandler struct {
 	enabled         bool
+	iotype          string
 	processing      int32
 	runFunc         func()
 	beforeCloseFunc func()
@@ -29,6 +30,10 @@ func newIOHandler(manager InOutManager, params map[string]interface{}) *ioHandle
 		manager:   manager,
 		completed: make(chan bool),
 	}
+}
+
+func (ioh *ioHandler) GetIOType() string {
+	return ioh.iotype
 }
 
 func (ioh *ioHandler) GetLogger() Logger {

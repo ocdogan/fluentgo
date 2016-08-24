@@ -6,10 +6,14 @@ import (
 	"runtime/pprof"
 )
 
-func scheduleCPUProfiler(cpuproFile string) func() {
+func scheduleCPUProfiler(cpuproFile string, logger Logger) func() {
 	defer recover()
 
 	if cpuproFile != "" {
+		if logger != nil {
+			logger.Printf("Profiling CPU to %s", cpuproFile)
+		}
+
 		f, err := os.Create(cpuproFile)
 		if err != nil {
 			log.Fatal(err)

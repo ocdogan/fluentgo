@@ -29,14 +29,16 @@ func newRedisOut(manager InOutManager, config *inOutConfig) *redisOut {
 	rio := newRedisIO(manager.GetLogger(), params)
 	if rio != nil {
 		cmd := strings.ToUpper(rio.command)
-		if !(cmd == "PUBLISH" || cmd == "LPUSH" || cmd == "RPUSH") {
-			rio.command = "PUBLISH"
+		if !(cmd == publish || cmd == lpush || cmd == rpush) {
+			rio.command = publish
 		}
 
 		ro := &redisOut{
 			redisIO:    *rio,
 			outHandler: *oh,
 		}
+
+		ro.iotype = "REDISOUT"
 
 		ro.runFunc = ro.funcWait
 		ro.connFunc = ro.funcPing

@@ -3,14 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var (
 	configPath  = flag.String("config", "", "The config.json file fully qualified path.")
+	profileURL  = flag.String("profileURL", "", "Http endpoint serving profile data.")
 	cpuproFile  = flag.String("cpuprofile", "", "write CPU profile to file")
 	memproFile  = flag.String("memprofile", "", "write mem profile to file")
 	servicemode = flag.String("servicemode", "", "defines how fluentgo service will act [pub|sub|pubsub]")
@@ -26,18 +30,30 @@ func main() {
 	flag.Parse()
 
 	listenQuitSignal(quitSignal)
-	scheduleMemProfiler(*memproFile, quitSignal)
 
-	fn := scheduleCPUProfiler(*cpuproFile)
+	config := loadConfig(*configPath)
+	logger := newLogger(&config.Log)
+
+	mpFile := getMemProFile(config)
+	cpFile := getCPUProFile(config)
+
+	profURL := getProfileURL(config)
+	if profURL != "" {
+		go func() {
+			defer recover()
+			logger.Println(http.ListenAndServe(profURL, nil))
+		}()
+	}
+
+	scheduleMemProfiler(mpFile, logger, quitSignal)
+
+	fn := scheduleCPUProfiler(cpFile, logger)
 	if fn != nil {
 		defer func() {
 			defer recover()
 			fn()
 		}()
 	}
-
-	config := loadConfig(*configPath)
-	logger := newLogger(&config.Log)
 
 	smode, ok := getServiceMode(config)
 
@@ -48,6 +64,38 @@ func main() {
 	}
 
 	process(smode, config, logger, quitSignal)
+}
+
+func getProfileURL(config *fluentConfig) string {
+	url := *profileURL
+	if url == "" {
+		url = config.ProfileURL
+	}
+	return strings.TrimSpace(url)
+}
+
+func getMemProFile(config *fluentConfig) string {
+	proFile := *memproFile
+	if proFile == "" {
+		proFile = config.MemProfile
+	}
+
+	if proFile != "" {
+		proFile = time.Now().Format(proFile)
+	}
+	return strings.TrimSpace(proFile)
+}
+
+func getCPUProFile(config *fluentConfig) string {
+	proFile := *cpuproFile
+	if proFile == "" {
+		proFile = config.CPUProfile
+	}
+
+	if proFile != "" {
+		proFile = time.Now().Format(proFile)
+	}
+	return strings.TrimSpace(proFile)
 }
 
 func process(smode string, config *fluentConfig, logger Logger, quitSignal <-chan bool) {
@@ -99,6 +147,8 @@ func waitManagers(im *inManager, om *outManager, imCompleted, omCompleted, quitS
 		case <-omCompleted:
 			omactive = false
 		}
+
+		time.Sleep(time.Millisecond)
 	}
 }
 

@@ -44,6 +44,8 @@ func newRedisIn(manager InOutManager, config *inOutConfig) *redisIn {
 			inHandler: *ih,
 		}
 
+		ri.iotype = "REDISIN"
+
 		ri.runFunc = ri.funcReceive
 		ri.connFunc = ri.funcSubscribe
 		ri.afterCloseFunc = ri.funcUnsubscribe

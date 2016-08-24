@@ -36,6 +36,8 @@ func newRabbitOut(manager InOutManager, config *inOutConfig) *rabbitOut {
 			immediate:  immediate,
 		}
 
+		ro.iotype = "RABBITOUT"
+
 		ro.runFunc = ro.funcWait
 		ro.connFunc = ro.funcSubscribe
 
