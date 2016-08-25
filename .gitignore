@@ -8,3 +8,4 @@ debug
 *.buf
 *.prf
 *.exe
+config.json

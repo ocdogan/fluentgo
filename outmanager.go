@@ -227,7 +227,6 @@ func (m *outManager) trySend(messages []string) (ret []string) {
 }
 
 func (m *outManager) processOutputs() {
-	completed := false
 	completeSignal := m.completed
 
 	defer func() {
@@ -249,7 +248,7 @@ func (m *outManager) processOutputs() {
 			}
 		}
 
-		if !completed && completeSignal != nil {
+		if completeSignal != nil {
 			func() {
 				defer recover()
 				completeSignal <- true
@@ -269,21 +268,58 @@ func (m *outManager) processOutputs() {
 		}
 	}
 
-	for {
-		select {
-		case <-completeSignal:
-			completed = true
-			continue
-		default:
-			if !completed && m.Processing() &&
-				atomic.CompareAndSwapInt32(&m.processingFiles, 0, 1) {
-				go m.processFiles()
-			}
-			time.Sleep(time.Millisecond)
+	m.processFiles()
+}
+
+func (m *outManager) processFiles() {
+	if atomic.CompareAndSwapInt32(&m.processingFiles, 0, 1) {
+		defer func() {
+			recover()
+			atomic.StoreInt32(&m.processingFiles, 0)
+
+			m.DoSleep()
+		}()
+
+		if len(m.outputs) == 0 || m.dataPath == "" {
+			return
 		}
 
-		if completed {
-			return
+		var messages []string
+		fileErrors := make(map[string]struct{})
+
+		for m.Processing() {
+			if exists, _ := pathExists(m.dataPath); !exists {
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			filenames, err := filepath.Glob(m.dataPattern)
+			if err != nil || len(filenames) == 0 {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			filenames = filenames[:minInt(10, len(filenames))]
+
+			for _, fname := range filenames {
+				if !m.Processing() {
+					return
+				}
+
+				if _, ok := fileErrors[fname]; !ok {
+					messages = m.processFile(fname, messages)
+					if ok, _ := fileExists(fname); ok {
+						fileErrors[fname] = struct{}{}
+					}
+				}
+
+				// If there is any message left, process the remaining messages
+				if len(messages) > 0 {
+					messages = m.trySend(messages)
+				}
+			}
+
+			m.DoSleep()
 		}
 	}
 }
@@ -463,49 +499,4 @@ func (m *outManager) processFile(filename string, messages []string) (ret []stri
 	}
 
 	return ret
-}
-
-func (m *outManager) processFiles() {
-	defer func() {
-		recover()
-		atomic.StoreInt32(&m.processingFiles, 0)
-
-		m.DoSleep()
-	}()
-
-	if len(m.outputs) == 0 || m.dataPath == "" {
-		return
-	}
-
-	var messages []string
-	fileErrors := make(map[string]bool)
-
-	for m.Processing() {
-		if exists, _ := pathExists(m.dataPath); !exists {
-			time.Sleep(5 * time.Second)
-			continue
-		}
-
-		filenames, err := filepath.Glob(m.dataPattern)
-		if err != nil || len(filenames) == 0 {
-			time.Sleep(time.Second)
-			continue
-		}
-
-		filenames = filenames[:minInt(10, len(filenames))]
-
-		for _, fname := range filenames {
-			if !m.Processing() {
-				return
-			}
-
-			messages = m.processFile(fname, messages)
-			if ok, _ := fileExists(fname); ok {
-				fileErrors[fname] = true
-			}
-
-			// If there is any message left, process the remaining messages
-			messages = m.trySend(messages)
-		}
-	}
 }
