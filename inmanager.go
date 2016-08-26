@@ -45,7 +45,7 @@ type inManager struct {
 	timestampFormat string
 	inputs          []inProvider
 	logger          Logger
-	queue           *DataQueue
+	queue           *InQueue
 	bufFile         *bufferFile
 	completed       chan bool
 }
@@ -94,7 +94,7 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 		maxMessageSize:  maxMessageSize,
 	}
 
-	manager.queue = NewDataQueue(manager.getQueueMaxCount(config), manager.getQueueMaxSize(config))
+	manager.queue = NewInQueue(manager.getQueueMaxCount(config), manager.getQueueMaxSize(config))
 	manager.maxCount = manager.getBufferMaxCount(config)
 	manager.maxSize = manager.getBufferMaxSize(config)
 	manager.prefix = manager.getBufferFilenamePrefix(config)

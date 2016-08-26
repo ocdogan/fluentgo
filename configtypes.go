@@ -66,6 +66,7 @@ type outputsConfig struct {
 	FlushOnEvery     time.Duration `json:"flushOnEvery"`
 	SleepOnEvery     time.Duration `json:"sleepOnEvery"`
 	SleepForMillisec time.Duration `json:"sleepForMillisec"`
+	Queue            queueConfig   `json:"queue"`
 	Consumers        []inOutConfig `json:"consumers"`
 }
 

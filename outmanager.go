@@ -285,7 +285,7 @@ func (m *outManager) processFiles() {
 		}
 
 		var messages []string
-		fileErrors := make(map[string]struct{})
+		erroneousFiles := make(map[string]struct{})
 
 		for m.Processing() {
 			if exists, _ := pathExists(m.dataPath); !exists {
@@ -299,17 +299,15 @@ func (m *outManager) processFiles() {
 				continue
 			}
 
-			filenames = filenames[:minInt(10, len(filenames))]
-
 			for _, fname := range filenames {
 				if !m.Processing() {
 					return
 				}
 
-				if _, ok := fileErrors[fname]; !ok {
+				if _, ok := erroneousFiles[fname]; !ok {
 					messages = m.processFile(fname, messages)
 					if ok, _ := fileExists(fname); ok {
-						fileErrors[fname] = struct{}{}
+						erroneousFiles[fname] = struct{}{}
 					}
 				}
 

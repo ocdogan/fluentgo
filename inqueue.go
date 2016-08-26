@@ -5,18 +5,18 @@ import (
 	"sync"
 )
 
-type node struct {
+type inQNode struct {
 	id   uint32
-	prev *node
-	next *node
+	prev *inQNode
+	next *inQNode
 	data []byte
 }
 
-type DataQueue struct {
+type InQueue struct {
 	sync.Mutex
 	idgen    uint32
-	head     *node
-	tail     *node
+	head     *inQNode
+	tail     *inQNode
 	cnt      int
 	sz       uint64
 	maxCount int
@@ -24,19 +24,19 @@ type DataQueue struct {
 	ready    chan bool
 }
 
-func NewDataQueue(maxCount int, maxSize uint64) *DataQueue {
-	return &DataQueue{
+func NewInQueue(maxCount int, maxSize uint64) *InQueue {
+	return &InQueue{
 		maxCount: maxCount,
 		maxSize:  maxSize,
 		ready:    make(chan bool),
 	}
 }
 
-func (q *DataQueue) Ready() <-chan bool {
+func (q *InQueue) Ready() <-chan bool {
 	return q.ready
 }
 
-func (q *DataQueue) Push(data []byte) {
+func (q *InQueue) Push(data []byte) {
 	func() {
 		q.Lock()
 		defer q.Unlock()
@@ -46,7 +46,7 @@ func (q *DataQueue) Push(data []byte) {
 	q.ready <- true
 }
 
-func (q *DataQueue) nextID() uint32 {
+func (q *InQueue) nextID() uint32 {
 	q.idgen++
 	id := q.idgen
 	if id == math.MaxUint32 {
@@ -56,8 +56,8 @@ func (q *DataQueue) nextID() uint32 {
 	return id
 }
 
-func (q *DataQueue) pushData(data []byte) {
-	n := &node{
+func (q *InQueue) pushData(data []byte) {
+	n := &inQNode{
 		id:   q.nextID(),
 		data: data,
 		prev: q.tail,
@@ -79,14 +79,14 @@ func (q *DataQueue) pushData(data []byte) {
 	}
 }
 
-func (q *DataQueue) Pop() (data []byte, ok bool) {
+func (q *InQueue) Pop() (data []byte, ok bool) {
 	q.Lock()
 	defer q.Unlock()
 
 	return q.popData()
 }
 
-func (q *DataQueue) popData() (data []byte, ok bool) {
+func (q *InQueue) popData() (data []byte, ok bool) {
 	if q.head != nil {
 		n := q.head
 		q.head = q.head.next
@@ -117,7 +117,7 @@ func (q *DataQueue) popData() (data []byte, ok bool) {
 	return nil, false
 }
 
-func (q *DataQueue) Count() int {
+func (q *InQueue) Count() int {
 	q.Lock()
 	count := q.cnt
 	q.Unlock()
