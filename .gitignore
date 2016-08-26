@@ -4,6 +4,7 @@
 *.zip
 
 debug
+fluentgo
 
 *.buf
 *.prf
