@@ -28,12 +28,13 @@ type outManager struct {
 	flushOnEvery    time.Duration
 	sleepForMSec    time.Duration
 	sleepOnEvery    time.Duration
-	lastSleepTime   time.Time
 	lastFlushTime   time.Time
-	logger          Logger
-	outputs         []outSender
 	processing      int32
 	processingFiles int32
+	processingQueue int32
+	outQ            *outQueue
+	logger          Logger
+	outputs         []outSender
 	completed       chan bool
 }
 
@@ -55,7 +56,7 @@ func newOutManager(config *fluentConfig, logger Logger) *outManager {
 	sleepOnEvery := time.Duration(minInt64(60000, maxInt64(1, int64(config.Outputs.SleepOnEvery)))) * time.Second
 	sleepForMSec := time.Duration(minInt64(30000, maxInt64(1, int64(config.Outputs.SleepForMillisec)))) * time.Millisecond
 
-	dataPath := getDataPath(config)
+	dataPath := getOutQueueDataPath(config)
 
 	dataPath, _ = filepath.Abs(dataPath)
 	if dataPath[len(dataPath)-1] != os.PathSeparator {
@@ -91,56 +92,17 @@ func newOutManager(config *fluentConfig, logger Logger) *outManager {
 		sleepForMSec:    sleepForMSec,
 		sleepOnEvery:    sleepOnEvery,
 		lastFlushTime:   time.Now(),
-		lastSleepTime:   time.Now(),
 		logger:          logger,
 	}
+
+	manager.outQ = newOutQueue(manager.getQueueParams(config))
 
 	manager.setOutputs(&config.Outputs)
 
 	return manager
 }
 
-func (m *outManager) GetMaxMessageSize() int {
-	return m.maxMessageSize
-}
-
-func (m *outManager) GetQueue() *DataQueue {
-	return nil
-}
-
-func (m *outManager) GetLogger() Logger {
-	return m.logger
-}
-
-func (m *outManager) Close() {
-	defer recover()
-
-	if m.Processing() {
-		c := m.completed
-		if c != nil {
-			defer func() {
-				m.completed = nil
-			}()
-			close(c)
-		}
-	}
-}
-
-func (m *outManager) Processing() bool {
-	return atomic.LoadInt32(&m.processing) != 0
-}
-
-func (m *outManager) Process() (completed <-chan bool) {
-	if atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		if len(m.outputs) > 0 {
-			m.completed = make(chan bool)
-			go m.processOutputs()
-		}
-	}
-	return m.completed
-}
-
-func getDataPath(config *fluentConfig) string {
+func getOutQueueDataPath(config *fluentConfig) string {
 	dataPath := filepath.Clean(strings.TrimSpace(config.Outputs.Path))
 	if dataPath == "" || dataPath == "." {
 		dataPath = "." + string(os.PathSeparator) +
@@ -150,6 +112,14 @@ func getDataPath(config *fluentConfig) string {
 		dataPath += string(os.PathSeparator)
 	}
 	return dataPath
+}
+
+func (m *outManager) getQueueParams(config *fluentConfig) (chunkSize, maxCount int, popWaitTime time.Duration) {
+	chunkSize = config.Outputs.Queue.ChunkSize
+	maxCount = config.Outputs.Queue.MaxCount
+	popWaitTime = config.Outputs.Queue.PopWaitTime
+
+	return
 }
 
 func (m *outManager) setOutputs(config *outputsConfig) {
@@ -183,51 +153,63 @@ func (m *outManager) setOutputs(config *outputsConfig) {
 	}
 }
 
-func (m *outManager) send(sender outSender, messages []string, wg *WorkGroup) {
-	defer wg.Done()
-	if sender != nil {
-		sender.Send(messages)
-	}
+func (m *outManager) GetMaxMessageSize() int {
+	return m.maxMessageSize
 }
 
-func (m *outManager) trySend(messages []string) (ret []string) {
-	defer func() {
-		recover()
-		m.DoSleep()
-	}()
+func (m *outManager) GetInQueue() *inQueue {
+	return nil
+}
 
-	ret = messages
-	if ret != nil && m.Processing() {
-		mlen := len(ret)
-		if mlen > 0 {
-			send := mlen == m.bulkCount ||
-				time.Now().Sub(m.lastFlushTime) >= m.flushOnEvery
+func (m *outManager) GetOutQueue() *outQueue {
+	return m.outQ
+}
 
-			if send && m.Processing() {
-				m.lastFlushTime = time.Now()
-				defer func() {
-					recover()
-					ret = nil
-				}()
+func (m *outManager) GetLogger() Logger {
+	return m.logger
+}
 
-				wg := WorkGroup{}
+func (m *outManager) Close() {
+	defer recover()
 
-				for _, out := range m.outputs {
-					if m.Processing() && out.Enabled() {
-						wg.Add(1)
-						go m.send(out, messages, &wg)
-					}
-				}
-
-				wg.Wait()
-			}
+	if m.Processing() {
+		c := m.completed
+		if c != nil {
+			defer func() {
+				m.completed = nil
+			}()
+			close(c)
 		}
 	}
-	return ret
 }
 
-func (m *outManager) processOutputs() {
-	completeSignal := m.completed
+func (m *outManager) Processing() bool {
+	return atomic.LoadInt32(&m.processing) != 0
+}
+
+func (m *outManager) Process() (completed <-chan bool) {
+	if atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+		if len(m.outputs) > 0 {
+			m.completed = make(chan bool)
+			go m.feedOutputs()
+		}
+	}
+	return m.completed
+}
+
+func (m *outManager) closeOutputs() {
+	if len(m.outputs) > 0 {
+		for _, out := range m.outputs {
+			func() {
+				defer recover()
+				out.Close()
+			}()
+		}
+	}
+}
+
+func (m *outManager) feedOutputs() {
+	completed := m.completed
 
 	defer func() {
 		defer recover()
@@ -239,19 +221,12 @@ func (m *outManager) processOutputs() {
 			m.logger.Println("Stopping 'OUT' manager...")
 		}
 
-		if m.outputs != nil {
-			for _, out := range m.outputs {
-				func() {
-					defer recover()
-					out.Close()
-				}()
-			}
-		}
+		m.closeOutputs()
 
-		if completeSignal != nil {
+		if completed != nil {
 			func() {
 				defer recover()
-				completeSignal <- true
+				completed <- true
 			}()
 		}
 	}()
@@ -268,24 +243,46 @@ func (m *outManager) processOutputs() {
 		}
 	}
 
-	m.processFiles()
+	var (
+		allCompleted bool
+	)
+
+	filesProcessed := make(chan bool)
+	go m.processFiles(filesProcessed)
+
+	queueProcessed := make(chan bool)
+	go m.processQueue(queueProcessed)
+
+	select {
+	case <-filesProcessed:
+		if allCompleted {
+			return
+		}
+		filesProcessed := make(chan bool)
+		go m.processFiles(filesProcessed)
+	case <-queueProcessed:
+		return
+	case <-completed:
+		allCompleted = true
+		return
+	}
 }
 
-func (m *outManager) processFiles() {
+func (m *outManager) processFiles(filesProcessed chan<- bool) {
 	if atomic.CompareAndSwapInt32(&m.processingFiles, 0, 1) {
 		defer func() {
 			recover()
 			atomic.StoreInt32(&m.processingFiles, 0)
 
-			m.DoSleep()
+			time.Sleep(100 * time.Millisecond)
+			close(filesProcessed)
 		}()
 
 		if len(m.outputs) == 0 || m.dataPath == "" {
 			return
 		}
 
-		var messages []string
-		erroneousFiles := make(map[string]struct{})
+		fileErrors := make(map[string]struct{})
 
 		for m.Processing() {
 			if exists, _ := pathExists(m.dataPath); !exists {
@@ -299,26 +296,235 @@ func (m *outManager) processFiles() {
 				continue
 			}
 
+			filenames = filenames[:minInt(10, len(filenames))]
+
+			lastSleepTime := time.Now()
+
 			for _, fname := range filenames {
 				if !m.Processing() {
 					return
 				}
 
-				if _, ok := erroneousFiles[fname]; !ok {
-					messages = m.processFile(fname, messages)
+				if _, ok := fileErrors[fname]; !ok {
+					if m.DoSleep(lastSleepTime) {
+						lastSleepTime = time.Now()
+					}
+
+					m.processFile(fname)
 					if ok, _ := fileExists(fname); ok {
-						erroneousFiles[fname] = struct{}{}
+						fileErrors[fname] = struct{}{}
 					}
 				}
+			}
+		}
+	}
+}
 
-				// If there is any message left, process the remaining messages
-				if len(messages) > 0 {
-					messages = m.trySend(messages)
+func (m *outManager) waitForPush() {
+	i := 0
+	// wait for push
+	for m.Processing() &&
+		m.outQ != nil && !m.outQ.CanPush() {
+
+		i++
+		time.Sleep(time.Duration(i) * time.Millisecond)
+		if i >= 25 {
+			i = 0
+		}
+	}
+}
+
+func (m *outManager) pushToQueue(data string) {
+	if m.outQ != nil && m.Processing() {
+		m.waitForPush()
+		m.outQ.Push(data)
+	}
+}
+
+func (m *outManager) processFile(filename string) {
+	defer recover()
+
+	m.waitForPush()
+
+	f, err := os.OpenFile(filename, os.O_RDONLY, 0666)
+	if err != nil || f == nil {
+		f = nil
+		return
+	}
+
+	defer func() {
+		defer m.fileProcessed(filename)
+		if f != nil {
+			f.Close()
+		}
+	}()
+
+	st, err := f.Stat()
+	if err != nil {
+		return
+	}
+
+	fsize := st.Size()
+	if fsize < 4 {
+		return
+	}
+
+	stamp := make([]byte, 4)
+
+	// Check the FILE_END stamp
+	n, err := f.ReadAt(stamp, fsize-4)
+	if err != nil || n != 4 {
+		return
+	}
+
+	f.Seek(0, 0)
+
+	var (
+		data        []byte
+		ln          int
+		hasData     bool
+		start, stop uint32
+	)
+
+	for m.Processing() {
+		// Read START stamp
+		n, err = f.Read(stamp)
+		if n == 0 || err != nil {
+			break
+		}
+
+		start = binary.BigEndian.Uint32(stamp)
+		if start != 0 {
+			break
+		}
+
+		// Read data length
+		n, err = f.Read(stamp)
+		if n == 0 || err != nil {
+			break
+		}
+
+		ln = int(binary.BigEndian.Uint32(stamp))
+		if ln > InvalidMessageSize {
+			break
+		}
+
+		hasData = ln > 0
+
+		// Read message data
+		if hasData {
+			if m.maxMessageSize > 0 && ln > m.maxMessageSize {
+				_, err = f.Seek(int64(ln), 1)
+				if err != nil {
+					break
 				}
+			} else {
+				if data == nil || ln > cap(data) {
+					data = make([]byte, ln)
+				} else {
+					data = data[0:ln]
+				}
+
+				n, err = f.Read(data)
+				if n != ln || err != nil {
+					break
+				}
+
+				data = m.appendTimestamp(data)
 			}
 
-			m.DoSleep()
+			hasData = len(data) > 0
 		}
+
+		// Read STOP stamp
+		n, err = f.Read(stamp)
+		if n == 0 || err != nil {
+			break
+		}
+
+		stop = binary.BigEndian.Uint32(stamp)
+		if stop != 0 {
+			break
+		}
+
+		// Process message
+		if hasData {
+			m.pushToQueue(string(data))
+		}
+
+		if !m.Processing() {
+			return
+		}
+	}
+
+	return
+}
+
+func (m *outManager) waitForPop() {
+	// wait for push
+	i := 0
+	for m.Processing() &&
+		m.outQ != nil && !m.outQ.CanPop() {
+
+		i++
+		time.Sleep(time.Duration(i) * time.Millisecond)
+		if i >= 25 {
+			break
+		}
+	}
+}
+
+func (m *outManager) processQueue(queueProcessed chan<- bool) {
+	if atomic.CompareAndSwapInt32(&m.processingQueue, 0, 1) {
+		defer func() {
+			recover()
+			atomic.StoreInt32(&m.processingQueue, 0)
+
+			time.Sleep(100 * time.Millisecond)
+			close(queueProcessed)
+		}()
+
+		if len(m.outputs) == 0 {
+			return
+		}
+
+		for m.Processing() {
+			m.waitForPop()
+
+			if m.outQ == nil {
+				return
+			}
+
+			chunk, ok := m.outQ.Pop(true)
+			if ok && len(chunk) > 0 {
+				m.tryToSend(chunk)
+			}
+		}
+	}
+}
+
+func (m *outManager) tryToSend(messages []string) {
+	defer recover()
+
+	if m.Processing() && len(messages) > 0 {
+		func() {
+			wg := WorkGroup{}
+			defer wg.Wait()
+
+			for _, out := range m.outputs {
+				if out.Enabled() && m.Processing() {
+					wg.Add(1)
+					go m.send(out, messages, &wg)
+				}
+			}
+		}()
+	}
+}
+
+func (m *outManager) send(to outSender, messages []string, wg *WorkGroup) {
+	defer wg.Done()
+	if to != nil && m.Processing() {
+		to.Send(messages)
 	}
 }
 
@@ -343,10 +549,8 @@ func (m *outManager) fileProcessed(filename string) {
 	os.Remove(filename)
 }
 
-func (m *outManager) DoSleep() bool {
-	t := time.Now()
-	if t.Sub(m.lastSleepTime) >= m.sleepOnEvery {
-		m.lastSleepTime = t
+func (m *outManager) DoSleep(lastSleepTime time.Time) bool {
+	if time.Now().Sub(lastSleepTime) >= m.sleepOnEvery {
 		time.Sleep(m.sleepForMSec)
 		return true
 	}
@@ -379,122 +583,4 @@ func (m *outManager) appendTimestamp(data []byte) []byte {
 		}
 	}
 	return data
-}
-
-func (m *outManager) processFile(filename string, messages []string) (ret []string) {
-	ret = messages
-	defer func() {
-		recover()
-		m.DoSleep()
-	}()
-
-	f, err := os.OpenFile(filename, os.O_RDONLY, 0666)
-	if err != nil || f == nil {
-		f = nil
-		return ret
-	}
-
-	defer func() {
-		defer m.fileProcessed(filename)
-		if f != nil {
-			f.Close()
-		}
-	}()
-
-	st, err := f.Stat()
-	if err != nil {
-		return ret
-	}
-
-	fsize := st.Size()
-	if fsize < 4 {
-		return ret
-	}
-
-	stamp := make([]byte, 4)
-
-	// Check the FILE_END stamp
-	n, err := f.ReadAt(stamp, fsize-4)
-	if err != nil || n != 4 {
-		return
-	}
-
-	f.Seek(0, 0)
-
-	var (
-		msg         []byte
-		ln          int
-		start, stop uint32
-	)
-
-	for m.Processing() {
-		// Read START stamp
-		n, err = f.Read(stamp)
-		if n == 0 || err != nil {
-			break
-		}
-
-		start = binary.BigEndian.Uint32(stamp)
-		if start != 0 {
-			break
-		}
-
-		// Read data length
-		n, err = f.Read(stamp)
-		if n == 0 || err != nil {
-			break
-		}
-
-		ln = int(binary.BigEndian.Uint32(stamp))
-		if ln > InvalidMessageSize {
-			break
-		}
-
-		// Read message data
-		if ln > 0 {
-			if m.maxMessageSize > 0 && ln > m.maxMessageSize {
-				_, err = f.Seek(int64(ln), 1)
-				if err != nil {
-					break
-				}
-			} else {
-				if msg == nil || ln > cap(msg) {
-					msg = make([]byte, ln)
-				} else {
-					msg = msg[0:ln]
-				}
-
-				n, err = f.Read(msg)
-				if n != ln || err != nil {
-					break
-				}
-
-				msg = m.appendTimestamp(msg)
-			}
-		}
-
-		// Read STOP stamp
-		n, err = f.Read(stamp)
-		if n == 0 || err != nil {
-			break
-		}
-
-		stop = binary.BigEndian.Uint32(stamp)
-		if stop != 0 {
-			break
-		}
-
-		// Process message
-		if ln > 0 {
-			ret = append(ret, string(msg))
-		}
-
-		if !m.Processing() {
-			return ret
-		}
-
-		ret = m.trySend(ret)
-	}
-
-	return ret
 }

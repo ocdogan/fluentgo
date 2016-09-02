@@ -3,50 +3,47 @@ package main
 import (
 	"math"
 	"sync"
+	"time"
 )
 
 type outQNode struct {
-	id   uint32
-	prev *outQNode
-	next *outQNode
-	data []string
+	id    uint32
+	prev  *outQNode
+	next  *outQNode
+	chunk []string
 }
 
-type OutQueue struct {
+type outQueue struct {
 	sync.Mutex
-	idgen    uint32
-	head     *outQNode
-	tail     *outQNode
-	cnt      int
-	sz       uint64
-	maxCount int
-	maxSize  uint64
-	ready    chan bool
+	idgen       uint32
+	nodeCount   int
+	count       int
+	maxCount    int
+	chunkSize   int
+	lastPop     time.Time
+	popWaitTime time.Duration
+	head        *outQNode
+	tail        *outQNode
 }
 
-func NewOutQueue(maxCount int, maxSize uint64) *OutQueue {
-	return &OutQueue{
-		maxCount: maxCount,
-		maxSize:  maxSize,
-		ready:    make(chan bool),
+func newOutQueue(chunkSize, maxCount int, popWaitTime time.Duration) *outQueue {
+	chunkSize = minInt(500, maxInt(10, maxInt(0, chunkSize)))
+
+	if maxCount <= 0 {
+		maxCount = 10000
+	}
+	maxCount = minInt(10000, maxCount)
+	popWaitTime = time.Duration(minInt64(500, maxInt64(0, int64(popWaitTime)))) * time.Millisecond
+
+	return &outQueue{
+		chunkSize:   chunkSize,
+		maxCount:    maxCount,
+		popWaitTime: popWaitTime,
+		lastPop:     time.Now(),
 	}
 }
 
-func (q *OutQueue) Ready() <-chan bool {
-	return q.ready
-}
-
-func (q *OutQueue) Push(data []string) {
-	func() {
-		q.Lock()
-		defer q.Unlock()
-
-		q.pushData(data)
-	}()
-	q.ready <- true
-}
-
-func (q *OutQueue) nextID() uint32 {
+func (q *outQueue) nextID() uint32 {
 	q.idgen++
 	id := q.idgen
 	if id == math.MaxUint32 {
@@ -56,71 +53,138 @@ func (q *OutQueue) nextID() uint32 {
 	return id
 }
 
-func (q *OutQueue) pushData(data []string) {
-	n := &outQNode{
-		id:   q.nextID(),
-		data: data,
-		prev: q.tail,
-	}
+func (q *outQueue) Push(data string) {
+	if len(data) > 0 {
+		q.Lock()
+		defer q.Unlock()
 
-	if q.tail == nil {
-		q.head, q.tail = n, n
-	} else {
-		q.tail.next, q.tail = n, n
-	}
-	q.cnt++
-	if data != nil {
-		q.sz += uint64(len(data))
-	}
-
-	for (q.maxSize > 0 && q.sz > q.maxSize) ||
-		(q.maxCount > 0 && q.cnt > 1 && q.cnt > q.maxCount) {
-		q.popData()
+		q.put(data)
 	}
 }
 
-func (q *OutQueue) Pop() (data []string, ok bool) {
+func (q *outQueue) put(data string) {
+	ln := len(data)
+	if ln == 0 {
+		return
+	}
+
+	n := q.tail
+	if n == nil || len(n.chunk) >= q.chunkSize {
+		n = &outQNode{
+			id:    q.nextID(),
+			prev:  q.tail,
+			chunk: make([]string, 0, q.chunkSize),
+		}
+
+		if q.tail == nil {
+			q.head, q.tail = n, n
+		} else {
+			q.tail.next, q.tail = n, n
+		}
+
+		q.nodeCount++
+	}
+
+	n.chunk = append(n.chunk, data)
+	q.count++
+
+	for q.maxCount > 0 &&
+		q.count > 1 &&
+		q.count > q.maxCount {
+		q.popData(true)
+	}
+}
+
+func (q *outQueue) CanPush() bool {
+	q.Lock()
+	ready := q.pushReady()
+	q.Unlock()
+
+	return ready
+}
+
+func (q *outQueue) pushReady() bool {
+	return q.tail == nil || (q.count < q.maxCount)
+}
+
+func (q *outQueue) CanPop() bool {
+	q.Lock()
+	ready := q.popReady()
+	q.Unlock()
+
+	return ready
+}
+
+func (q *outQueue) popReady() bool {
+	return q.head != nil &&
+		(len(q.head.chunk) >= q.chunkSize ||
+			(q.popWaitTime > 0 && time.Now().Sub(q.lastPop) >= q.popWaitTime))
+
+}
+
+func (q *outQueue) Pop(force bool) (chunk []string, ok bool) {
 	q.Lock()
 	defer q.Unlock()
 
-	return q.popData()
+	return q.popData(force)
 }
 
-func (q *OutQueue) popData() (data []string, ok bool) {
+func (q *outQueue) popData(force bool) (chunk []string, ok bool) {
+	if !(force || q.popReady()) {
+		return nil, false
+	}
+
+	q.lastPop = time.Now()
 	if q.head != nil {
 		n := q.head
+
 		q.head = q.head.next
 		n.next = nil
 
-		if q.cnt > 0 {
-			q.cnt--
-		}
-
-		if q.cnt == 0 {
-			q.head, q.tail = nil, nil
-		} else if q.head != nil {
+		if q.head != nil {
 			q.head.prev = nil
+		} else {
+			q.tail = nil
 		}
 
-		data = n.data
-		n.data = nil
-
-		if data != nil {
-			q.sz -= uint64(len(data))
-			if q.sz < 0 {
-				q.sz = 0
-			}
+		q.nodeCount--
+		if q.nodeCount < 0 {
+			q.nodeCount = 0
 		}
 
-		return data, true
+		if q.nodeCount == 0 {
+			q.head, q.tail = nil, nil
+		}
+
+		chunk = n.chunk
+		n.chunk = nil
+
+		q.count -= len(chunk)
+		if q.count < 0 {
+			q.count = 0
+		}
+
+		return chunk, true
 	}
 	return nil, false
 }
 
-func (q *OutQueue) Count() int {
+func (q *outQueue) ChunkSize() int {
+	return q.chunkSize
+}
+
+func (q *outQueue) Count() int {
 	q.Lock()
-	count := q.cnt
+	count := q.count
 	q.Unlock()
 
 	return count
+}
+
+func (q *outQueue) NodeCount() int {
+	q.Lock()
+	ncount := q.nodeCount
+	q.Unlock()
+
+	return ncount
 }

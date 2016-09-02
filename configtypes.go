@@ -11,7 +11,7 @@ type redisConfig struct {
 	MaxMessageSize int    `json:"maxMessageSize"`
 }
 
-type queueConfig struct {
+type inQConfig struct {
 	MaxCount int    `json:"maxCount"`
 	MaxSize  uint64 `json:"maxSize"`
 }
@@ -51,9 +51,15 @@ type inOutConfig struct {
 }
 
 type inputsConfig struct {
-	Queue     queueConfig   `json:"queue"`
+	Queue     inQConfig     `json:"queue"`
 	Buffer    bufferConfig  `json:"buffer"`
 	Producers []inOutConfig `json:"producers"`
+}
+
+type outQConfig struct {
+	ChunkSize   int           `json:"chunkSize"`
+	MaxCount    int           `json:"maxCount"`
+	PopWaitTime time.Duration `json:"popWaitTime"`
 }
 
 type outputsConfig struct {
@@ -66,7 +72,7 @@ type outputsConfig struct {
 	FlushOnEvery     time.Duration `json:"flushOnEvery"`
 	SleepOnEvery     time.Duration `json:"sleepOnEvery"`
 	SleepForMillisec time.Duration `json:"sleepForMillisec"`
-	Queue            queueConfig   `json:"queue"`
+	Queue            outQConfig    `json:"queue"`
 	Consumers        []inOutConfig `json:"consumers"`
 }
 

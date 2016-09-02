@@ -11,7 +11,7 @@ const (
 
 	subscribe       = "SUBSCRIBE"
 	psubscribe      = "PSUBSCRIBE"
-	psubscribechars = "*?"
+	psubscribechars = "*?[]"
 
 	minBufferSize  = 8 * 1024
 	maxBufferSize  = 10 * 1024 * 1024

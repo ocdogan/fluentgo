@@ -79,10 +79,7 @@ func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
 			return
 		}
 
-		defer func() {
-			recover()
-			m.DoSleep()
-		}()
+		defer recover()
 
 		var (
 			err  error

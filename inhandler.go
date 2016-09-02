@@ -20,13 +20,23 @@ func (ih *inHandler) queueMessage(data []byte, maxMsgSize int, compressed bool) 
 	if ln > 0 && (maxMsgSize < 1 || ln <= maxMsgSize) {
 		defer recover()
 
-		if compressed {
-			uncdata := decompress(data)
-			if uncdata != nil {
-				ih.GetManager().GetQueue().Push(uncdata)
-				return
+		m := ih.GetManager()
+		if m != nil {
+			q := m.GetInQueue()
+
+			if q != nil {
+				if compressed {
+					uncdata := decompress(data)
+					if uncdata != nil {
+						m := ih.GetManager()
+						if m != nil {
+							q.Push(uncdata)
+							return
+						}
+					}
+				}
+				q.Push(data)
 			}
 		}
-		ih.GetManager().GetQueue().Push(data)
 	}
 }

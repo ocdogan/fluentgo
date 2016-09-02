@@ -259,12 +259,7 @@ func (eo *elasticOut) funcGetIndexName() string {
 
 func (eo *elasticOut) funcSendMessagesChunk(messages []string, indexName string) {
 	if len(messages) > 0 {
-		defer func() {
-			recover()
-			if eo.manager != nil {
-				eo.manager.DoSleep()
-			}
-		}()
+		defer recover()
 
 		doSend := false
 		bulkRequest := eo.client.Bulk()

@@ -12,41 +12,31 @@ type inQNode struct {
 	data []byte
 }
 
-type InQueue struct {
+type inQueue struct {
 	sync.Mutex
 	idgen    uint32
+	cnt      int
+	maxCount int
+	sz       uint64
+	maxSize  uint64
 	head     *inQNode
 	tail     *inQNode
-	cnt      int
-	sz       uint64
-	maxCount int
-	maxSize  uint64
 	ready    chan bool
 }
 
-func NewInQueue(maxCount int, maxSize uint64) *InQueue {
-	return &InQueue{
+func newInQueue(maxCount int, maxSize uint64) *inQueue {
+	return &inQueue{
 		maxCount: maxCount,
 		maxSize:  maxSize,
 		ready:    make(chan bool),
 	}
 }
 
-func (q *InQueue) Ready() <-chan bool {
+func (q *inQueue) Ready() <-chan bool {
 	return q.ready
 }
 
-func (q *InQueue) Push(data []byte) {
-	func() {
-		q.Lock()
-		defer q.Unlock()
-
-		q.pushData(data)
-	}()
-	q.ready <- true
-}
-
-func (q *InQueue) nextID() uint32 {
+func (q *inQueue) nextID() uint32 {
 	q.idgen++
 	id := q.idgen
 	if id == math.MaxUint32 {
@@ -56,7 +46,15 @@ func (q *InQueue) nextID() uint32 {
 	return id
 }
 
-func (q *InQueue) pushData(data []byte) {
+func (q *inQueue) Push(data []byte) {
+	q.Lock()
+	defer q.Unlock()
+
+	q.put(data)
+	q.ready <- true
+}
+
+func (q *inQueue) put(data []byte) {
 	n := &inQNode{
 		id:   q.nextID(),
 		data: data,
@@ -79,18 +77,25 @@ func (q *InQueue) pushData(data []byte) {
 	}
 }
 
-func (q *InQueue) Pop() (data []byte, ok bool) {
+func (q *inQueue) Pop() (data []byte, ok bool) {
 	q.Lock()
 	defer q.Unlock()
 
 	return q.popData()
 }
 
-func (q *InQueue) popData() (data []byte, ok bool) {
+func (q *inQueue) popData() (data []byte, ok bool) {
 	if q.head != nil {
 		n := q.head
+
 		q.head = q.head.next
 		n.next = nil
+
+		if q.head != nil {
+			q.head.prev = nil
+		} else {
+			q.tail = nil
+		}
 
 		if q.cnt > 0 {
 			q.cnt--
@@ -98,8 +103,6 @@ func (q *InQueue) popData() (data []byte, ok bool) {
 
 		if q.cnt == 0 {
 			q.head, q.tail = nil, nil
-		} else if q.head != nil {
-			q.head.prev = nil
 		}
 
 		data = n.data
@@ -117,7 +120,7 @@ func (q *InQueue) popData() (data []byte, ok bool) {
 	return nil, false
 }
 
-func (q *InQueue) Count() int {
+func (q *inQueue) Count() int {
 	q.Lock()
 	count := q.cnt
 	q.Unlock()

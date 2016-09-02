@@ -78,12 +78,7 @@ func (o *outHandler) Send(messages []string) {
 		return
 	}
 
-	defer func() {
-		recover()
-		if o.manager != nil {
-			o.manager.DoSleep()
-		}
-	}()
+	defer recover()
 
 	mlen := len(messages)
 	if mlen > 0 {

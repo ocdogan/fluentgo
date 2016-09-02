@@ -45,7 +45,7 @@ type inManager struct {
 	timestampFormat string
 	inputs          []inProvider
 	logger          Logger
-	queue           *InQueue
+	inQ             *inQueue
 	bufFile         *bufferFile
 	completed       chan bool
 }
@@ -94,7 +94,8 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 		maxMessageSize:  maxMessageSize,
 	}
 
-	manager.queue = NewInQueue(manager.getQueueMaxCount(config), manager.getQueueMaxSize(config))
+	manager.inQ = newInQueue(manager.getQueueMParams(config))
+
 	manager.maxCount = manager.getBufferMaxCount(config)
 	manager.maxSize = manager.getBufferMaxSize(config)
 	manager.prefix = manager.getBufferFilenamePrefix(config)
@@ -109,8 +110,12 @@ func (m *inManager) GetMaxMessageSize() int {
 	return m.maxMessageSize
 }
 
-func (m *inManager) GetQueue() *DataQueue {
-	return m.queue
+func (m *inManager) GetInQueue() *inQueue {
+	return m.inQ
+}
+
+func (m *inManager) GetOutQueue() *outQueue {
+	return nil
 }
 
 func (m *inManager) GetLogger() Logger {
@@ -221,8 +226,8 @@ func (m *inManager) processQueue() {
 
 	var ln int
 
-	for m.Processing() && m.queue.Count() > 0 {
-		data, ok = m.queue.Pop()
+	for m.Processing() && m.inQ.Count() > 0 {
+		data, ok = m.inQ.Pop()
 		if !ok {
 			break
 		}
@@ -431,7 +436,7 @@ func (m *inManager) processInputs() {
 		select {
 		case <-completeSignal:
 			completed = true
-		case <-m.queue.Ready():
+		case <-m.inQ.Ready():
 			if !completed && atomic.LoadInt32(&m.poppingQueue) == 0 {
 				t := time.Now()
 				if t.Sub(m.lastQueueTime) >= time.Second {
@@ -487,23 +492,20 @@ func (m *inManager) getBufferMaxSize(config *fluentConfig) int {
 	return sz
 }
 
-func (m *inManager) getQueueMaxCount(config *fluentConfig) int {
-	maxCount := config.Inputs.Queue.MaxCount
+func (m *inManager) getQueueMParams(config *fluentConfig) (maxCount int, maxSize uint64) {
+	maxCount = config.Inputs.Queue.MaxCount
 	if maxCount <= 0 {
-		maxCount = 100000
+		maxCount = 10000
 	}
-	return maxCount
-}
 
-func (m *inManager) getQueueMaxSize(config *fluentConfig) uint64 {
-	maxSize := config.Inputs.Queue.MaxSize
+	maxSize = config.Inputs.Queue.MaxSize
 	if maxSize <= 0 {
 		m := sigar.Mem{}
 		if e := m.Get(); e == nil {
 			maxSize = uint64(2 * uint64(m.Total/3))
 		}
 	}
-	return maxSize
+	return
 }
 
 func (m *inManager) getBufferPath(config *fluentConfig) string {
