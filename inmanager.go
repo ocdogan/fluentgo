@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"path/filepath"
@@ -52,7 +51,7 @@ type inManager struct {
 
 func newInManager(config *fluentConfig, logger Logger) *inManager {
 	if logger == nil {
-		logger = &log.Logger{}
+		logger = newDummyLogger()
 	}
 
 	var manager *inManager
@@ -159,8 +158,13 @@ func (m *inManager) setInputs(config *inputsConfig) {
 	if config != nil {
 		for _, p := range config.Producers {
 			t := strings.ToLower(p.Type)
-			if t == "redis" || t == "redisin" {
-				in := newRedisIn(m, &p)
+			if t == "redischan" || t == "redischanin" {
+				in := newRedisChanIn(m, &p)
+				if in != nil {
+					result = append(result, in)
+				}
+			} else if t == "redislist" || t == "redislistin" {
+				in := newRedisListIn(m, &p)
 				if in != nil {
 					result = append(result, in)
 				}

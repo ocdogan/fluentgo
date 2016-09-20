@@ -9,6 +9,7 @@ import (
 type redisOut struct {
 	redisIO
 	outHandler
+	trimSize int
 }
 
 func newRedisOut(manager InOutManager, config *inOutConfig) *redisOut {
@@ -36,6 +37,11 @@ func newRedisOut(manager InOutManager, config *inOutConfig) *redisOut {
 		ro := &redisOut{
 			redisIO:    *rio,
 			outHandler: *oh,
+		}
+
+		f, ok := params["trimSize"].(float64)
+		if ok {
+			ro.trimSize = maxInt(0, int(f))
 		}
 
 		ro.iotype = "REDISOUT"
@@ -105,7 +111,15 @@ func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
 						if ro.compressed {
 							msg = string(compress([]byte(msg)))
 						}
-						conn.Send(ro.command, channel, msg)
+
+						sendErr = conn.Send(ro.command, channel, msg)
+
+						if sendErr == nil && ro.trimSize > 0 {
+							func() {
+								defer recover()
+								conn.Send("LTRIM", channel, 0, ro.trimSize)
+							}()
+						}
 					}
 					return sendErr
 				}()

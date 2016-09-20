@@ -11,6 +11,10 @@ const (
 
 	subscribe       = "SUBSCRIBE"
 	psubscribe      = "PSUBSCRIBE"
+	rpop            = "RPOP"
+	lpop            = "LPOP"
+	brpop           = "BRPOP"
+	blpop           = "BLPOP"
 	psubscribechars = "*?[]"
 
 	minBufferSize  = 8 * 1024

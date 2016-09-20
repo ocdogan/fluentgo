@@ -27,6 +27,10 @@ type Logger interface {
 	Print(v ...interface{})
 	Printf(format string, v ...interface{})
 	Println(v ...interface{})
+
+	Log(v ...interface{})
+	Logf(format string, v ...interface{})
+	Logln(v ...interface{})
 }
 
 type logger struct {
@@ -260,4 +264,16 @@ func (l *logger) Println(v ...interface{}) {
 			fmt.Print(line)
 		}
 	}
+}
+
+func (l *logger) Log(v ...interface{}) {
+	l.Print(v)
+}
+
+func (l *logger) Logf(format string, v ...interface{}) {
+	l.Printf(format, v)
+}
+
+func (l *logger) Logln(v ...interface{}) {
+	l.Println(v)
 }

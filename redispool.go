@@ -10,8 +10,10 @@ var (
 	pools = make(map[string]*redis.Pool)
 )
 
-func getPool(server, password string, logger Logger) *redis.Pool {
-	pool, ok := pools[server+":"+password]
+func getRedisConnection(poolName, server, password string) redis.Conn {
+	key := poolName + ":" + server + ":" + password
+
+	pool, ok := pools[key]
 	if !ok {
 		pool = &redis.Pool{
 			MaxIdle:     3,
@@ -35,7 +37,7 @@ func getPool(server, password string, logger Logger) *redis.Pool {
 				return err
 			},
 		}
-		pools[server+":"+password] = pool
+		pools[key] = pool
 	}
-	return pool
+	return pool.Get()
 }

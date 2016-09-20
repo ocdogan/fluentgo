@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,7 +39,7 @@ type outManager struct {
 
 func newOutManager(config *fluentConfig, logger Logger) *outManager {
 	if logger == nil {
-		logger = &log.Logger{}
+		logger = newDummyLogger()
 	}
 
 	bulkCount := config.Outputs.BulkCount
@@ -134,6 +133,11 @@ func (m *outManager) setOutputs(config *outputsConfig) {
 				}
 			} else if t == "redis" || t == "redisout" {
 				out := newRedisOut(m, &o)
+				if out != nil {
+					result = append(result, out)
+				}
+			} else if t == "s3" || t == "s3out" {
+				out := newS3Out(m, &o)
 				if out != nil {
 					result = append(result, out)
 				}

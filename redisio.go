@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -13,6 +15,7 @@ type redisIO struct {
 	server     string
 	password   string
 	channel    string
+	poolName   string
 	compressed bool
 	connFunc   func(redis.Conn) error
 	conn       redis.Conn
@@ -27,12 +30,19 @@ func newRedisIO(logger Logger, params map[string]interface{}) *redisIO {
 	var (
 		ok       bool
 		db       int
+		f        float64
 		s        string
+		poolName string
 		command  string
 		server   string
 		channel  string
 		password string
 	)
+
+	s, ok = params["poolName"].(string)
+	if ok {
+		poolName = strings.TrimSpace(s)
+	}
 
 	s, ok = params["server"].(string)
 	if ok {
@@ -60,9 +70,9 @@ func newRedisIO(logger Logger, params map[string]interface{}) *redisIO {
 		command = strings.ToUpper(strings.TrimSpace(s))
 	}
 
-	db, ok = params["db"].(int)
+	f, ok = params["db"].(float64)
 	if ok {
-		db = minInt(15, maxInt(0, db))
+		db = minInt(15, maxInt(0, int(f)))
 	}
 
 	var compressed bool
@@ -72,6 +82,7 @@ func newRedisIO(logger Logger, params map[string]interface{}) *redisIO {
 		db:         db,
 		command:    command,
 		server:     server,
+		poolName:   poolName,
 		password:   password,
 		compressed: compressed,
 		channel:    channel,
@@ -139,6 +150,30 @@ func (rio *redisIO) runConnFunc(conn redis.Conn) error {
 	return funcErr
 }
 
+func (rio *redisIO) ping(conn redis.Conn) error {
+	if conn == nil {
+		return errors.New("No Redis connection")
+	}
+
+	var subsErr error
+	defer func() {
+		err, _ := recover().(error)
+		if subsErr == nil {
+			subsErr = err
+		}
+	}()
+
+	var rep interface{}
+	rep, subsErr = conn.Do("PING")
+	if subsErr == nil {
+		s, ok := rep.(string)
+		if !ok || strings.ToUpper(s) != "PONG" {
+			subsErr = fmt.Errorf("Unable to ping Redis '%s'", conn)
+		}
+	}
+	return subsErr
+}
+
 func (rio *redisIO) Connect() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -166,7 +201,7 @@ func (rio *redisIO) Connect() {
 		}
 
 		connErr = nil
-		conn = getPool(rio.server, rio.password, rio.logger).Get()
+		conn = getRedisConnection(rio.poolName, rio.server, rio.password)
 
 		if conn != nil {
 			connErr = rio.selectDb(conn)
@@ -174,7 +209,10 @@ func (rio *redisIO) Connect() {
 				rio.logger.Println(connErr)
 			}
 
-			connErr = rio.runConnFunc(conn)
+			connErr = rio.ping(conn)
+			if connErr == nil {
+				connErr = rio.runConnFunc(conn)
+			}
 		}
 
 		if connErr == nil {
