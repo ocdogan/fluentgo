@@ -141,6 +141,11 @@ func (m *outManager) setOutputs(config *outputsConfig) {
 				if out != nil {
 					result = append(result, out)
 				}
+			} else if t == "sqs" || t == "sqsout" {
+				out := newSqsOut(m, &o)
+				if out != nil {
+					result = append(result, out)
+				}
 			} else if t == "rabbit" || t == "rabbitout" {
 				out := newRabbitOut(m, &o)
 				if out != nil {
