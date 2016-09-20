@@ -94,7 +94,7 @@ func newS3Out(manager InOutManager, config *inOutConfig) *s3Out {
 		acl = strings.TrimSpace(acl)
 	}
 	if acl == "" {
-		acl = "private"
+		acl = s3.BucketCannedACLPublicRead
 	}
 
 	prefix, ok = params["prefix"].(string)
@@ -160,10 +160,10 @@ func newS3Out(manager InOutManager, config *inOutConfig) *s3Out {
 
 	s3o.iotype = "S3OUT"
 
-	s3o.runFunc = s3o.funcWait
+	s3o.runFunc = s3o.funcRunAndWait
 	s3o.afterCloseFunc = s3o.funcAfterClose
-	s3o.getDestinationFunc = s3o.funcGetIndexName
-	s3o.sendChunkFunc = s3o.funcSendMessagesChunk
+	s3o.getDestinationFunc = s3o.funcGetObjectName
+	s3o.sendChunkFunc = s3o.funcPutMessages
 
 	return s3o
 }
@@ -174,27 +174,28 @@ func (s3o *s3Out) funcAfterClose() {
 	}
 }
 
-func (s3o *s3Out) funcGetIndexName() string {
+func (s3o *s3Out) funcGetObjectName() string {
+	t := time.Now()
+
+	index := uint64(0)
+	if s3oLastMinute != t.Minute() {
+		index = 0
+		s3oLastMinute = t.Minute()
+
+		atomic.StoreUint64(&s3oIndex, 0)
+	} else {
+		index = atomic.AddUint64(&s3oIndex, 1)
+	}
+
 	if s3o.prefix != "" {
-		t := time.Now()
-
-		index := uint64(0)
-		if s3oLastMinute != t.Minute() {
-			index = 0
-			s3oLastMinute = t.Minute()
-
-			atomic.StoreUint64(&s3oIndex, 0)
-		} else {
-			index = atomic.AddUint64(&s3oIndex, 1)
-		}
-
 		return fmt.Sprintf("%s/%d%02d%02d/%02d%02d%02d%03d", s3o.prefix, t.Year(), t.Month(), t.Day(),
 			t.Hour(), t.Minute(), t.Second(), index)
 	}
-	return ""
+	return fmt.Sprintf("%d%02d%02d/%02d%02d%02d%03d", t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second(), index)
 }
 
-func (s3o *s3Out) funcSendMessagesChunk(messages []string, indexName string) {
+func (s3o *s3Out) funcPutMessages(messages []string, indexName string) {
 	if len(messages) > 0 {
 		defer recover()
 
@@ -208,44 +209,41 @@ func (s3o *s3Out) funcSendMessagesChunk(messages []string, indexName string) {
 			fmt.Sprintf("{\"date\":\"%d.%02d.%02d %02d:%02d:%02d\",\"%s\":[",
 				t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), s3o.rootAttr))
 
-		index := 0
+		count := 0
 		for _, msg := range messages {
 			if msg != "" {
-				if index > 0 {
+				if count > 0 {
 					buffer.WriteString(",")
 				}
-				index++
+				count++
 				buffer.WriteString(msg)
 			}
 		}
 		buffer.WriteString("]}")
 
-		var params *s3.PutObjectInput
+		if count > 0 {
+			body := buffer.Bytes()
+			if s3o.compression {
+				body = compress(body)
+			}
 
-		msgBytes := buffer.Bytes()
-		if s3o.compression {
-			msgBytes = compress(msgBytes)
-
-			params = &s3.PutObjectInput{
+			params := &s3.PutObjectInput{
 				ACL:           aws.String(s3o.acl),
 				Bucket:        aws.String(s3o.bucket),
-				Key:           aws.String(indexName + ".gz"),
-				Body:          bytes.NewReader(msgBytes),
-				ContentLength: aws.Int64(int64(len(msgBytes))),
-				ContentType:   aws.String("application/x-gzip"),
+				Body:          bytes.NewReader(body),
+				ContentLength: aws.Int64(int64(len(body))),
 			}
-		} else {
-			params = &s3.PutObjectInput{
-				ACL:           aws.String(s3o.acl),
-				Bucket:        aws.String(s3o.bucket),
-				Key:           aws.String(indexName + ".txt"),
-				Body:          bytes.NewReader(msgBytes),
-				ContentLength: aws.Int64(int64(len(msgBytes))),
-				ContentType:   aws.String("text/plain"),
+
+			if s3o.compression {
+				params.Key = aws.String(indexName + ".gz")
+				params.ContentType = aws.String("application/x-gzip")
+			} else {
+				params.Key = aws.String(indexName + ".txt")
+				params.ContentType = aws.String("text/plain")
 			}
+
+			client.PutObject(params)
 		}
-
-		client.PutObject(params)
 	}
 }
 
@@ -276,7 +274,7 @@ func (s3o *s3Out) getClient() *s3.S3 {
 	return s3o.client
 }
 
-func (s3o *s3Out) funcWait() {
+func (s3o *s3Out) funcRunAndWait() {
 	defer func() {
 		recover()
 		l := s3o.GetLogger()

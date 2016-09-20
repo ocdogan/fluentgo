@@ -70,8 +70,15 @@
         "maxMessageSize": -1,
         "consumers": [
             { 
+                "type": "std",
+                "params": [
+                    { "name": "enabled", "value": true }
+                ]
+            },
+            { 
                 "type": "redis",
                 "params": [
+                    { "name": "enabled", "value": false },
                     { "name": "command", "value": "publish" },
                     { "name": "compressed", "value": false },
                     { "name": "server", "value": "localhost:6379" },

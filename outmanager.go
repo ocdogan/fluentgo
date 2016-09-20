@@ -146,6 +146,11 @@ func (m *outManager) setOutputs(config *outputsConfig) {
 				if out != nil {
 					result = append(result, out)
 				}
+			} else if t == "std" || t == "stdout" {
+				out := newStdOut(m, &o)
+				if out != nil {
+					result = append(result, out)
+				}
 			}
 		}
 	}
