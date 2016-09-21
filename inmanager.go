@@ -168,6 +168,11 @@ func (m *inManager) setInputs(config *inputsConfig) {
 				if in != nil {
 					result = append(result, in)
 				}
+			} else if t == "sqs" || t == "sqsin" {
+				in := newSqsIn(m, &p)
+				if in != nil {
+					result = append(result, in)
+				}
 			} else if t == "rabbit" || t == "rabbitin" {
 				in := newRabbitIn(m, &p)
 				if in != nil {

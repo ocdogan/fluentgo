@@ -223,6 +223,7 @@ func (m *outManager) closeOutputs() {
 }
 
 func (m *outManager) feedOutputs() {
+	allCompleted := false
 	completed := m.completed
 
 	defer func() {
@@ -237,11 +238,13 @@ func (m *outManager) feedOutputs() {
 
 		m.closeOutputs()
 
-		if completed != nil {
-			func() {
-				defer recover()
-				completed <- true
-			}()
+		if !allCompleted {
+			func(cmp chan bool) {
+				if cmp != nil {
+					defer recover()
+					cmp <- true
+				}
+			}(completed)
 		}
 	}()
 
@@ -256,10 +259,6 @@ func (m *outManager) feedOutputs() {
 			}
 		}
 	}
-
-	var (
-		allCompleted bool
-	)
 
 	filesProcessed := make(chan bool)
 	go m.processFiles(filesProcessed)
