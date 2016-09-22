@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -155,32 +156,29 @@ func (m *inManager) Process() (completed <-chan bool) {
 
 func (m *inManager) setInputs(config *inputsConfig) {
 	var result []inProvider
+
 	if config != nil {
+		var in inProvider
+
 		for _, p := range config.Producers {
 			t := strings.ToLower(p.Type)
+
+			in = nil
 			if t == "redischan" || t == "redischanin" {
-				in := newRedisChanIn(m, &p)
-				if in != nil {
-					result = append(result, in)
-				}
+				in = newRedisChanIn(m, &p)
 			} else if t == "redislist" || t == "redislistin" {
-				in := newRedisListIn(m, &p)
-				if in != nil {
-					result = append(result, in)
-				}
+				in = newRedisListIn(m, &p)
 			} else if t == "kinesis" || t == "kinesisin" {
-				in := newKinesisIn(m, &p)
-				if in != nil {
-					result = append(result, in)
-				}
+				in = newKinesisIn(m, &p)
 			} else if t == "sqs" || t == "sqsin" {
-				in := newSqsIn(m, &p)
-				if in != nil {
-					result = append(result, in)
-				}
+				in = newSqsIn(m, &p)
 			} else if t == "rabbit" || t == "rabbitin" {
-				in := newRabbitIn(m, &p)
-				if in != nil {
+				in = newRabbitIn(m, &p)
+			}
+
+			if in != nil {
+				v := reflect.ValueOf(in)
+				if v.Kind() != reflect.Ptr || !v.IsNil() {
 					result = append(result, in)
 				}
 			}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -123,42 +124,33 @@ func (m *outManager) getQueueParams(config *fluentConfig) (chunkSize, maxCount i
 
 func (m *outManager) setOutputs(config *outputsConfig) {
 	var result []outSender
+
 	if config != nil {
+		var out outSender
+
 		for _, o := range config.Consumers {
 			t := strings.ToLower(o.Type)
+
+			out = nil
 			if t == "elastic" || t == "elasticsearch" {
-				out := newElasticOut(m, &o)
-				if out != nil {
-					result = append(result, out)
-				}
+				out = newElasticOut(m, &o)
 			} else if t == "redis" || t == "redisout" {
-				out := newRedisOut(m, &o)
-				if out != nil {
-					result = append(result, out)
-				}
+				out = newRedisOut(m, &o)
 			} else if t == "s3" || t == "s3out" {
-				out := newS3Out(m, &o)
-				if out != nil {
-					result = append(result, out)
-				}
+				out = newS3Out(m, &o)
 			} else if t == "sqs" || t == "sqsout" {
-				out := newSqsOut(m, &o)
-				if out != nil {
-					result = append(result, out)
-				}
+				out = newSqsOut(m, &o)
 			} else if t == "kinesis" || t == "kinesisout" {
-				out := newKinesisOut(m, &o)
-				if out != nil {
-					result = append(result, out)
-				}
+				out = newKinesisOut(m, &o)
 			} else if t == "rabbit" || t == "rabbitout" {
-				out := newRabbitOut(m, &o)
-				if out != nil {
-					result = append(result, out)
-				}
+				out = newRabbitOut(m, &o)
 			} else if t == "std" || t == "stdout" {
-				out := newStdOut(m, &o)
-				if out != nil {
+				out = newStdOut(m, &o)
+			}
+
+			if out != nil {
+				v := reflect.ValueOf(out)
+				if v.Kind() != reflect.Ptr || !v.IsNil() {
 					result = append(result, out)
 				}
 			}
