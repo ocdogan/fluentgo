@@ -1,5 +1,5 @@
 {
-    "serviceMode":"inout",
+    "serviceMode": "inout",
     "log": {
         "enabled": true,
         "console": true,
@@ -25,8 +25,10 @@
         },
         "producers": [
             {
-                "type": "redis",
+                "type": "redischan",
                 "params":[
+                    { "name": "enabled", "value": true },
+                    { "name": "poolName", "value": "pubsub" },
                     { "name": "command", "value": "psubscribe" },                    
                     { "name": "compressed", "value": false },
                     { "name": "server", "value": "localhost:6379" },
@@ -35,8 +37,53 @@
                 ]
             },
             {
+                "type": "redislist",
+                "params":[
+                    { "name": "enabled", "value": false },
+                    { "name": "poolName", "value": "list" },
+                    { "name": "command", "value": "lpop" },                    
+                    { "name": "compressed", "value": false },
+                    { "name": "server", "value": "localhost:6379" },
+                    { "name": "password", "value": null },
+                    { "name": "channel", "value": "mylist" }
+                ]
+            },
+            { 
+                "type": "sqs",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "accessKeyID", "value": "" },
+                    { "name": "secretAccessKey", "value": "" },
+                    { "name": "sessionToken", "value": "" },
+                    { "name": "region", "value": "" },
+                    { "name": "queueURL", "value": "" },
+                    { "name": "disableSSL", "value": false },
+                    { "name": "maxRetries", "value": 1},
+                    { "name": "logLevel", "value": 0 },
+                    { "name": "maxNumberOfMessages", "value": 10 },
+                    { "name": "waitTimeSeconds", "value": 0 }
+                ]
+            },
+            { 
+                "type": "kinesis",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "accessKeyID", "value": "" },
+                    { "name": "secretAccessKey", "value": "" },
+                    { "name": "sessionToken", "value": "" },
+                    { "name": "region", "value": "" },
+                    { "name": "disableSSL", "value": false },
+                    { "name": "maxRetries", "value": 1},
+                    { "name": "logLevel", "value": 0 },
+                    { "name": "streamName", "value": "" },
+                    { "name": "shardIterator", "value": "" },
+                    { "name": "limit", "value": 10 }
+                ]
+            },
+            {
                 "type": "rabbit",
                 "params": [
+                    { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost" },                    
                     { "name": "port", "value": "5672" },
                     { "name": "compressed", "value": false },                    
@@ -61,13 +108,18 @@
         ]
     },
     "outputs": {
-        "dataPath": "completed\\",
+        "dataPath": "buffer\\completed\\",
         "dataPattern": "bf-*.buf",
         "bulkCount": 5000,
         "flushOnEvery": 10,
         "sleepOnEvery": 5,
         "sleepForMillisec": 1,
         "maxMessageSize": -1,
+        "queue": {
+            "maxCount": 2000,
+            "chunkSize": 100,
+            "pushWaitTime": 1
+        },
         "consumers": [
             { 
                 "type": "std",
@@ -76,19 +128,57 @@
                 ]
             },
             { 
-                "type": "redis",
+                "type": "s3",
                 "params": [
                     { "name": "enabled", "value": false },
-                    { "name": "command", "value": "publish" },
-                    { "name": "compressed", "value": false },
-                    { "name": "server", "value": "localhost:6379" },
-                    { "name": "password", "value": null },
-                    { "name": "channel", "value": "logstash" }
+                    { "name": "accessKeyID", "value": "" },
+                    { "name": "secretAccessKey", "value": "" },
+                    { "name": "sessionToken", "value": "" },
+                    { "name": "region", "value": "" },
+                    { "name": "bucket", "value": "" },
+                    { "name": "prefix", "value": "" },
+                    { "name": "acl", "value": "" },
+                    { "name": "disableSSL", "value": false },
+                    { "name": "maxRetries", "value": 1},
+                    { "name": "logLevel", "value": 0 },
+                    { "name": "compressed", "value": false }
+                ]
+            },
+            { 
+                "type": "kinesis",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "accessKeyID", "value": "" },
+                    { "name": "secretAccessKey", "value": "" },
+                    { "name": "sessionToken", "value": "" },
+                    { "name": "region", "value": "" },
+                    { "name": "disableSSL", "value": false },
+                    { "name": "maxRetries", "value": 1},
+                    { "name": "logLevel", "value": 0 },
+                    { "name": "partitionKey", "value": "" },
+                    { "name": "streamName", "value": "" },
+                    { "name": "explicitHashKeys", "value": "" }
+                ]
+            },
+            { 
+                "type": "sqs",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "accessKeyID", "value": "" },
+                    { "name": "secretAccessKey", "value": "" },
+                    { "name": "sessionToken", "value": "" },
+                    { "name": "region", "value": "" },
+                    { "name": "queueURL", "value": "" },
+                    { "name": "delaySeconds", "value": 0 },
+                    { "name": "disableSSL", "value": false },
+                    { "name": "maxRetries", "value": 1},
+                    { "name": "logLevel", "value": 0 }
                 ]
             },
             { 
                 "type": "elasticsearch",            
                 "params":[
+                    { "name": "enabled", "value": false },
                     { "name": "url", "value": "http://localhost:9200" },
                     { "name": "userName", "value": null },
                     { "name": "password", "value": null },
@@ -123,9 +213,23 @@
                     { "name": "logging.trace.path", "value": "./estracelogs" }
                 ]
             },
+            { 
+                "type": "redis",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "poolName", "value": "list" },
+                    { "name": "command", "value": "publish" },
+                    { "name": "compressed", "value": false },
+                    { "name": "server", "value": "localhost:6379" },
+                    { "name": "password", "value": null },
+                    { "name": "channel", "value": "logstash" },
+                    { "name": "trimSize", "value": 0 }
+                ]
+            },
             {
                 "type": "rabbit",
                 "params": [
+                    { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost" },                    
                     { "name": "port", "value": "5672" },
                     { "name": "compressed", "value": false },                    
