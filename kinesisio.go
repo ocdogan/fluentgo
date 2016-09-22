@@ -6,67 +6,39 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/kinesis"
 )
 
-type sqsIO struct {
+type kinesisIO struct {
 	accessKeyID     string
 	secretAccessKey string
 	sessionToken    string
 	region          string
-	queueURL        string
+	streamName      string
+	shardIterator   string
 	disableSSL      bool
 	maxRetries      int
 	logLevel        uint
-	attributes      map[string]*sqs.MessageAttributeValue
-	client          *sqs.SQS
-	connFunc        func() *sqs.SQS
+	compressed      bool
+	client          *kinesis.Kinesis
+	connFunc        func() *kinesis.Kinesis
 	getLoggerFunc   func() Logger
 }
 
-func newSqsIO(manager InOutManager, config *inOutConfig) *sqsIO {
+func newKinesisIO(manager InOutManager, config *inOutConfig) *kinesisIO {
 	if config == nil {
 		return nil
 	}
 
-	var (
-		ok            bool
-		pName, pValue string
-	)
-
 	params := config.getParamsMap()
-	attributes := make(map[string]*sqs.MessageAttributeValue, 0)
-
-	for k, v := range params {
-		if v != nil && strings.HasPrefix(k, "attribute.") {
-			pName = strings.TrimSpace(k[len("attribute."):])
-			if pName != "" {
-				pValue, ok = v.(string)
-				if ok {
-					pValue = strings.TrimSpace(pValue)
-					attributes[pName] = &sqs.MessageAttributeValue{
-						StringValue: aws.String(strings.TrimSpace(pValue)),
-					}
-				}
-			}
-		}
-	}
 
 	var (
+		ok              bool
 		accessKeyID     string
 		secretAccessKey string
 		token           string
 		region          string
-		queueURL        string
 	)
-
-	queueURL, ok = params["queueURL"].(string)
-	if ok {
-		queueURL = strings.TrimSpace(queueURL)
-	}
-	if queueURL == "" {
-		return nil
-	}
 
 	region, ok = params["region"].(string)
 	if ok {
@@ -94,6 +66,7 @@ func newSqsIO(manager InOutManager, config *inOutConfig) *sqsIO {
 
 	var (
 		f          float64
+		compressed bool
 		disableSSL bool
 	)
 
@@ -114,46 +87,49 @@ func newSqsIO(manager InOutManager, config *inOutConfig) *sqsIO {
 		logLevel = maxInt(int(f), 0)
 	}
 
-	sio := &sqsIO{
+	if compressed, ok = params["compressed"].(bool); !ok {
+		compressed = false
+	}
+
+	kio := &kinesisIO{
 		accessKeyID:     accessKeyID,
 		secretAccessKey: secretAccessKey,
 		sessionToken:    token,
 		region:          region,
-		queueURL:        queueURL,
 		disableSSL:      disableSSL,
 		maxRetries:      maxRetries,
 		logLevel:        uint(logLevel),
-		attributes:      attributes,
+		compressed:      compressed,
 	}
 
-	sio.connFunc = sio.funcGetClient
+	kio.connFunc = kio.funcGetClient
 
-	return sio
+	return kio
 }
 
-func (sio *sqsIO) funcGetClient() *sqs.SQS {
-	if sio.client == nil {
+func (kio *kinesisIO) funcGetClient() *kinesis.Kinesis {
+	if kio.client == nil {
 		defer recover()
 
 		cfg := aws.NewConfig().
-			WithRegion(sio.region).
-			WithDisableSSL(sio.disableSSL).
-			WithMaxRetries(sio.maxRetries)
+			WithRegion(kio.region).
+			WithDisableSSL(kio.disableSSL).
+			WithMaxRetries(kio.maxRetries)
 
-		if sio.accessKeyID != "" && sio.secretAccessKey != "" {
-			creds := credentials.NewStaticCredentials(sio.accessKeyID, sio.secretAccessKey, sio.sessionToken)
+		if kio.accessKeyID != "" && kio.secretAccessKey != "" {
+			creds := credentials.NewStaticCredentials(kio.accessKeyID, kio.secretAccessKey, kio.sessionToken)
 			cfg = cfg.WithCredentials(creds)
 		}
 
-		if sio.logLevel > 0 && sio.getLoggerFunc != nil {
-			l := sio.getLoggerFunc()
+		if kio.logLevel > 0 && kio.getLoggerFunc != nil {
+			l := kio.getLoggerFunc()
 			if l != nil {
 				cfg.Logger = l
-				cfg.LogLevel = aws.LogLevel(aws.LogLevelType(sio.logLevel))
+				cfg.LogLevel = aws.LogLevel(aws.LogLevelType(kio.logLevel))
 			}
 		}
 
-		sio.client = sqs.New(session.New(), cfg)
+		kio.client = kinesis.New(session.New(), cfg)
 	}
-	return sio.client
+	return kio.client
 }

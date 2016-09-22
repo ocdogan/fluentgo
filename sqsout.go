@@ -21,10 +21,7 @@ func newSqsOut(manager InOutManager, config *inOutConfig) *sqsOut {
 		return nil
 	}
 
-	params := make(map[string]interface{}, len(config.Params))
-	for _, p := range config.Params {
-		params[p.Name] = p.Value
-	}
+	params := config.getParamsMap()
 
 	delaySeconds := int64(0)
 	if f, ok := params["delaySeconds"].(float64); ok {

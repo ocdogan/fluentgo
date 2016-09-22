@@ -85,3 +85,11 @@ type fluentConfig struct {
 	Inputs      inputsConfig  `json:"inputs"`
 	Outputs     outputsConfig `json:"outputs"`
 }
+
+func (cio *inOutConfig) getParamsMap() map[string]interface{} {
+	params := make(map[string]interface{}, len(cio.Params))
+	for _, p := range cio.Params {
+		params[p.Name] = p.Value
+	}
+	return params
+}

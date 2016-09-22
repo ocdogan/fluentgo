@@ -18,10 +18,7 @@ func newRedisListIn(manager InOutManager, config *inOutConfig) *redisListIn {
 		return nil
 	}
 
-	params := make(map[string]interface{}, len(config.Params))
-	for _, p := range config.Params {
-		params[p.Name] = p.Value
-	}
+	params := config.getParamsMap()
 
 	ih := newInHandler(manager, params)
 	if ih == nil {

@@ -17,10 +17,7 @@ func newRedisOut(manager InOutManager, config *inOutConfig) *redisOut {
 		return nil
 	}
 
-	params := make(map[string]interface{}, len(config.Params))
-	for _, p := range config.Params {
-		params[p.Name] = p.Value
-	}
+	params := config.getParamsMap()
 
 	oh := newOutHandler(manager, params)
 	if oh == nil {
