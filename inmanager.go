@@ -154,6 +154,8 @@ func (m *inManager) setInputs(config *inputsConfig) {
 				in = newSqsIn(m, &p)
 			} else if t == "rabbit" || t == "rabbitin" {
 				in = newRabbitIn(m, &p)
+			} else if t == "tcp" || t == "tcpin" {
+				in = newTCPIn(m, &p)
 			}
 
 			if in != nil {

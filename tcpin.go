@@ -12,10 +12,11 @@ import (
 
 type tcpIn struct {
 	inHandler
-	host       string
-	compressed bool
-	listener   *net.TCPListener
-	logger     Logger
+	host        string
+	compressed  bool
+	logger      Logger
+	listener    *net.TCPListener
+	connections []*net.TCPConn
 }
 
 func newTCPIn(manager InOutManager, config *inOutConfig) *tcpIn {
@@ -61,8 +62,138 @@ func newTCPIn(manager InOutManager, config *inOutConfig) *tcpIn {
 	return tin
 }
 
-func (tin *tcpIn) onNewConnection(conn net.Conn) {
+func (tin *tcpIn) funcAfterClose() {
+	l := tin.listener
+	if l != nil {
+		tin.listener = nil
+
+		defer recover()
+		l.Close()
+	}
+}
+
+func (tin *tcpIn) accept() {
+	l := tin.listener
+	if l == nil {
+		return
+	}
+
+	for tin.Processing() {
+		// Listen for an incoming connection.
+		l.SetDeadline(time.Now().Add(10 * time.Second))
+
+		conn, err := l.AcceptTCP()
+		if err != nil && tin.logger != nil {
+			tin.logger.Println("Error on 'TCPIN' accepting: ", err.Error())
+
+			opErr, ok := err.(*net.OpError)
+			if ok && strings.Contains(opErr.Error(), "closed network") {
+				return
+			}
+			continue
+		}
+
+		// Handle connections in a new goroutine.
+		if conn != nil {
+			tin.connections = append(tin.connections, conn)
+			go tin.onNewConnection(conn)
+		}
+	}
+}
+
+func (tin *tcpIn) listen(listenEnded chan bool) {
+	l, err := net.Listen("tcp", tin.host)
+	if err != nil {
+		close(listenEnded)
+		return
+	}
+
+	// Close the listener when the application closes.
+	defer func(nl net.Listener, ch chan bool) {
+		defer recover()
+		nl.Close()
+		close(ch)
+	}(l, listenEnded)
+
+	listener, ok := l.(*net.TCPListener)
+	if !ok {
+		if err == nil {
+			err = fmt.Errorf("Error on 'TCPIN' listening '%s'.", tin.host)
+		}
+
+		return
+	}
+
+	tin.listener = listener
+	tin.accept()
+}
+
+func (tin *tcpIn) funcReceive() {
+	defer func() {
+		recover()
+
+		l := tin.GetLogger()
+		if l != nil {
+			l.Println("Stoping 'TCPIN'...")
+		}
+	}()
+
+	l := tin.GetLogger()
+	if l != nil {
+		l.Println("Starting 'TCPIN'...")
+	}
+
+	completed := false
+	listenEnded := make(chan bool)
+
+	for {
+		if !completed {
+			go tin.listen(listenEnded)
+		}
+
+		select {
+		case <-tin.completed:
+			completed = true
+			tin.Close()
+			continue
+		case <-listenEnded:
+			if !completed {
+				listenEnded = make(chan bool)
+			}
+		}
+
+		if completed {
+			return
+		}
+	}
+}
+
+func (tin *tcpIn) remove(conn *net.TCPConn) {
+	if conn == nil {
+		return
+	}
+
+	conns := tin.connections
+	if len(conns) == 0 {
+		return
+	}
+
 	defer recover()
+
+	for index, c := range conns {
+		if c == conn {
+			tin.connections = append(conns[:index], conns[index+1:]...)
+			break
+		}
+	}
+
+}
+
+func (tin *tcpIn) onNewConnection(conn *net.TCPConn) {
+	defer func() {
+		recover()
+		tin.remove(conn)
+	}()
 
 	// Make a buffer to hold incoming data.
 	byt := make([]byte, 512)
@@ -161,110 +292,6 @@ func (tin *tcpIn) onNewConnection(conn net.Conn) {
 					}
 				}
 			}
-		}
-	}
-}
-
-func (tin *tcpIn) funcAfterClose() {
-	l := tin.listener
-	if l != nil {
-		tin.listener = nil
-
-		defer recover()
-		l.Close()
-	}
-}
-
-func (tin *tcpIn) accept() {
-	l := tin.listener
-	if l != nil {
-		// Close the listener when the application closes.
-		defer l.Close()
-		for tin.Processing() {
-			// Listen for an incoming connection.
-			conn, err := l.Accept()
-			if err != nil && tin.logger != nil {
-				tin.logger.Println("Error on 'TCPIN' accepting: ", err.Error())
-				continue
-			}
-
-			// Handle connections in a new goroutine.
-			go tin.onNewConnection(conn)
-		}
-	}
-}
-
-func (tin *tcpIn) listen() error {
-	listener := tin.listener
-	if listener != nil {
-		f, err := listener.File()
-		if err == nil && f != nil {
-			return nil
-		}
-
-		func(l *net.TCPListener) {
-			defer recover()
-			l.Close()
-		}(listener)
-	}
-
-	l, err := net.Listen("tcp", tin.host)
-	if err != nil {
-		return err
-	}
-
-	var ok bool
-	listener, ok = l.(*net.TCPListener)
-	if !ok {
-		err = l.Close()
-		if err == nil {
-			err = fmt.Errorf("Error on 'TCPIN' listening '%s'.", tin.host)
-		}
-		return err
-	}
-
-	tin.listener = listener
-
-	go tin.accept()
-
-	return nil
-}
-
-func (tin *tcpIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := tin.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'TCPIN'...")
-		}
-	}()
-
-	l := tin.GetLogger()
-	if l != nil {
-		l.Println("Starting 'TCPIN'...")
-	}
-
-	completed := false
-	for {
-		select {
-		case <-tin.completed:
-			completed = true
-			tin.Close()
-			continue
-		default:
-			if !completed {
-				err := tin.listen()
-				time.Sleep(100 * time.Millisecond)
-
-				if err != nil {
-					continue
-				}
-			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }
