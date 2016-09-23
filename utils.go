@@ -5,6 +5,8 @@ import (
 	"compress/gzip"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -117,6 +119,33 @@ func compress(data []byte) []byte {
 		}
 	}
 	return nil
+}
+
+func preparePath(dir string) string {
+	dir = strings.TrimSpace(dir)
+	if dir != "" {
+		repSep := '/'
+		if os.PathSeparator == '/' {
+			repSep = '\\'
+		}
+
+		dir = strings.Replace(dir, string(repSep), string(os.PathSeparator), -1)
+		dir = filepath.Clean(dir)
+	}
+
+	if dir == "" || dir == "." {
+		dir = "." + string(os.PathSeparator)
+	}
+
+	absDir, err := filepath.Abs(dir)
+	if err == nil {
+		dir = absDir
+	}
+
+	if dir[len(dir)-1] != os.PathSeparator {
+		dir += string(os.PathSeparator)
+	}
+	return dir
 }
 
 func decompress(data []byte) []byte {

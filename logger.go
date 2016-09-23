@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 )
@@ -56,15 +55,7 @@ func newLogger(config *logConfig) *logger {
 		lt = logRolling
 	}
 
-	logPath := filepath.Clean(strings.TrimSpace(config.Path))
-	if logPath == "" || logPath == "." {
-		logPath = "." + string(os.PathSeparator) + "log" + string(os.PathSeparator)
-	}
-	logPath, _ = filepath.Abs(logPath)
-
-	if logPath[len(logPath)-1] != os.PathSeparator {
-		logPath += string(os.PathSeparator)
-	}
+	logPath := config.getPath()
 
 	if ok, err := pathExists(logPath); !ok || err != nil {
 		os.MkdirAll(logPath, 0777)

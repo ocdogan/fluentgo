@@ -12,8 +12,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/cloudfoundry/gosigar"
 )
 
 type inProvider interface {
@@ -38,7 +36,7 @@ type inManager struct {
 	maxCount        int
 	maxSize         int
 	maxMessageSize  int
-	flushOnEvery    time.Duration
+	flushOnEverySec time.Duration
 	lastFlushTime   time.Time
 	lastQueueTime   time.Time
 	timestampKey    string
@@ -55,10 +53,7 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 		logger = newDummyLogger()
 	}
 
-	var manager *inManager
-	inputDir := manager.getBufferPath(config)
-
-	inputDir, _ = filepath.Abs(inputDir)
+	inputDir := (&config.Inputs.Buffer).getPath()
 	if exists, err := pathExists(inputDir); !exists || err != nil {
 		os.MkdirAll(inputDir, 0777)
 	}
@@ -68,38 +63,23 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 		os.MkdirAll(outputDir, 0777)
 	}
 
-	timestampKey := strings.TrimSpace(config.Inputs.Buffer.TimestampKey)
-
-	timestampFormat := ""
-	if timestampKey != "" {
-		timestampFormat = strings.TrimSpace(config.Inputs.Buffer.TimestampFormat)
-		if timestampFormat == "" {
-			timestampFormat = ISO8601Time
-		}
-	}
-
-	maxMessageSize := minInt(InvalidMessageSize, maxInt(-1, config.Inputs.Buffer.MaxMessageSize))
-	flushOnEvery := time.Duration(minInt64(600, maxInt64(30, int64(config.Inputs.Buffer.Flush.OnEvery)))) * time.Second
-
-	manager = &inManager{
+	manager := &inManager{
 		indexer:         int64(-1),
 		inputDir:        inputDir,
 		outputDir:       outputDir,
 		lastFlushTime:   time.Now(),
 		lastQueueTime:   time.Now(),
-		flushOnEvery:    flushOnEvery,
-		timestampKey:    timestampKey,
-		timestampFormat: timestampFormat,
 		logger:          logger,
-		maxMessageSize:  maxMessageSize,
+		flushOnEverySec: (&config.Inputs.Buffer.Flush).getOnEverySec(),
+		timestampKey:    strings.TrimSpace(config.Inputs.Buffer.TimestampKey),
+		timestampFormat: (&config.Inputs.Buffer).getTimestampFormat(),
+		maxMessageSize:  (&config.Inputs.Buffer).getMaxMessageSize(),
+		maxCount:        (&config.Inputs.Buffer).getMaxCount(),
+		maxSize:         (&config.Inputs.Buffer).getMaxSize(),
+		prefix:          (&config.Inputs.Buffer).getPrefix(),
+		extension:       (&config.Inputs.Buffer).getExtension(),
+		inQ:             newInQueue((&config.Inputs.Queue).getMaxParams()),
 	}
-
-	manager.inQ = newInQueue(manager.getQueueMParams(config))
-
-	manager.maxCount = manager.getBufferMaxCount(config)
-	manager.maxSize = manager.getBufferMaxSize(config)
-	manager.prefix = manager.getBufferFilenamePrefix(config)
-	manager.extension = manager.getBufferFilenameExtension(config)
 
 	manager.setInputs(&config.Inputs)
 
@@ -462,71 +442,4 @@ func (m *inManager) processInputs() {
 			return
 		}
 	}
-}
-
-func (m *inManager) getBufferMaxCount(config *fluentConfig) int {
-	cnt := config.Inputs.Buffer.Flush.Count
-	if cnt < minBufferCount {
-		cnt = minBufferCount
-	} else if cnt > maxBufferCount {
-		cnt = maxBufferCount
-	}
-	return cnt
-}
-
-func (m *inManager) getBufferFilenameExtension(config *fluentConfig) string {
-	ext := strings.TrimSpace(config.Inputs.Buffer.Extension)
-	if ext == "" {
-		ext = ".buf"
-	} else if ext[0] != "."[0] {
-		ext = "." + ext
-	}
-	return ext
-}
-
-func (m *inManager) getBufferFilenamePrefix(config *fluentConfig) string {
-	prefix := strings.TrimSpace(config.Inputs.Buffer.Prefix)
-	if prefix == "" {
-		prefix = "bf-"
-	} else if prefix[len(prefix)-1] != "-"[0] {
-		prefix += "-"
-	}
-	return prefix
-}
-
-func (m *inManager) getBufferMaxSize(config *fluentConfig) int {
-	sz := config.Inputs.Buffer.Flush.Size
-	if sz < minBufferSize {
-		sz = minBufferSize
-	} else if sz > maxBufferSize {
-		sz = maxBufferSize
-	}
-	return sz
-}
-
-func (m *inManager) getQueueMParams(config *fluentConfig) (maxCount int, maxSize uint64) {
-	maxCount = config.Inputs.Queue.MaxCount
-	if maxCount <= 0 {
-		maxCount = 10000
-	}
-
-	maxSize = config.Inputs.Queue.MaxSize
-	if maxSize <= 0 {
-		m := sigar.Mem{}
-		if e := m.Get(); e == nil {
-			maxSize = uint64(2 * uint64(m.Total/3))
-		}
-	}
-	return
-}
-
-func (m *inManager) getBufferPath(config *fluentConfig) string {
-	bufPath := filepath.Clean(strings.TrimSpace(config.Inputs.Buffer.Path))
-	if bufPath == "" || bufPath == "." {
-		bufPath = "." + string(os.PathSeparator) +
-			"buffer" + string(os.PathSeparator)
-	} else if bufPath[len(bufPath)-1] != os.PathSeparator {
-		bufPath += string(os.PathSeparator)
-	}
-	return bufPath
 }

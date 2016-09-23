@@ -4,7 +4,7 @@
         "enabled": true,
         "console": true,
         "type": "rolling",
-        "path": ""
+        "path": "/fluentgo/logs"
     },
     "inputs": {
         "maxMessageSize": -1,
@@ -13,7 +13,7 @@
             "maxCount": 2000
         },
         "buffer": {
-            "path": "buffer",
+            "path": "/fluentgo/buffer",
             "prefix": "bf",
             "extension": "buf",
             "timestampKey":"@timestamp",
@@ -104,15 +104,23 @@
                     { "name": "nowait", "value": false },
                     { "name": "autoAck", "value": false }
                 ]
+            },
+            {
+                "type": "tcp",
+                "params":[
+                    { "name": "enabled", "value": false },
+                    { "name": "host", "value": "localhost:1234" },
+                    { "name": "compressed", "value": false }
+                ]
             }
         ]
     },
     "outputs": {
-        "dataPath": "buffer\\completed\\",
+        "dataPath": "/fluentgo/buffer/completed",
         "dataPattern": "bf-*.buf",
         "bulkCount": 5000,
-        "flushOnEvery": 10,
-        "sleepOnEvery": 5,
+        "flushOnEverySec": 10,
+        "sleepOnEverySec": 5,
         "sleepForMillisec": 1,
         "maxMessageSize": -1,
         "queue": {
@@ -204,13 +212,13 @@
                     { "name": "sniffing.timeoutStartup", "value": -1 },
                     { "name": "logging.error.enabled", "value": true },
                     { "name": "logging.error.type", "value": "rolling" },
-                    { "name": "logging.error.path", "value": "./eserrorlogs" },
+                    { "name": "logging.error.path", "value": "/fluentgo/logs/eserrorlogs" },
                     { "name": "logging.info.enabled", "value": false },
                     { "name": "logging.info.type", "value": "rolling" },
-                    { "name": "logging.info.path", "value": "./esinfologs" },
+                    { "name": "logging.info.path", "value": "/fluentgo/logs/esinfologs" },
                     { "name": "logging.trace.enabled", "value": false },
                     { "name": "logging.trace.type", "value": "rolling" },
-                    { "name": "logging.trace.path", "value": "./estracelogs" }
+                    { "name": "logging.trace.path", "value": "/fluentgo/logs/estracelogs" }
                 ]
             },
             { 
@@ -251,6 +259,15 @@
                     { "name": "autoAck", "value": false },
                     { "name": "mandatory", "value": false },
                     { "name": "immediate", "value": false }
+                ]
+            },
+            { 
+                "type": "tcp",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "host", "value": "localhost:1234" },
+                    { "name": "connTimeoutSec", "value": 0 },
+                    { "name": "compressed", "value": false }
                 ]
             }
         ]

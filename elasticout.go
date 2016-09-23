@@ -80,7 +80,7 @@ func newElasticOut(manager InOutManager, config *inOutConfig) *elasticOut {
 			s = "logstash-"
 		} else {
 			s = strings.ToLower(s)
-			if s[len(s)-1] != "-"[0] {
+			if s[len(s)-1] != '-' {
 				s += "-"
 			}
 		}

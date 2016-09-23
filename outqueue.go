@@ -15,31 +15,31 @@ type outQNode struct {
 
 type outQueue struct {
 	sync.Mutex
-	idgen       uint32
-	nodeCount   int
-	count       int
-	maxCount    int
-	chunkSize   int
-	lastPop     time.Time
-	popWaitTime time.Duration
-	head        *outQNode
-	tail        *outQNode
+	idgen              uint32
+	nodeCount          int
+	count              int
+	maxCount           int
+	chunkSize          int
+	lastPop            time.Time
+	waitPopForMillisec time.Duration
+	head               *outQNode
+	tail               *outQNode
 }
 
-func newOutQueue(chunkSize, maxCount int, popWaitTime time.Duration) *outQueue {
+func newOutQueue(chunkSize, maxCount int, waitPopForMillisec time.Duration) *outQueue {
 	chunkSize = minInt(500, maxInt(10, maxInt(0, chunkSize)))
 
 	if maxCount <= 0 {
 		maxCount = 10000
 	}
 	maxCount = minInt(10000, maxCount)
-	popWaitTime = time.Duration(minInt64(500, maxInt64(0, int64(popWaitTime)))) * time.Millisecond
+	waitPopForMillisec = time.Duration(minInt64(500, maxInt64(0, int64(waitPopForMillisec)))) * time.Millisecond
 
 	return &outQueue{
-		chunkSize:   chunkSize,
-		maxCount:    maxCount,
-		popWaitTime: popWaitTime,
-		lastPop:     time.Now(),
+		chunkSize:          chunkSize,
+		maxCount:           maxCount,
+		waitPopForMillisec: waitPopForMillisec,
+		lastPop:            time.Now(),
 	}
 }
 
@@ -118,7 +118,7 @@ func (q *outQueue) CanPop() bool {
 func (q *outQueue) popReady() bool {
 	return q.head != nil &&
 		(len(q.head.chunk) >= q.chunkSize ||
-			(q.popWaitTime > 0 && time.Now().Sub(q.lastPop) >= q.popWaitTime))
+			(q.waitPopForMillisec > 0 && time.Now().Sub(q.lastPop) >= q.waitPopForMillisec))
 
 }
 

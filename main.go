@@ -161,7 +161,7 @@ func getServiceMode(config *fluentConfig) (smode string, ok bool) {
 
 	smode = strings.ToLower(smode)
 
-	if !(smode == in || smode == out) {
+	if !(smode == in || smode == out || smode == inout) {
 		smode = inout
 		ok = false
 	}

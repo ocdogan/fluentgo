@@ -35,7 +35,7 @@ func newRedisListIn(manager InOutManager, config *inOutConfig) *redisListIn {
 		ri := &redisListIn{
 			redisIO:     *rio,
 			inHandler:   *ih,
-			blockingCmd: rio.command[0] == "BLOCKING"[0],
+			blockingCmd: rio.command[0] == 'B',
 		}
 
 		ri.iotype = "REDISLISTIN"

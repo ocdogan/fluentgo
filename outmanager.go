@@ -25,9 +25,9 @@ type outManager struct {
 	timestampFormat string
 	bulkCount       int
 	maxMessageSize  int
-	flushOnEvery    time.Duration
+	flushOnEverySec time.Duration
+	sleepOnEverySec time.Duration
 	sleepForMSec    time.Duration
-	sleepOnEvery    time.Duration
 	lastFlushTime   time.Time
 	processing      int32
 	processingFiles int32
@@ -43,83 +43,29 @@ func newOutManager(config *fluentConfig, logger Logger) *outManager {
 		logger = newDummyLogger()
 	}
 
-	bulkCount := config.Outputs.BulkCount
-	if bulkCount < 1 {
-		bulkCount = defaultOutBulkCount
-	}
-	bulkCount = minInt(500, bulkCount)
+	dataPath := (&config.Outputs).getDataPath(&config.Inputs)
 
-	maxMessageSize := maxInt(config.Outputs.MaxMessageSize, -1)
-
-	flushOnEvery := time.Duration(minInt64(600, maxInt64(2, int64(config.Outputs.FlushOnEvery)))) * time.Second
-
-	sleepOnEvery := time.Duration(minInt64(60000, maxInt64(1, int64(config.Outputs.SleepOnEvery)))) * time.Second
-	sleepForMSec := time.Duration(minInt64(30000, maxInt64(1, int64(config.Outputs.SleepForMillisec)))) * time.Millisecond
-
-	dataPath := getOutQueueDataPath(config)
-
-	dataPath, _ = filepath.Abs(dataPath)
-	if dataPath[len(dataPath)-1] != os.PathSeparator {
-		dataPath += string(os.PathSeparator)
-	}
-
-	dataPattern := strings.TrimSpace(config.Outputs.Pattern)
-	if dataPattern == "" {
-		var m *inManager
-		dataPattern = m.getBufferFilenamePrefix(config) +
-			"*" + m.getBufferFilenameExtension(config)
-	}
+	dataPattern := (&config.Outputs).getDataPattern(&config.Inputs)
 	dataPattern = dataPath + dataPattern
-
-	timestampKey := strings.TrimSpace(config.Outputs.TimestampKey)
-
-	timestampFormat := ""
-	if timestampKey != "" {
-		timestampFormat = strings.TrimSpace(config.Outputs.TimestampFormat)
-		if timestampFormat == "" {
-			timestampFormat = ISO8601Time
-		}
-	}
 
 	manager := &outManager{
 		dataPath:        dataPath,
 		dataPattern:     dataPattern,
-		timestampKey:    timestampKey,
-		timestampFormat: timestampFormat,
-		bulkCount:       bulkCount,
-		maxMessageSize:  maxMessageSize,
-		flushOnEvery:    flushOnEvery,
-		sleepForMSec:    sleepForMSec,
-		sleepOnEvery:    sleepOnEvery,
 		lastFlushTime:   time.Now(),
 		logger:          logger,
+		timestampKey:    strings.TrimSpace(config.Outputs.TimestampKey),
+		timestampFormat: (&config.Outputs).getTimestampFormat(),
+		bulkCount:       (&config.Outputs).getBulkCount(),
+		maxMessageSize:  (&config.Outputs).getMaxMessageSize(),
+		flushOnEverySec: (&config.Outputs).getFlushOnEverySec(),
+		sleepOnEverySec: (&config.Outputs).getSleepOnEverySec(),
+		sleepForMSec:    (&config.Outputs).getSleepForMillisec(),
+		outQ:            newOutQueue((&config.Outputs.Queue).getParams()),
 	}
-
-	manager.outQ = newOutQueue(manager.getQueueParams(config))
 
 	manager.setOutputs(&config.Outputs)
 
 	return manager
-}
-
-func getOutQueueDataPath(config *fluentConfig) string {
-	dataPath := filepath.Clean(strings.TrimSpace(config.Outputs.Path))
-	if dataPath == "" || dataPath == "." {
-		dataPath = "." + string(os.PathSeparator) +
-			"buffer" + string(os.PathSeparator) +
-			"completed" + string(os.PathSeparator)
-	} else if dataPath[len(dataPath)-1] != os.PathSeparator {
-		dataPath += string(os.PathSeparator)
-	}
-	return dataPath
-}
-
-func (m *outManager) getQueueParams(config *fluentConfig) (chunkSize, maxCount int, popWaitTime time.Duration) {
-	chunkSize = config.Outputs.Queue.ChunkSize
-	maxCount = config.Outputs.Queue.MaxCount
-	popWaitTime = config.Outputs.Queue.PopWaitTime
-
-	return
 }
 
 func (m *outManager) setOutputs(config *outputsConfig) {
@@ -146,6 +92,8 @@ func (m *outManager) setOutputs(config *outputsConfig) {
 				out = newRabbitOut(m, &o)
 			} else if t == "std" || t == "stdout" {
 				out = newStdOut(m, &o)
+			} else if t == "tcp" || t == "tcpout" {
+				out = newTCPOut(m, &o)
 			}
 
 			if out != nil {
@@ -560,7 +508,7 @@ func (m *outManager) fileProcessed(filename string) {
 }
 
 func (m *outManager) DoSleep(lastSleepTime time.Time) bool {
-	if time.Now().Sub(lastSleepTime) >= m.sleepOnEvery {
+	if time.Now().Sub(lastSleepTime) >= m.sleepOnEverySec {
 		time.Sleep(m.sleepForMSec)
 		return true
 	}
