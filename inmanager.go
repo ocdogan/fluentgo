@@ -54,11 +54,8 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 	}
 
 	inputDir := (&config.Inputs.Buffer).getPath()
-	if exists, err := pathExists(inputDir); !exists || err != nil {
-		os.MkdirAll(inputDir, 0777)
-	}
-
 	outputDir := inputDir + "completed" + string(os.PathSeparator)
+
 	if exists, err := pathExists(outputDir); !exists || err != nil {
 		os.MkdirAll(outputDir, 0777)
 	}
