@@ -105,7 +105,7 @@ func (cfg *bufferConfig) getPath() string {
 	return preparePath(dir)
 }
 
-func (cfg *bufferConfig) getMaxCount() int {
+func (cfg *bufferConfig) getFlushCount() int {
 	var cnt int
 	if cfg != nil {
 		cnt = cfg.Flush.Count
@@ -117,6 +117,29 @@ func (cfg *bufferConfig) getMaxCount() int {
 		cnt = maxBufferCount
 	}
 	return cnt
+}
+
+func (cfg *bufferConfig) getFlushSize() int {
+	var sz int
+	if cfg != nil {
+		sz = cfg.Flush.Size
+	}
+
+	if sz < minBufferSize {
+		sz = minBufferSize
+	} else if sz > maxBufferSize {
+		sz = maxBufferSize
+	}
+	return sz
+}
+
+func (cfg *bufferConfig) getFlushOnEverySec() time.Duration {
+	var val int64
+	if cfg != nil {
+		val = int64(cfg.Flush.OnEverySec)
+	}
+
+	return time.Duration(minInt64(600, maxInt64(2, val))) * time.Second
 }
 
 func (cfg *bufferConfig) getExtension() string {
@@ -147,26 +170,12 @@ func (cfg *bufferConfig) getPrefix() string {
 	return prefix
 }
 
-func (cfg *bufferConfig) getMaxSize() int {
-	var sz int
-	if cfg != nil {
-		sz = cfg.Flush.Size
-	}
-
-	if sz < minBufferSize {
-		sz = minBufferSize
-	} else if sz > maxBufferSize {
-		sz = maxBufferSize
-	}
-	return sz
-}
-
 func (cfg *bufferConfig) getMaxMessageSize() int {
 	return minInt(InvalidMessageSize, maxInt(-1, cfg.MaxMessageSize))
 }
 
 func (cfg *bufferConfig) getTimestampFormat() string {
-	if strings.TrimSpace(cfg.TimestampKey) != "" {
+	if cfg != nil && strings.TrimSpace(cfg.TimestampKey) != "" {
 		tsFormat := strings.TrimSpace(cfg.TimestampFormat)
 		if tsFormat == "" {
 			tsFormat = ISO8601Time
@@ -199,7 +208,11 @@ func (cfg *outputsConfig) getDataPath(inCfg *inputsConfig) string {
 }
 
 func (cfg *outputsConfig) getBulkCount() int {
-	bulkCount := cfg.BulkCount
+	var bulkCount int
+	if cfg != nil {
+		bulkCount = cfg.BulkCount
+	}
+
 	if bulkCount < 1 {
 		bulkCount = defaultOutBulkCount
 	}
@@ -207,19 +220,39 @@ func (cfg *outputsConfig) getBulkCount() int {
 }
 
 func (cfg *outputsConfig) getMaxMessageSize() int {
-	return maxInt(cfg.MaxMessageSize, -1)
+	var val int
+	if cfg != nil {
+		val = cfg.MaxMessageSize
+	}
+
+	return maxInt(-1, val)
 }
 
 func (cfg *outputsConfig) getFlushOnEverySec() time.Duration {
-	return time.Duration(minInt64(600, maxInt64(2, int64(cfg.FlushOnEverySec)))) * time.Second
+	var val int64
+	if cfg != nil {
+		val = int64(cfg.FlushOnEverySec)
+	}
+
+	return time.Duration(minInt64(600, maxInt64(2, val))) * time.Second
 }
 
 func (cfg *outputsConfig) getSleepOnEverySec() time.Duration {
-	return time.Duration(minInt64(60000, maxInt64(1, int64(cfg.SleepOnEverySec)))) * time.Second
+	var val int64
+	if cfg != nil {
+		val = int64(cfg.SleepOnEverySec)
+	}
+
+	return time.Duration(minInt64(60000, maxInt64(1, val))) * time.Second
 }
 
 func (cfg *outputsConfig) getSleepForMillisec() time.Duration {
-	return time.Duration(minInt64(30000, maxInt64(1, int64(cfg.SleepForMillisec)))) * time.Millisecond
+	var val int64
+	if cfg != nil {
+		val = int64(cfg.SleepForMillisec)
+	}
+
+	return time.Duration(minInt64(30000, maxInt64(1, val))) * time.Millisecond
 }
 
 func (cfg *outputsConfig) getDataPattern(inCfg *inputsConfig) string {
@@ -237,7 +270,7 @@ func (cfg *outputsConfig) getDataPattern(inCfg *inputsConfig) string {
 
 func (cfg *outputsConfig) getTimestampFormat() string {
 	tsFormat := ""
-	if strings.TrimSpace(cfg.TimestampKey) != "" {
+	if cfg != nil && strings.TrimSpace(cfg.TimestampKey) != "" {
 		tsFormat = strings.TrimSpace(cfg.TimestampFormat)
 		if tsFormat == "" {
 			tsFormat = ISO8601Time
@@ -302,8 +335,4 @@ func (cfg *logConfig) getPath() string {
 	}
 
 	return preparePath(dir)
-}
-
-func (cfg *flushConfig) getOnEverySec() time.Duration {
-	return time.Duration(minInt64(600, maxInt64(30, int64(cfg.OnEverySec)))) * time.Second
 }

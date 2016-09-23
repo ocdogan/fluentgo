@@ -33,14 +33,14 @@ type inManager struct {
 	outputDir       string
 	prefix          string
 	extension       string
-	maxCount        int
-	maxSize         int
-	maxMessageSize  int
-	flushOnEverySec time.Duration
-	lastFlushTime   time.Time
-	lastQueueTime   time.Time
 	timestampKey    string
 	timestampFormat string
+	maxMessageSize  int
+	flushSize       int
+	flushCount      int
+	flushOnEverySec time.Duration
+	lastFlushTime   time.Time
+	lastProcessTime time.Time
 	inputs          []inProvider
 	logger          Logger
 	inQ             *inQueue
@@ -64,20 +64,20 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 	}
 
 	manager := &inManager{
+		logger:          logger,
 		indexer:         int64(-1),
 		inputDir:        inputDir,
 		outputDir:       outputDir,
 		lastFlushTime:   time.Now(),
-		lastQueueTime:   time.Now(),
-		logger:          logger,
-		flushOnEverySec: (&config.Inputs.Buffer.Flush).getOnEverySec(),
-		timestampKey:    strings.TrimSpace(config.Inputs.Buffer.TimestampKey),
-		timestampFormat: (&config.Inputs.Buffer).getTimestampFormat(),
-		maxMessageSize:  (&config.Inputs.Buffer).getMaxMessageSize(),
-		maxCount:        (&config.Inputs.Buffer).getMaxCount(),
-		maxSize:         (&config.Inputs.Buffer).getMaxSize(),
+		lastProcessTime: time.Now(),
 		prefix:          (&config.Inputs.Buffer).getPrefix(),
 		extension:       (&config.Inputs.Buffer).getExtension(),
+		flushSize:       (&config.Inputs.Buffer).getFlushSize(),
+		flushCount:      (&config.Inputs.Buffer).getFlushCount(),
+		flushOnEverySec: (&config.Inputs.Buffer).getFlushOnEverySec(),
+		maxMessageSize:  (&config.Inputs.Buffer).getMaxMessageSize(),
+		timestampFormat: (&config.Inputs.Buffer).getTimestampFormat(),
+		timestampKey:    strings.TrimSpace(config.Inputs.Buffer.TimestampKey),
 		inQ:             newInQueue((&config.Inputs.Queue).getMaxParams()),
 	}
 
@@ -209,7 +209,7 @@ func (m *inManager) processQueue() {
 		defer atomic.StoreInt32(&m.poppingQueue, int32(0))
 		recover()
 	}()
-	m.lastQueueTime = time.Now()
+	m.lastProcessTime = time.Now()
 
 	var (
 		data []byte
@@ -278,12 +278,17 @@ func (m *inManager) prepareBuffer(dataLen int) {
 	dataLen = maxInt(0, dataLen)
 
 	changeFile := bf == nil ||
-		(m.maxSize > 0 && bf.size+dataLen > m.maxSize) ||
-		(m.maxCount > 0 && bf.count+1 > m.maxCount)
+		(m.flushSize > 0 && bf.size+dataLen > m.flushSize) ||
+		(m.flushCount > 0 && bf.count+1 > m.flushCount) ||
+		(m.lastFlushTime.Sub(time.Now()) >= m.flushOnEverySec)
 
 	if !changeFile {
 		return
 	}
+
+	defer func(manager *inManager) {
+		manager.lastFlushTime = time.Now()
+	}(m)
 
 	m.bufFile = nil
 	m.completedFile(bf)
@@ -431,7 +436,7 @@ func (m *inManager) processInputs() {
 		case <-m.inQ.Ready():
 			if !completed && atomic.LoadInt32(&m.poppingQueue) == 0 {
 				t := time.Now()
-				if t.Sub(m.lastQueueTime) >= time.Second {
+				if t.Sub(m.lastProcessTime) >= time.Second {
 					time.Sleep(time.Millisecond)
 					go m.processQueue()
 				}

@@ -10,7 +10,8 @@
         "maxMessageSize": -1,
         "queue": {
             "maxSize": 10240000,
-            "maxCount": 2000
+            "maxCount": 2000,
+            "onSeverySec": 30
         },
         "buffer": {
             "path": "/fluentgo/buffer",
