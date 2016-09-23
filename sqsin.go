@@ -149,7 +149,7 @@ func (si *sqsIn) funcReceive() {
 			var wg sync.WaitGroup
 			for _, m := range resp.Messages {
 				wg.Add(1)
-				go func(sin *sqsIn, msg *sqs.Message) {
+				go func(sin *sqsIn, msg *sqs.Message, wg *sync.WaitGroup) {
 					defer wg.Done()
 
 					err := si.deleteMessage(msg)
@@ -161,7 +161,7 @@ func (si *sqsIn) funcReceive() {
 							l.Println(err)
 						}
 					}
-				}(si, m)
+				}(si, m, &wg)
 			}
 
 			wg.Wait()

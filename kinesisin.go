@@ -148,7 +148,7 @@ func (ki *kinesisIn) funcReceive() {
 			var wg sync.WaitGroup
 			for _, r := range resp.Records {
 				wg.Add(1)
-				go func(kin *kinesisIn, rec *kinesis.Record) {
+				go func(kin *kinesisIn, rec *kinesis.Record, wg *sync.WaitGroup) {
 					defer wg.Done()
 
 					if err == nil {
@@ -159,7 +159,7 @@ func (ki *kinesisIn) funcReceive() {
 							l.Println(err)
 						}
 					}
-				}(ki, r)
+				}(ki, r, &wg)
 			}
 
 			wg.Wait()
