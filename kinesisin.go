@@ -101,15 +101,15 @@ func (ki *kinesisIn) funcReceive() {
 	}
 
 	loop := 0
-	for {
+	for !completed {
 		select {
 		case <-ki.completed:
 			completed = true
 			ki.Close()
-			continue
+			return
 		default:
 			if completed {
-				break
+				return
 			}
 
 			ki.Connect()
@@ -169,10 +169,6 @@ func (ki *kinesisIn) funcReceive() {
 				loop = 0
 				time.Sleep(time.Millisecond)
 			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }

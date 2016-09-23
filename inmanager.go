@@ -428,22 +428,22 @@ func (m *inManager) processInputs() {
 		}
 	}
 
-	for {
+	for !completed {
 		select {
 		case <-completeSignal:
 			completed = true
+			return
 		case <-m.inQ.Ready():
-			if !completed && atomic.LoadInt32(&m.poppingQueue) == 0 {
+			if completed {
+				return
+			}
+			if atomic.LoadInt32(&m.poppingQueue) == 0 {
 				t := time.Now()
 				if t.Sub(m.lastProcessTime) >= time.Second {
 					time.Sleep(time.Millisecond)
 					go m.processQueue()
 				}
 			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }

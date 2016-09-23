@@ -113,15 +113,15 @@ func (si *sqsIn) funcReceive() {
 	}
 
 	loop := 0
-	for {
+	for !completed {
 		select {
 		case <-si.completed:
 			completed = true
 			si.Close()
-			continue
+			return
 		default:
 			if completed {
-				break
+				return
 			}
 
 			si.Connect()
@@ -171,10 +171,6 @@ func (si *sqsIn) funcReceive() {
 				loop = 0
 				time.Sleep(time.Millisecond)
 			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }

@@ -73,15 +73,15 @@ func (ri *redisListIn) funcReceive() {
 	maxMessageSize := minInt(InvalidMessageSize, maxInt(-1, ri.manager.GetMaxMessageSize()))
 
 	loop := 0
-	for {
+	for !completed {
 		select {
 		case <-ri.completed:
 			completed = true
 			ri.Close()
-			continue
+			return
 		default:
 			if completed {
-				break
+				return
 			}
 
 			ri.Connect()
@@ -138,10 +138,6 @@ func (ri *redisListIn) funcReceive() {
 				loop = 0
 				time.Sleep(time.Millisecond)
 			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }

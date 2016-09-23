@@ -165,26 +165,26 @@ func (tin *tcpIn) funcReceive() {
 	}
 
 	completed := false
-	listenEnded := make(chan bool)
+	var (
+		chanOpen    bool
+		listenEnded chan bool
+	)
 
-	for {
-		if !completed {
-			go tin.listen(listenEnded)
+	for !completed {
+		if !chanOpen {
+			listenEnded = make(chan bool)
 		}
+		go tin.listen(listenEnded)
 
 		select {
 		case <-tin.completed:
 			completed = true
 			tin.Close()
-			continue
-		case <-listenEnded:
-			if !completed {
-				listenEnded = make(chan bool)
-			}
-		}
-
-		if completed {
 			return
+		case _, chanOpen = <-listenEnded:
+			if completed {
+				return
+			}
 		}
 	}
 }

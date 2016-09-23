@@ -110,54 +110,52 @@ func (ri *redisChanIn) funcReceive() {
 	compressed := ri.compressed
 	maxMessageSize := minInt(InvalidMessageSize, maxInt(-1, ri.manager.GetMaxMessageSize()))
 
-	for {
+	for !completed {
 		select {
 		case <-ri.completed:
 			completed = true
 			ri.Close()
-			continue
+			return
 		default:
-			if !completed {
-				ri.Connect()
+			if completed {
+				return
+			}
 
-				pConn := ri.pConn
-				if pConn == nil {
-					completed = true
-					return
+			ri.Connect()
+
+			pConn := ri.pConn
+			if pConn == nil {
+				completed = true
+				return
+			}
+
+			switch m := pConn.Receive().(type) {
+			case redis.Message:
+				if !completed {
+					go ri.queueMessage(m.Data, maxMessageSize, compressed)
 				}
-
-				switch m := pConn.Receive().(type) {
-				case redis.Message:
-					if !completed {
-						go ri.queueMessage(m.Data, maxMessageSize, compressed)
-					}
-				case redis.PMessage:
-					if !completed {
-						go ri.queueMessage(m.Data, maxMessageSize, compressed)
-					}
-				case error:
-					if !completed {
-						l := ri.GetLogger()
-						if l != nil {
-							l.Println(m)
-						}
-
-						if !ri.Processing() {
-							ri.completed <- true
-							return
-						}
-					}
-				case redis.Subscription:
+			case redis.PMessage:
+				if !completed {
+					go ri.queueMessage(m.Data, maxMessageSize, compressed)
+				}
+			case error:
+				if !completed {
 					l := ri.GetLogger()
 					if l != nil {
-						l.Printf("Subscribed to '%s' over '%s'\n", m.Channel, strings.ToUpper(m.Kind))
+						l.Println(m)
+					}
+
+					if !ri.Processing() {
+						ri.completed <- true
+						return
 					}
 				}
+			case redis.Subscription:
+				l := ri.GetLogger()
+				if l != nil {
+					l.Printf("Subscribed to '%s' over '%s'\n", m.Channel, strings.ToUpper(m.Kind))
+				}
 			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }

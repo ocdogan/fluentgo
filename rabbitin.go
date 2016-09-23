@@ -106,15 +106,15 @@ func (ri *rabbitIn) funcReceive() {
 	compressed := ri.compressed
 	maxMessageSize := minInt(InvalidMessageSize, maxInt(-1, ri.manager.GetMaxMessageSize()))
 
-	for {
+	for !completed {
 		select {
 		case <-ri.completed:
 			completed = true
 			ri.Close()
-			continue
+			return
 		case msg := <-ri.deliveries:
 			if completed {
-				break
+				return
 			}
 
 			ri.Connect()
@@ -123,10 +123,6 @@ func (ri *rabbitIn) funcReceive() {
 			if len(msg.Body) > 0 && ri.validContentType(msg.ContentType) {
 				go ri.queueMessage(msg.Body, maxMessageSize, compressed)
 			}
-		}
-
-		if completed {
-			return
 		}
 	}
 }
