@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
 type tcpIn struct {
 	inHandler
+	lck         sync.Mutex
 	host        string
 	compressed  bool
 	logger      Logger
@@ -73,35 +74,55 @@ func (tin *tcpIn) funcAfterClose() {
 }
 
 func (tin *tcpIn) accept() {
-	l := tin.listener
-	if l == nil {
+	listener := tin.listener
+	if listener == nil {
 		return
 	}
 
+	lg := tin.logger
 	for tin.Processing() {
 		// Listen for an incoming connection.
-		l.SetDeadline(time.Now().Add(10 * time.Second))
+		listener.SetDeadline(time.Now().Add(10 * time.Second))
 
-		conn, err := l.AcceptTCP()
-		if err != nil && tin.logger != nil {
-			tin.logger.Println("Error on 'TCPIN' accepting: ", err.Error())
+		conn, err := listener.AcceptTCP()
+		if err != nil {
+			errStr := err.Error()
+			if _, ok := err.(*net.OpError); ok {
+				if strings.Contains(errStr, "closed network") {
+					return
+				}
+				if strings.Contains(errStr, "accept") && strings.Contains(errStr, "timeout") {
+					continue
+				}
+			}
 
-			opErr, ok := err.(*net.OpError)
-			if ok && strings.Contains(opErr.Error(), "closed network") {
-				return
+			if lg != nil {
+				lg.Println("Error on 'TCPIN' accepting: ", errStr)
 			}
 			continue
 		}
 
 		// Handle connections in a new goroutine.
 		if conn != nil {
-			tin.connections = append(tin.connections, conn)
+			func(tin *tcpIn, conn *net.TCPConn) {
+				defer tin.lck.Unlock()
+
+				tin.lck.Lock()
+				tin.connections = append(tin.connections, conn)
+			}(tin, conn)
+
 			go tin.onNewConnection(conn)
 		}
 	}
 }
 
 func (tin *tcpIn) listen(listenEnded chan bool) {
+	lg := tin.logger
+	if lg != nil {
+		defer lg.Printf("'TCPIN' completed listening at '%s'.\n", tin.host)
+		lg.Printf("'TCPIN' starting to listen at '%s'...\n", tin.host)
+	}
+
 	l, err := net.Listen("tcp", tin.host)
 	if err != nil {
 		close(listenEnded)
@@ -117,8 +138,8 @@ func (tin *tcpIn) listen(listenEnded chan bool) {
 
 	listener, ok := l.(*net.TCPListener)
 	if !ok {
-		if err == nil {
-			err = fmt.Errorf("Error on 'TCPIN' listening '%s'.", tin.host)
+		if err == nil && lg != nil {
+			lg.Printf("Error on 'TCPIN' listening '%s'.\n", tin.host)
 		}
 
 		return
@@ -173,12 +194,17 @@ func (tin *tcpIn) remove(conn *net.TCPConn) {
 		return
 	}
 
+	defer func(tin *tcpIn) {
+		recover()
+		tin.lck.Unlock()
+	}(tin)
+
+	tin.lck.Lock()
+
 	conns := tin.connections
 	if len(conns) == 0 {
 		return
 	}
-
-	defer recover()
 
 	for index, c := range conns {
 		if c == conn {
