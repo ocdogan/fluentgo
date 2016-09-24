@@ -41,6 +41,8 @@ type inManager struct {
 	flushOnEverySec time.Duration
 	lastFlushTime   time.Time
 	lastProcessTime time.Time
+	orphanDelete    bool
+	orphanLastXDays int
 	inputs          []inProvider
 	logger          Logger
 	inQ             *inQueue
@@ -75,6 +77,8 @@ func newInManager(config *fluentConfig, logger Logger) *inManager {
 		maxMessageSize:  (&config.Inputs.Buffer).getMaxMessageSize(),
 		timestampFormat: (&config.Inputs.Buffer).getTimestampFormat(),
 		timestampKey:    strings.TrimSpace(config.Inputs.Buffer.TimestampKey),
+		orphanDelete:    (&config.Inputs.OrphanFiles).getDeleteAll(),
+		orphanLastXDays: (&config.Inputs.OrphanFiles).getReplayLastXDays(),
 		inQ:             newInQueue((&config.Inputs.Queue).getMaxParams()),
 	}
 
@@ -290,7 +294,7 @@ func (m *inManager) prepareBuffer(dataLen int) {
 	}(m)
 
 	m.bufFile = nil
-	m.completedFile(bf)
+	m.doFileCompleted(bf)
 
 	var file *os.File
 	filename := m.nextBufferFile()
@@ -312,7 +316,75 @@ func (m *inManager) prepareBuffer(dataLen int) {
 	}
 }
 
-func (m *inManager) completedFile(bf *bufferFile) {
+func (m *inManager) doOrphanAction(searchFor string, remove bool) {
+	defer recover()
+
+	filenames, err := filepath.Glob(searchFor)
+	if err != nil || len(filenames) == 0 {
+		return
+	}
+
+	for _, fname := range filenames {
+		func(filename string) {
+			defer recover()
+
+			if exists, err := fileExists(filename); exists && err != nil {
+				if remove {
+					os.Remove(filename)
+				} else {
+					newName := m.outputDir + filepath.Base(filename)
+					os.Rename(filename, newName)
+				}
+			}
+		}(fname)
+	}
+}
+
+func (m *inManager) handleOrphans() {
+	defer recover()
+
+	exists, err := pathExists(m.inputDir)
+	if !exists || err != nil {
+		return
+	}
+
+	// Delete all files
+	if m.orphanDelete {
+		searchFor := fmt.Sprintf("%s%s*%s", m.inputDir, m.prefix, m.extension)
+		m.doOrphanAction(searchFor, true)
+	} else if m.orphanLastXDays != 0 {
+		if exists, err := pathExists(m.outputDir); !exists || err != nil {
+			os.MkdirAll(m.outputDir, 0777)
+		}
+
+		// Move all files to output directory
+		if m.orphanLastXDays < 0 {
+			searchFor := fmt.Sprintf("%s%s*%s", m.inputDir, m.prefix, m.extension)
+			m.doOrphanAction(searchFor, false)
+		} else {
+			today := time.Now()
+			today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.Local)
+
+			for i := 0; i < m.orphanLastXDays; i++ {
+				func(today time.Time) {
+					defer recover()
+
+					t := today.Add(time.Duration(-i) * 24 * time.Hour)
+					searchFor := fmt.Sprintf("%s%s%d%02d%02dT*%s", m.inputDir, m.prefix,
+						t.Year(), t.Month(), t.Day(), m.extension)
+
+					m.doOrphanAction(searchFor, false)
+				}(today)
+			}
+
+			// Remove rest of the files
+			searchFor := fmt.Sprintf("%s%s*%s", m.inputDir, m.prefix, m.extension)
+			m.doOrphanAction(searchFor, true)
+		}
+	}
+}
+
+func (m *inManager) doFileCompleted(bf *bufferFile) {
 	defer recover()
 
 	if bf == nil {
@@ -427,6 +499,8 @@ func (m *inManager) processInputs() {
 			}
 		}
 	}
+
+	m.handleOrphans()
 
 	for !completed {
 		select {

@@ -36,6 +36,11 @@ type flushConfig struct {
 	OnEverySec time.Duration `json:"onEverySec"`
 }
 
+type orphanConfig struct {
+	DeleteAll       bool `json:"deleteAll"`
+	ReplayLastXDays int  `json:"replayLastXDays"`
+}
+
 type bufferConfig struct {
 	Path            string      `json:"path"`
 	Prefix          string      `json:"prefix"`
@@ -57,9 +62,10 @@ type inOutConfig struct {
 }
 
 type inputsConfig struct {
-	Queue     inQConfig     `json:"queue"`
-	Buffer    bufferConfig  `json:"buffer"`
-	Producers []inOutConfig `json:"producers"`
+	Queue       inQConfig     `json:"queue"`
+	Buffer      bufferConfig  `json:"buffer"`
+	OrphanFiles orphanConfig  `json:"orphanFiles"`
+	Producers   []inOutConfig `json:"producers"`
 }
 
 type outQConfig struct {
@@ -80,6 +86,7 @@ type outputsConfig struct {
 	SleepForMillisec time.Duration `json:"sleepForMillisec"`
 	Queue            outQConfig    `json:"queue"`
 	Consumers        []inOutConfig `json:"consumers"`
+	OrphanFiles      orphanConfig  `json:"orphanFiles"`
 }
 
 type fluentConfig struct {
@@ -335,4 +342,19 @@ func (cfg *logConfig) getPath() string {
 	}
 
 	return preparePath(dir)
+}
+
+func (cfg *orphanConfig) getDeleteAll() bool {
+	if cfg != nil {
+		return cfg.DeleteAll
+	}
+	return false
+}
+
+func (cfg *orphanConfig) getReplayLastXDays() int {
+	var val int
+	if cfg != nil {
+		val = cfg.ReplayLastXDays
+	}
+	return minInt(365, maxInt(-1, val))
 }

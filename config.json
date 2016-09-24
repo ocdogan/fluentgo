@@ -24,6 +24,10 @@
                 "size": 1024000
             }
         },
+        "orphanFiles": {
+            "deleteAll": false,
+            "replayLastXDays": 10
+        },
         "producers": [
             {
                 "type": "redischan",
@@ -129,11 +133,15 @@
             "chunkSize": 100,
             "pushWaitTime": 1
         },
+        "orphanFiles": {
+            "deleteAll": false,
+            "replayLastXDays": 0
+        },
         "consumers": [
             { 
                 "type": "std",
                 "params": [
-                    { "name": "enabled", "value": true }
+                    { "name": "enabled", "value": false }
                 ]
             },
             { 
@@ -265,8 +273,8 @@
             { 
                 "type": "tcp",
                 "params": [
-                    { "name": "enabled", "value": false },
-                    { "name": "host", "value": "localhost:1234" },
+                    { "name": "enabled", "value": true },
+                    { "name": "host", "value": "localhost:12345" },
                     { "name": "connTimeoutSec", "value": 0 },
                     { "name": "compressed", "value": false }
                 ]
