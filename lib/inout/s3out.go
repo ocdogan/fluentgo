@@ -17,6 +17,7 @@ import (
 
 type s3Out struct {
 	outHandler
+	awsIO
 	accessKeyID     string
 	secretAccessKey string
 	sessionToken    string
@@ -45,15 +46,11 @@ func newS3Out(manager InOutManager, config *config.InOutConfig) *s3Out {
 	params := config.GetParamsMap()
 
 	var (
-		accessKeyID     string
-		secretAccessKey string
-		token           string
-		acl             string
-		region          string
-		bucket          string
-		prefix          string
-		rootAttr        string
-		ok              bool
+		acl      string
+		bucket   string
+		prefix   string
+		rootAttr string
+		ok       bool
 	)
 
 	bucket, ok = params["bucket"].(string)
@@ -62,30 +59,6 @@ func newS3Out(manager InOutManager, config *config.InOutConfig) *s3Out {
 	}
 	if bucket == "" {
 		return nil
-	}
-
-	region, ok = params["region"].(string)
-	if ok {
-		region = strings.TrimSpace(region)
-	}
-	if region == "" {
-		return nil
-	}
-
-	accessKeyID, ok = params["accessKeyID"].(string)
-	if ok {
-		accessKeyID = strings.TrimSpace(accessKeyID)
-		if accessKeyID != "" {
-			secretAccessKey, ok = params["secretAccessKey"].(string)
-			if ok {
-				secretAccessKey = strings.TrimSpace(secretAccessKey)
-			}
-		}
-	}
-
-	token, ok = params["sessionToken"].(string)
-	if ok {
-		token = strings.TrimSpace(token)
 	}
 
 	acl, ok = params["acl"].(string)
@@ -109,31 +82,9 @@ func newS3Out(manager InOutManager, config *config.InOutConfig) *s3Out {
 		rootAttr = "messages"
 	}
 
-	var (
-		f           float64
-		disableSSL  bool
-		compression bool
-	)
-
-	if disableSSL, ok = params["disableSSL"].(bool); !ok {
-		disableSSL = false
-	}
-
-	if compression, ok = params["compression"].(bool); !ok {
-		compression = false
-	}
-
-	maxRetries := 0
-	if f, ok = params["maxRetries"].(float64); ok {
-		maxRetries = int(f)
-	}
-	if !ok || maxRetries < 1 {
-		maxRetries = 1
-	}
-
-	logLevel := 0
-	if f, ok = params["logLevel"].(float64); ok {
-		logLevel = lib.MaxInt(int(f), 0)
+	awsio := newAwsIO(manager, config)
+	if awsio == nil {
+		return nil
 	}
 
 	oh := newOutHandler(manager, params)
@@ -142,19 +93,12 @@ func newS3Out(manager InOutManager, config *config.InOutConfig) *s3Out {
 	}
 
 	s3o := &s3Out{
-		outHandler:      *oh,
-		accessKeyID:     accessKeyID,
-		secretAccessKey: secretAccessKey,
-		acl:             acl,
-		sessionToken:    token,
-		region:          region,
-		bucket:          bucket,
-		prefix:          prefix,
-		disableSSL:      disableSSL,
-		compression:     compression,
-		maxRetries:      maxRetries,
-		rootAttr:        rootAttr,
-		logLevel:        uint(logLevel),
+		outHandler: *oh,
+		awsIO:      *awsio,
+		acl:        acl,
+		bucket:     bucket,
+		prefix:     prefix,
+		rootAttr:   rootAttr,
 	}
 
 	s3o.iotype = "S3OUT"
