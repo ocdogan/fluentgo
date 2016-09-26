@@ -145,6 +145,12 @@
                 ]
             },
             { 
+                "type": "null",
+                "params": [
+                    { "name": "enabled", "value": true }
+                ]
+            },
+            { 
                 "type": "s3",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -273,18 +279,12 @@
             { 
                 "type": "tcp",
                 "params": [
-                    { "name": "enabled", "value": true },
+                    { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost:12345" },
                     { "name": "connTimeoutSec", "value": 0 },
                     { "name": "compressed", "value": false }
                 ]
-            },
-            { 
-                "type": "null",
-                "params": [
-                    { "name": "enabled", "value": true }
-                ]
             }
-        ]
+       ]
     }
 }
