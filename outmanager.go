@@ -520,7 +520,7 @@ func (m *outManager) DoSleep(lastSleepTime time.Time) bool {
 	return false
 }
 
-func (m *outManager) doOrphanAction(searchFor string, tmpPath string, remove bool) {
+func (m *outManager) doOrphanAction(searchFor string, movePath string, remove bool) {
 	defer recover()
 
 	filenames, err := filepath.Glob(searchFor)
@@ -536,7 +536,7 @@ func (m *outManager) doOrphanAction(searchFor string, tmpPath string, remove boo
 				if remove {
 					os.Remove(filename)
 				} else {
-					newName := tmpPath + filepath.Base(filename)
+					newName := movePath + filepath.Base(filename)
 					os.Rename(filename, newName)
 				}
 			}
@@ -544,25 +544,6 @@ func (m *outManager) doOrphanAction(searchFor string, tmpPath string, remove boo
 	}
 }
 
-func (m *outManager) moveTempOrphansBack(tempPath string) {
-	defer recover()
-
-	filenames, err := filepath.Glob(tempPath + "*.*")
-	if err != nil || len(filenames) == 0 {
-		return
-	}
-
-	for _, filename := range filenames {
-		func() {
-			defer recover()
-
-			if exists, err := fileExists(filename); exists && err != nil {
-				newName := m.dataPath + filepath.Base(filename)
-				os.Rename(filename, newName)
-			}
-		}()
-	}
-}
 func (m *outManager) HandleOrphans() {
 	defer recover()
 
@@ -601,7 +582,8 @@ func (m *outManager) HandleOrphans() {
 
 		// Remove rest of the files
 		m.doOrphanAction(m.dataPattern, "", true)
-		m.moveTempOrphansBack(tempPath)
+		// Move temp files back to output
+		m.doOrphanAction(tempPath+"*.*", m.dataPath, false)
 	}
 }
 
