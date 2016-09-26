@@ -99,6 +99,8 @@ func (m *outManager) setOutputs(config *outputsConfig) {
 				out = newStdOut(m, &o)
 			} else if t == "tcp" || t == "tcpout" {
 				out = newTCPOut(m, &o)
+			} else if t == "null" || t == "nullout" {
+				out = newNullOut(m, &o)
 			}
 
 			if out != nil {

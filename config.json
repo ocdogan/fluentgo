@@ -278,6 +278,12 @@
                     { "name": "connTimeoutSec", "value": 0 },
                     { "name": "compressed", "value": false }
                 ]
+            },
+            { 
+                "type": "null",
+                "params": [
+                    { "name": "enabled", "value": true }
+                ]
             }
         ]
     }
