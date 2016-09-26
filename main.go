@@ -103,49 +103,62 @@ func process(smode string, config *fluentConfig, logger Logger, quitSignal <-cha
 	defer logger.Println("Stopping service...")
 
 	var (
-		im          *inManager
-		om          *outManager
-		imCompleted <-chan bool
-		omCompleted <-chan bool
+		im *inManager
+		om *outManager
 	)
 
 	if smode == in || smode == inout {
 		im = newInManager(config, logger)
-		imCompleted = im.Process()
 	}
 
 	if smode == out || smode == inout {
 		om = newOutManager(config, logger)
+	}
+
+	imActive := im != nil
+	omActive := om != nil
+
+	// Handle orphan files before async process start
+	if imActive {
+		im.HandleOrphans()
+	}
+	if omActive {
+		om.HandleOrphans()
+	}
+
+	// Start processes
+	var (
+		imCompleted <-chan bool
+		omCompleted <-chan bool
+	)
+
+	if imActive {
+		imCompleted = im.Process()
+	}
+	if omActive {
 		omCompleted = om.Process()
 	}
 
-	waitManagers(im, om, imCompleted, omCompleted, quitSignal)
-}
-
-func waitManagers(im *inManager, om *outManager, imCompleted, omCompleted, quitSignal <-chan bool) {
-	imactive := im != nil
-	omactive := om != nil
-
-	for imactive || omactive {
+	for imActive || omActive {
 		select {
 		case <-quitSignal:
-			if imactive {
-				imactive = false
+			if imActive {
+				imActive = false
 				if im != nil {
 					im.Close()
 				}
 			}
 
-			if omactive {
-				omactive = false
+			if omActive {
+				omActive = false
 				if om != nil {
 					om.Close()
 				}
 			}
 		case <-imCompleted:
-			imactive = false
+			imActive = false
 		case <-omCompleted:
-			omactive = false
+			omActive = false
 		}
 
 		time.Sleep(time.Millisecond)

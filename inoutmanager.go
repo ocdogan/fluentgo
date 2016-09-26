@@ -8,4 +8,5 @@ type InOutManager interface {
 	GetOutQueue() *outQueue
 	Process() (completed <-chan bool)
 	Processing() bool
+	HandleOrphans()
 }

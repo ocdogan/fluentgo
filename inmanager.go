@@ -324,8 +324,8 @@ func (m *inManager) doOrphanAction(searchFor string, remove bool) {
 		return
 	}
 
-	for _, fname := range filenames {
-		func(filename string) {
+	for _, filename := range filenames {
+		func() {
 			defer recover()
 
 			if exists, err := fileExists(filename); exists && err != nil {
@@ -336,11 +336,11 @@ func (m *inManager) doOrphanAction(searchFor string, remove bool) {
 					os.Rename(filename, newName)
 				}
 			}
-		}(fname)
+		}()
 	}
 }
 
-func (m *inManager) handleOrphans() {
+func (m *inManager) HandleOrphans() {
 	defer recover()
 
 	exists, err := pathExists(m.inputDir)
@@ -499,8 +499,6 @@ func (m *inManager) processInputs() {
 			}
 		}
 	}
-
-	m.handleOrphans()
 
 	for !completed {
 		select {

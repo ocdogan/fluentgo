@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -32,6 +33,8 @@ type outManager struct {
 	processing      int32
 	processingFiles int32
 	processingQueue int32
+	orphanDelete    bool
+	orphanLastXDays int
 	outQ            *outQueue
 	logger          Logger
 	outputs         []outSender
@@ -60,6 +63,8 @@ func newOutManager(config *fluentConfig, logger Logger) *outManager {
 		flushOnEverySec: (&config.Outputs).getFlushOnEverySec(),
 		sleepOnEverySec: (&config.Outputs).getSleepOnEverySec(),
 		sleepForMSec:    (&config.Outputs).getSleepForMillisec(),
+		orphanDelete:    (&config.Outputs.OrphanFiles).getDeleteAll(),
+		orphanLastXDays: (&config.Outputs.OrphanFiles).getReplayLastXDays(),
 		outQ:            newOutQueue((&config.Outputs.Queue).getParams()),
 	}
 
@@ -513,6 +518,91 @@ func (m *outManager) DoSleep(lastSleepTime time.Time) bool {
 		return true
 	}
 	return false
+}
+
+func (m *outManager) doOrphanAction(searchFor string, tmpPath string, remove bool) {
+	defer recover()
+
+	filenames, err := filepath.Glob(searchFor)
+	if err != nil || len(filenames) == 0 {
+		return
+	}
+
+	for _, filename := range filenames {
+		func() {
+			defer recover()
+
+			if exists, err := fileExists(filename); exists && err != nil {
+				if remove {
+					os.Remove(filename)
+				} else {
+					newName := tmpPath + filepath.Base(filename)
+					os.Rename(filename, newName)
+				}
+			}
+		}()
+	}
+}
+
+func (m *outManager) moveTempOrphansBack(tempPath string) {
+	defer recover()
+
+	filenames, err := filepath.Glob(tempPath + "*.*")
+	if err != nil || len(filenames) == 0 {
+		return
+	}
+
+	for _, filename := range filenames {
+		func() {
+			defer recover()
+
+			if exists, err := fileExists(filename); exists && err != nil {
+				newName := m.dataPath + filepath.Base(filename)
+				os.Rename(filename, newName)
+			}
+		}()
+	}
+}
+func (m *outManager) HandleOrphans() {
+	defer recover()
+
+	exists, err := pathExists(m.dataPath)
+	if !exists || err != nil {
+		return
+	}
+
+	// Delete all files
+	if m.orphanDelete {
+		m.doOrphanAction(m.dataPattern, "", true)
+	} else if m.orphanLastXDays > 0 {
+		if exists, err := pathExists(m.dataPath); !exists || err != nil {
+			os.MkdirAll(m.dataPath, 0777)
+		}
+
+		tempPath := m.dataPath + "tmp" + string(os.PathSeparator)
+		if exists, err := pathExists(tempPath); !exists || err != nil {
+			os.MkdirAll(tempPath, 0777)
+		}
+
+		today := time.Now()
+		today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.Local)
+
+		for i := 0; i < m.orphanLastXDays; i++ {
+			func(today time.Time) {
+				defer recover()
+
+				t := today.Add(time.Duration(-i) * 24 * time.Hour)
+				searchFor := fmt.Sprintf("%s*%d%02d%02dT*", m.dataPath,
+					t.Year(), t.Month(), t.Day())
+
+				m.doOrphanAction(searchFor, tempPath, false)
+			}(today)
+		}
+
+		// Remove rest of the files
+		m.doOrphanAction(m.dataPattern, "", true)
+		m.moveTempOrphansBack(tempPath)
+	}
 }
 
 func (m *outManager) appendTimestamp(data []byte) []byte {
