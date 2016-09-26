@@ -10,6 +10,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/ocdogan/fluentgo/lib"
+	"github.com/ocdogan/fluentgo/lib/config"
+	"github.com/ocdogan/fluentgo/lib/inout"
+	"github.com/ocdogan/fluentgo/lib/log"
+	"github.com/ocdogan/fluentgo/lib/profiler"
 )
 
 var (
@@ -31,8 +37,8 @@ func main() {
 
 	listenQuitSignal(quitSignal)
 
-	config := loadConfig(*configPath)
-	logger := newLogger(&config.Log)
+	config := config.LoadConfig(*configPath)
+	logger := log.NewLogger(&config.Log)
 
 	mpFile := getMemProFile(config)
 	cpFile := getCPUProFile(config)
@@ -45,9 +51,9 @@ func main() {
 		}()
 	}
 
-	scheduleMemProfiler(mpFile, logger, quitSignal)
+	profiler.ScheduleMemProfiler(mpFile, logger, quitSignal)
 
-	fn := scheduleCPUProfiler(cpFile, logger)
+	fn := profiler.ScheduleCPUProfiler(cpFile, logger)
 	if fn != nil {
 		defer func() {
 			defer recover()
@@ -66,7 +72,7 @@ func main() {
 	process(smode, config, logger, quitSignal)
 }
 
-func getProfileURL(config *fluentConfig) string {
+func getProfileURL(config *config.FluentConfig) string {
 	url := *profileURL
 	if url == "" {
 		url = config.ProfileURL
@@ -74,7 +80,7 @@ func getProfileURL(config *fluentConfig) string {
 	return strings.TrimSpace(url)
 }
 
-func getMemProFile(config *fluentConfig) string {
+func getMemProFile(config *config.FluentConfig) string {
 	proFile := *memproFile
 	if proFile == "" {
 		proFile = config.MemProfile
@@ -86,7 +92,7 @@ func getMemProFile(config *fluentConfig) string {
 	return strings.TrimSpace(proFile)
 }
 
-func getCPUProFile(config *fluentConfig) string {
+func getCPUProFile(config *config.FluentConfig) string {
 	proFile := *cpuproFile
 	if proFile == "" {
 		proFile = config.CPUProfile
@@ -98,21 +104,21 @@ func getCPUProFile(config *fluentConfig) string {
 	return strings.TrimSpace(proFile)
 }
 
-func process(smode string, config *fluentConfig, logger Logger, quitSignal <-chan bool) {
+func process(smode string, config *config.FluentConfig, logger log.Logger, quitSignal <-chan bool) {
 	logger.Println("Starting service...")
 	defer logger.Println("Stopping service...")
 
 	var (
-		im *inManager
-		om *outManager
+		im *inout.InManager
+		om *inout.OutManager
 	)
 
-	if smode == in || smode == inout {
-		im = newInManager(config, logger)
+	if smode == lib.In || smode == lib.InOut {
+		im = inout.NewInManager(config, logger)
 	}
 
-	if smode == out || smode == inout {
-		om = newOutManager(config, logger)
+	if smode == lib.Out || smode == lib.InOut {
+		om = inout.NewOutManager(config, logger)
 	}
 
 	imActive := im != nil
@@ -165,7 +171,7 @@ func process(smode string, config *fluentConfig, logger Logger, quitSignal <-cha
 	}
 }
 
-func getServiceMode(config *fluentConfig) (smode string, ok bool) {
+func getServiceMode(config *config.FluentConfig) (smode string, ok bool) {
 	ok = true
 	smode = strings.TrimSpace(*servicemode)
 	if smode == "" {
@@ -174,8 +180,8 @@ func getServiceMode(config *fluentConfig) (smode string, ok bool) {
 
 	smode = strings.ToLower(smode)
 
-	if !(smode == in || smode == out || smode == inout) {
-		smode = inout
+	if !(smode == lib.In || smode == lib.Out || smode == lib.InOut) {
+		smode = lib.InOut
 		ok = false
 	}
 	return smode, ok
