@@ -328,7 +328,7 @@ func (m *inManager) doOrphanAction(searchFor string, remove bool) {
 		func() {
 			defer recover()
 
-			if exists, err := fileExists(filename); exists && err != nil {
+			if exists, err := fileExists(filename); exists && err == nil {
 				if remove {
 					os.Remove(filename)
 				} else {

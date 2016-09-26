@@ -534,7 +534,7 @@ func (m *outManager) doOrphanAction(searchFor string, movePath string, remove bo
 		func() {
 			defer recover()
 
-			if exists, err := fileExists(filename); exists && err != nil {
+			if exists, err := fileExists(filename); exists && err == nil {
 				if remove {
 					os.Remove(filename)
 				} else {
