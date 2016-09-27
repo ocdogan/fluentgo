@@ -4,20 +4,17 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/ocdogan/fluentgo/lib/config"
-	"github.com/ocdogan/fluentgo/lib/log"
 )
 
 type sqsIO struct {
 	awsIO
-	queueURL      string
-	attributes    map[string]*sqs.MessageAttributeValue
-	client        *sqs.SQS
-	connFunc      func() *sqs.SQS
-	getLoggerFunc func() log.Logger
+	queueURL   string
+	attributes map[string]*sqs.MessageAttributeValue
+	client     *sqs.SQS
+	connFunc   func() *sqs.SQS
 }
 
 func newSqsIO(manager InOutManager, config *config.InOutConfig) *sqsIO {
@@ -78,26 +75,7 @@ func newSqsIO(manager InOutManager, config *config.InOutConfig) *sqsIO {
 func (sio *sqsIO) funcGetClient() *sqs.SQS {
 	if sio.client == nil {
 		defer recover()
-
-		cfg := aws.NewConfig().
-			WithRegion(sio.region).
-			WithDisableSSL(sio.disableSSL).
-			WithMaxRetries(sio.maxRetries)
-
-		if sio.accessKeyID != "" && sio.secretAccessKey != "" {
-			creds := credentials.NewStaticCredentials(sio.accessKeyID, sio.secretAccessKey, sio.sessionToken)
-			cfg = cfg.WithCredentials(creds)
-		}
-
-		if sio.logLevel > 0 && sio.getLoggerFunc != nil {
-			l := sio.getLoggerFunc()
-			if l != nil {
-				cfg.Logger = l
-				cfg.LogLevel = aws.LogLevel(aws.LogLevelType(sio.logLevel))
-			}
-		}
-
-		sio.client = sqs.New(session.New(), cfg)
+		sio.client = sqs.New(session.New(), sio.getAwsConfig())
 	}
 	return sio.client
 }

@@ -3,6 +3,8 @@ package inout
 import (
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/lib/config"
 	"github.com/ocdogan/fluentgo/lib/log"
@@ -98,4 +100,35 @@ func newAwsIO(manager InOutManager, config *config.InOutConfig) *awsIO {
 	}
 
 	return awsio
+}
+
+func (awsio *awsIO) currLogger() log.Logger {
+	if awsio.getLoggerFunc != nil {
+		return awsio.getLoggerFunc()
+	}
+	return nil
+}
+
+func (awsio *awsIO) getAwsConfig() *aws.Config {
+	defer recover()
+
+	cfg := aws.NewConfig().
+		WithRegion(awsio.region).
+		WithDisableSSL(awsio.disableSSL).
+		WithMaxRetries(awsio.maxRetries)
+
+	if awsio.accessKeyID != "" && awsio.secretAccessKey != "" {
+		creds := credentials.NewStaticCredentials(awsio.accessKeyID, awsio.secretAccessKey, awsio.sessionToken)
+		cfg = cfg.WithCredentials(creds)
+	}
+
+	if awsio.logLevel > 0 {
+		l := awsio.currLogger()
+		if l != nil {
+			cfg.Logger = l
+			cfg.LogLevel = aws.LogLevel(aws.LogLevelType(awsio.logLevel))
+		}
+	}
+
+	return cfg
 }

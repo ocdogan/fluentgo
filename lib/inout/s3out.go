@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ocdogan/fluentgo/lib"
@@ -18,19 +17,11 @@ import (
 type s3Out struct {
 	outHandler
 	awsIO
-	accessKeyID     string
-	secretAccessKey string
-	sessionToken    string
-	acl             string
-	region          string
-	bucket          string
-	prefix          string
-	rootAttr        string
-	disableSSL      bool
-	compression     bool
-	maxRetries      int
-	logLevel        uint
-	client          *s3.S3
+	acl      string
+	bucket   string
+	prefix   string
+	rootAttr string
+	client   *s3.S3
 }
 
 var (
@@ -166,7 +157,7 @@ func (s3o *s3Out) funcPutMessages(messages []string, indexName string) {
 
 		if count > 0 {
 			body := buffer.Bytes()
-			if s3o.compression {
+			if s3o.compressed {
 				body = lib.Compress(body)
 			}
 
@@ -177,7 +168,7 @@ func (s3o *s3Out) funcPutMessages(messages []string, indexName string) {
 				ContentLength: aws.Int64(int64(len(body))),
 			}
 
-			if s3o.compression {
+			if s3o.compressed {
 				params.Key = aws.String(indexName + ".gz")
 				params.ContentType = aws.String("application/x-gzip")
 			} else {
@@ -193,26 +184,7 @@ func (s3o *s3Out) funcPutMessages(messages []string, indexName string) {
 func (s3o *s3Out) getClient() *s3.S3 {
 	if s3o.client == nil {
 		defer recover()
-
-		cfg := aws.NewConfig().
-			WithRegion(s3o.region).
-			WithDisableSSL(s3o.disableSSL).
-			WithMaxRetries(s3o.maxRetries)
-
-		if s3o.accessKeyID != "" && s3o.secretAccessKey != "" {
-			creds := credentials.NewStaticCredentials(s3o.accessKeyID, s3o.secretAccessKey, s3o.sessionToken)
-			cfg = cfg.WithCredentials(creds)
-		}
-
-		if s3o.logLevel > 0 {
-			l := s3o.GetLogger()
-			if l != nil {
-				cfg.Logger = l
-				cfg.LogLevel = aws.LogLevel(aws.LogLevelType(s3o.logLevel))
-			}
-		}
-
-		s3o.client = s3.New(session.New(), cfg)
+		s3o.client = s3.New(session.New(), s3o.getAwsConfig())
 	}
 	return s3o.client
 }
