@@ -2,7 +2,10 @@ package inout
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -11,17 +14,14 @@ import (
 
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/lib/config"
-	"github.com/ocdogan/fluentgo/lib/log"
 )
 
 type tcpIn struct {
 	inHandler
+	tcpIO
 	lck         sync.Mutex
-	host        string
-	compressed  bool
-	logger      log.Logger
-	listener    *net.TCPListener
-	connections []*net.TCPConn
+	connections []net.Conn
+	listener    *net.Listener
 }
 
 func newTCPIn(manager InOutManager, config *config.InOutConfig) *tcpIn {
@@ -29,66 +29,116 @@ func newTCPIn(manager InOutManager, config *config.InOutConfig) *tcpIn {
 		return nil
 	}
 
-	params := config.GetParamsMap()
-
-	var (
-		ok   bool
-		s    string
-		host string
-	)
-
-	if s, ok = params["host"].(string); ok {
-		host = strings.TrimSpace(s)
-	}
-	if host == "" {
+	tio := newTCPIO(manager, config)
+	if tio == nil {
 		return nil
 	}
+
+	params := config.GetParamsMap()
 
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil
 	}
 
-	var compressed bool
-	compressed, ok = params["compressed"].(bool)
-
 	tin := &tcpIn{
-		inHandler:  *ih,
-		host:       host,
-		compressed: compressed,
-		logger:     manager.GetLogger(),
+		inHandler: *ih,
+		tcpIO:     *tio,
 	}
 
 	tin.iotype = "TCPIN"
 
 	tin.runFunc = tin.funcReceive
 	tin.afterCloseFunc = tin.funcAfterClose
+	tin.loadTLSFunc = tin.loadServerCert
 
 	return tin
 }
 
 func (tin *tcpIn) funcAfterClose() {
-	l := tin.listener
-	if l != nil {
+	if tin.listener != nil {
+		defer recover()
+
+		listener := *tin.listener
 		tin.listener = nil
 
-		defer recover()
-		l.Close()
+		listener.Close()
 	}
 }
 
-func (tin *tcpIn) accept() {
-	listener := tin.listener
-	if listener == nil {
+func (tin *tcpIn) loadServerCert() (secure bool, config *tls.Config, err error) {
+	if tin.certFile != "" && tin.keyFile != "" {
+		var cert tls.Certificate
+		cert, err = tls.LoadX509KeyPair(tin.certFile, tin.keyFile)
+
+		if err != nil {
+			err = fmt.Errorf("Error loading client certificate: %v", err)
+			return false, nil, err
+		}
+
+		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			err = fmt.Errorf("Error parsing client certificate: %v", err)
+			return false, nil, err
+		}
+
+		config = &tls.Config{Certificates: []tls.Certificate{cert}}
+		secure = true
 		return
 	}
+	return false, nil, nil
+}
+
+func (tin *tcpIn) listen(listenEnded chan bool) {
+	lg := tin.logger
+	if lg != nil {
+		defer lg.Printf("'TCPIN' completed listening at '%s'.\n", tin.host)
+		lg.Printf("'TCPIN' starting to listen at '%s'...\n", tin.host)
+	}
+
+	var (
+		err      error
+		listener net.Listener
+	)
+
+	if tin.secure && tin.tlsConfig != nil {
+		listener, err = tls.Listen("tcp", tin.host, tin.tlsConfig)
+	} else {
+		listener, err = net.Listen("tcp", tin.host)
+	}
+
+	if err != nil {
+		close(listenEnded)
+		return
+	}
+
+	// Close the listener when the application closes.
+	defer func(l net.Listener, ch chan bool) {
+		defer recover()
+		l.Close()
+		close(ch)
+	}(listener, listenEnded)
+
+	tin.listener = &listener
+	tin.accept()
+}
+
+func (tin *tcpIn) accept() {
+	if tin.listener == nil {
+		return
+	}
+
+	listener := *tin.listener
+	tcpL, _ := listener.(*net.TCPListener)
 
 	lg := tin.logger
 	for tin.Processing() {
 		// Listen for an incoming connection.
-		listener.SetDeadline(time.Now().Add(10 * time.Second))
+		if tcpL != nil {
+			tcpL.SetDeadline(time.Now().Add(10 * time.Second))
+		}
 
-		conn, err := listener.AcceptTCP()
+		conn, err := listener.Accept()
 		if err != nil {
 			errStr := err.Error()
 			if _, ok := err.(*net.OpError); ok {
@@ -108,7 +158,7 @@ func (tin *tcpIn) accept() {
 
 		// Handle connections in a new goroutine.
 		if conn != nil {
-			func(tin *tcpIn, conn *net.TCPConn) {
+			func(tin *tcpIn, conn net.Conn) {
 				defer tin.lck.Unlock()
 
 				tin.lck.Lock()
@@ -118,39 +168,6 @@ func (tin *tcpIn) accept() {
 			go tin.onNewConnection(conn)
 		}
 	}
-}
-
-func (tin *tcpIn) listen(listenEnded chan bool) {
-	lg := tin.logger
-	if lg != nil {
-		defer lg.Printf("'TCPIN' completed listening at '%s'.\n", tin.host)
-		lg.Printf("'TCPIN' starting to listen at '%s'...\n", tin.host)
-	}
-
-	l, err := net.Listen("tcp", tin.host)
-	if err != nil {
-		close(listenEnded)
-		return
-	}
-
-	// Close the listener when the application closes.
-	defer func(nl net.Listener, ch chan bool) {
-		defer recover()
-		nl.Close()
-		close(ch)
-	}(l, listenEnded)
-
-	listener, ok := l.(*net.TCPListener)
-	if !ok {
-		if err == nil && lg != nil {
-			lg.Printf("Error on 'TCPIN' listening '%s'.\n", tin.host)
-		}
-
-		return
-	}
-
-	tin.listener = listener
-	tin.accept()
 }
 
 func (tin *tcpIn) funcReceive() {
@@ -166,6 +183,11 @@ func (tin *tcpIn) funcReceive() {
 	l := tin.GetLogger()
 	if l != nil {
 		l.Println("Starting 'TCPIN'...")
+	}
+
+	err := tin.loadCert()
+	if err != nil {
+		return
 	}
 
 	completed := false
@@ -193,7 +215,7 @@ func (tin *tcpIn) funcReceive() {
 	}
 }
 
-func (tin *tcpIn) remove(conn *net.TCPConn) {
+func (tin *tcpIn) remove(conn net.Conn) {
 	if conn == nil {
 		return
 	}
@@ -218,7 +240,7 @@ func (tin *tcpIn) remove(conn *net.TCPConn) {
 	}
 }
 
-func (tin *tcpIn) onNewConnection(conn *net.TCPConn) {
+func (tin *tcpIn) onNewConnection(conn net.Conn) {
 	defer func() {
 		recover()
 		tin.remove(conn)

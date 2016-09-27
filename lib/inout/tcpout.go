@@ -1,23 +1,22 @@
 package inout
 
 import (
+	"crypto/tls"
 	"encoding/binary"
+	"fmt"
 	"net"
-	"strings"
+	"reflect"
 	"time"
 
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/lib/config"
-	"github.com/ocdogan/fluentgo/lib/log"
 )
 
 type tcpOut struct {
 	outHandler
-	host           string
+	tcpIO
 	connTimeoutSec int
-	compressed     bool
-	conn           *net.TCPConn
-	logger         log.Logger
+	conn           net.Conn
 }
 
 func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
@@ -25,20 +24,12 @@ func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
 		return nil
 	}
 
-	params := config.GetParamsMap()
-
-	var (
-		ok   bool
-		s    string
-		host string
-	)
-
-	if s, ok = params["host"].(string); ok {
-		host = strings.TrimSpace(s)
-	}
-	if host == "" {
+	tio := newTCPIO(manager, config)
+	if tio == nil {
 		return nil
 	}
+
+	params := config.GetParamsMap()
 
 	oh := newOutHandler(manager, params)
 	if oh == nil {
@@ -46,23 +37,19 @@ func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
 	}
 
 	var (
+		ok             bool
 		f              float64
 		connTimeoutSec int
-		compressed     bool
 	)
 
 	if f, ok = params["connTimeoutSec"].(float64); ok {
 		connTimeoutSec = lib.MinInt(30, lib.MaxInt(0, int(f)))
 	}
 
-	compressed, ok = params["compressed"].(bool)
-
 	tout := &tcpOut{
 		outHandler:     *oh,
-		host:           host,
-		compressed:     compressed,
+		tcpIO:          *tio,
 		connTimeoutSec: connTimeoutSec,
-		logger:         manager.GetLogger(),
 	}
 
 	tout.iotype = "TCPOUT"
@@ -72,6 +59,7 @@ func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
 
 	tout.getDestinationFunc = tout.funcChannel
 	tout.sendChunkFunc = tout.funcSendMessagesChunk
+	tout.loadTLSFunc = tout.loadClientCert
 
 	return tout
 }
@@ -88,20 +76,6 @@ func (tout *tcpOut) funcAfterClose() {
 	}
 }
 
-func (tout *tcpOut) tryToCloseConn(conn *net.TCPConn) error {
-	var closeErr error
-	if conn != nil {
-		defer func() {
-			err := recover()
-			if closeErr == nil {
-				closeErr, _ = err.(error)
-			}
-		}()
-		closeErr = conn.Close()
-	}
-	return closeErr
-}
-
 func (tout *tcpOut) Connect() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -112,7 +86,12 @@ func (tout *tcpOut) Connect() {
 	}()
 
 	conn := tout.conn
+
 	hasConn := conn != nil
+	if hasConn {
+		v := reflect.ValueOf(conn)
+		hasConn = !v.IsNil()
+	}
 
 	var connErr error
 	if connErr != nil || !hasConn {
@@ -123,18 +102,19 @@ func (tout *tcpOut) Connect() {
 		conn = nil
 		connErr = nil
 
-		var c net.Conn
-		if tout.connTimeoutSec <= 0 {
-			c, connErr = net.Dial("tcp", tout.host)
-		} else {
-			c, connErr = net.DialTimeout("tcp", tout.host, time.Duration(tout.connTimeoutSec)*time.Second)
-		}
+		timeout := tout.connTimeoutSec > 0
 
-		if connErr == nil {
-			var ok bool
-			if conn, ok = c.(*net.TCPConn); !ok {
-				conn = nil
+		if tout.secure && tout.tlsConfig != nil {
+			if !timeout {
+				conn, connErr = tls.Dial("tcp", tout.host, tout.tlsConfig)
+			} else {
+				d := net.Dialer{Timeout: time.Duration(tout.connTimeoutSec) * time.Second}
+				conn, connErr = tls.DialWithDialer(&d, "tcp", tout.host, tout.tlsConfig)
 			}
+		} else if !timeout {
+			conn, connErr = net.Dial("tcp", tout.host)
+		} else {
+			conn, connErr = net.DialTimeout("tcp", tout.host, time.Duration(tout.connTimeoutSec)*time.Second)
 		}
 
 		tout.conn = conn
@@ -142,6 +122,23 @@ func (tout *tcpOut) Connect() {
 			tout.tryToCloseConn(conn)
 		}
 	}
+}
+
+func (tout *tcpOut) loadClientCert() (secure bool, config *tls.Config, err error) {
+	if tout.certFile != "" && tout.keyFile != "" {
+		var cert tls.Certificate
+		cert, err = tls.LoadX509KeyPair(tout.certFile, tout.keyFile)
+
+		if err != nil {
+			err = fmt.Errorf("Error loading client certificate: %v", err)
+			return
+		}
+
+		config = &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+		secure = true
+		return
+	}
+	return false, nil, nil
 }
 
 func (tout *tcpOut) funcWait() {
@@ -156,6 +153,11 @@ func (tout *tcpOut) funcWait() {
 	l := tout.GetLogger()
 	if l != nil {
 		l.Println("Starting 'TCPOUT'...")
+	}
+
+	err := tout.loadCert()
+	if err != nil {
+		return
 	}
 
 	tout.Connect()

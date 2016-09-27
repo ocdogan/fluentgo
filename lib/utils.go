@@ -129,6 +129,27 @@ func PreparePath(dir string) string {
 	return dir
 }
 
+func PrepareFile(filename string) string {
+	filename = strings.TrimSpace(filename)
+	if filename != "" {
+		repSep := '/'
+		if os.PathSeparator == '/' {
+			repSep = '\\'
+		}
+
+		filename = strings.Replace(filename, string(repSep), string(os.PathSeparator), -1)
+		filename = filepath.Clean(filename)
+
+		if filename != "" {
+			absFilename, err := filepath.Abs(filename)
+			if err == nil {
+				filename = absFilename
+			}
+		}
+	}
+	return filename
+}
+
 func Compress(data []byte) []byte {
 	if len(data) > 0 {
 		var buff bytes.Buffer

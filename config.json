@@ -115,7 +115,9 @@
                 "params":[
                     { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost:1234" },
-                    { "name": "compressed", "value": false }
+                    { "name": "compressed", "value": false },
+                    { "name": "certFile", "value": "" },
+                    { "name": "keyFile", "value": "" }
                 ]
             }
         ]
@@ -135,19 +137,19 @@
         },
         "orphanFiles": {
             "deleteAll": false,
-            "replayLastXDays": 0
+            "replayLastXDays": 10
         },
         "consumers": [
             { 
                 "type": "std",
                 "params": [
-                    { "name": "enabled", "value": false }
+                    { "name": "enabled", "value": true }
                 ]
             },
             { 
                 "type": "null",
                 "params": [
-                    { "name": "enabled", "value": true }
+                    { "name": "enabled", "value": false }
                 ]
             },
             { 
@@ -282,7 +284,9 @@
                     { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost:12345" },
                     { "name": "connTimeoutSec", "value": 0 },
-                    { "name": "compressed", "value": false }
+                    { "name": "compressed", "value": false },
+                    { "name": "certFile", "value": "" },
+                    { "name": "keyFile", "value": "" }
                 ]
             }
        ]
