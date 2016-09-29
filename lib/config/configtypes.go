@@ -1,3 +1,25 @@
+//	The MIT License (MIT)
+//
+//	Copyright (c) 2016, Cagatay Dogan
+//
+//	Permission is hereby granted, free of charge, to any person obtaining a copy
+//	of this software and associated documentation files (the "Software"), to deal
+//	in the Software without restriction, including without limitation the rights
+//	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//	copies of the Software, and to permit persons to whom the Software is
+//	furnished to do so, subject to the following conditions:
+//
+//		The above copyright notice and this permission notice shall be included in
+//		all copies or substantial portions of the Software.
+//
+//		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//		THE SOFTWARE.
+
 package config
 
 import (
@@ -12,9 +34,9 @@ import (
 type RedisConfig struct {
 	Compressed     bool   `json:"compressed"`
 	PSubscribe     bool   `json:"psubscribe"`
-	Server         string `json:"server"`
-	Password       string `json:"password"`
-	Channel        string `json:"channel"`
+	Server         string `json:"server,omitempty"`
+	Password       string `json:"password,omitempty"`
+	Channel        string `json:"channel,omitempty"`
 	MaxMessageSize int    `json:"maxMessageSize"`
 }
 
@@ -26,8 +48,8 @@ type InQConfig struct {
 type LogConfig struct {
 	Enabled     bool   `json:"enabled"`
 	Console     bool   `json:"console"`
-	Path        string `json:"path"`
-	Type        string `json:"type"`
+	Path        string `json:"path,omitempty"`
+	Type        string `json:"type,omitempty"`
 	RollingSize int    `json:"rollingSize"`
 }
 
@@ -43,30 +65,30 @@ type OrphanConfig struct {
 }
 
 type BufferConfig struct {
-	Path            string      `json:"path"`
-	Prefix          string      `json:"prefix"`
-	Extension       string      `json:"extension"`
+	Path            string      `json:"path,omitempty"`
+	Prefix          string      `json:"prefix,omitempty"`
+	Extension       string      `json:"extension,omitempty"`
 	MaxMessageSize  int         `json:"maxMessageSize"`
-	TimestampKey    string      `json:"timestampKey"`
-	TimestampFormat string      `json:"timestampFormat"`
-	Flush           FlushConfig `json:"flush"`
+	TimestampKey    string      `json:"timestampKey,omitempty"`
+	TimestampFormat string      `json:"timestampFormat,omitempty"`
+	Flush           FlushConfig `json:"flush,omitempty"`
 }
 
 type inOutParamConfig struct {
-	Name  string      `json:"name"`
-	Value interface{} `json:"value"`
+	Name  string      `json:"name,omitempty"`
+	Value interface{} `json:"value,omitempty"`
 }
 
 type InOutConfig struct {
-	Type   string             `json:"type"`
-	Params []inOutParamConfig `json:"params"`
+	Type   string             `json:"type,omitempty"`
+	Params []inOutParamConfig `json:"params,omitempty"`
 }
 
 type InputsConfig struct {
-	Queue       InQConfig     `json:"queue"`
-	Buffer      BufferConfig  `json:"buffer"`
-	OrphanFiles OrphanConfig  `json:"orphanFiles"`
-	Producers   []InOutConfig `json:"producers"`
+	Queue       InQConfig     `json:"queue,omitempty"`
+	Buffer      BufferConfig  `json:"buffer,omitempty"`
+	OrphanFiles OrphanConfig  `json:"orphanFiles,omitempty"`
+	Producers   []InOutConfig `json:"producers,omitempty"`
 }
 
 type OutQConfig struct {
@@ -78,26 +100,38 @@ type OutQConfig struct {
 type OutputsConfig struct {
 	BulkCount        int           `json:"bulkCount"`
 	MaxMessageSize   int           `json:"maxMessageSize"`
-	TimestampKey     string        `json:"timestampKey"`
-	TimestampFormat  string        `json:"timestampFormat"`
-	Path             string        `json:"dir"`
-	Pattern          string        `json:"dataPattern"`
+	TimestampKey     string        `json:"timestampKey,omitempty"`
+	TimestampFormat  string        `json:"timestampFormat,omitempty"`
+	Path             string        `json:"dir,omitempty"`
+	Pattern          string        `json:"dataPattern,omitempty"`
 	FlushOnEverySec  time.Duration `json:"flushOnEverySec"`
 	SleepOnEverySec  time.Duration `json:"sleepOnEverySec"`
 	SleepForMillisec time.Duration `json:"sleepForMillisec"`
-	Queue            OutQConfig    `json:"queue"`
-	Consumers        []InOutConfig `json:"consumers"`
-	OrphanFiles      OrphanConfig  `json:"orphanFiles"`
+	Queue            OutQConfig    `json:"queue,omitempty"`
+	Consumers        []InOutConfig `json:"consumers,omitempty"`
+	OrphanFiles      OrphanConfig  `json:"orphanFiles,omitempty"`
+}
+
+type TLSConfig struct {
+	CertFile string `json:"certFile,omitempty"`
+	KeyFile  string `json:"keyFile,omitempty"`
+}
+
+type AdminConfig struct {
+	Enabled     bool      `json:"enabled"`
+	HTTPAddress string    `json:"httpAddress,omitempty"`
+	TLS         TLSConfig `json:"tls,omitempty"`
 }
 
 type FluentConfig struct {
-	MemProfile  string        `json:"memprofile"`
-	CPUProfile  string        `json:"cpuprofile"`
-	ProfileURL  string        `json:"profileURL"`
-	ServiceMode string        `json:"serviceMode"`
-	Log         LogConfig     `json:"log"`
-	Inputs      InputsConfig  `json:"inputs"`
-	Outputs     OutputsConfig `json:"outputs"`
+	MemProfile  string        `json:"memprofile,omitempty"`
+	CPUProfile  string        `json:"cpuprofile,omitempty"`
+	ProfileURL  string        `json:"profileURL,omitempty"`
+	ServiceMode string        `json:"serviceMode,omitempty"`
+	Log         LogConfig     `json:"log,omitempty"`
+	Inputs      InputsConfig  `json:"inputs,omitempty"`
+	Outputs     OutputsConfig `json:"outputs,omitempty"`
+	Admin       AdminConfig   `json:"admin,omitempty"`
 }
 
 func (cfg *BufferConfig) GetPath() string {

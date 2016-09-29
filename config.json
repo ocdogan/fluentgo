@@ -6,6 +6,10 @@
         "type": "rolling",
         "path": "/fluentgo/logs"
     },
+    "admin": {
+        "enabled": true,
+        "httpAddress": ":8081"
+    },
     "inputs": {
         "maxMessageSize": -1,
         "queue": {

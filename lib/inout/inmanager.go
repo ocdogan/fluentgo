@@ -1,3 +1,25 @@
+//	The MIT License (MIT)
+//
+//	Copyright (c) 2016, Cagatay Dogan
+//
+//	Permission is hereby granted, free of charge, to any person obtaining a copy
+//	of this software and associated documentation files (the "Software"), to deal
+//	in the Software without restriction, including without limitation the rights
+//	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//	copies of the Software, and to permit persons to whom the Software is
+//	furnished to do so, subject to the following conditions:
+//
+//		The above copyright notice and this permission notice shall be included in
+//		all copies or substantial portions of the Software.
+//
+//		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//		THE SOFTWARE.
+
 package inout
 
 import (
@@ -47,7 +69,7 @@ type InManager struct {
 	lastProcessTime time.Time
 	orphanDelete    bool
 	orphanLastXDays int
-	inputs          []inProvider
+	inputs          map[lib.UUID]inProvider
 	logger          log.Logger
 	inQ             *InQueue
 	bufFile         *bufferFile
@@ -73,6 +95,7 @@ func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
 		outputDir:       outputDir,
 		lastFlushTime:   time.Now(),
 		lastProcessTime: time.Now(),
+		inputs:          make(map[lib.UUID]inProvider),
 		prefix:          (&config.Inputs.Buffer).GetPrefix(),
 		extension:       (&config.Inputs.Buffer).GetExtension(),
 		flushSize:       (&config.Inputs.Buffer).GetFlushSize(),
@@ -89,6 +112,27 @@ func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
 	manager.setInputs(&config.Inputs)
 
 	return manager
+}
+
+func (m *InManager) GetInputs() []InOutInfo {
+	if m != nil && len(m.inputs) > 0 {
+		inputs := make([]InOutInfo, 0)
+
+		for _, in := range m.inputs {
+			inputs = append(inputs, InOutInfo{
+				ID:         in.ID().String(),
+				IOType:     in.GetIOType(),
+				Enabled:    in.Enabled(),
+				Processing: in.Processing(),
+			})
+		}
+		return inputs
+	}
+	return nil
+}
+
+func (m *InManager) GetOutputs() []InOutInfo {
+	return nil
 }
 
 func (m *InManager) GetMaxMessageSize() int {
@@ -140,15 +184,18 @@ func (m *InManager) Process() (completed <-chan bool) {
 }
 
 func (m *InManager) setInputs(config *config.InputsConfig) {
-	var result []inProvider
-
 	if config != nil {
-		var in inProvider
+		ins := m.inputs
+		if ins == nil {
+			ins = make(map[lib.UUID]inProvider)
+			m.inputs = ins
+		}
 
 		for _, p := range config.Producers {
 			t := strings.ToLower(p.Type)
 
-			in = nil
+			var in inProvider
+
 			if t == "redischan" || t == "redischanin" {
 				in = newRedisChanIn(m, &p)
 			} else if t == "redislist" || t == "redislistin" {
@@ -166,16 +213,10 @@ func (m *InManager) setInputs(config *config.InputsConfig) {
 			if in != nil {
 				v := reflect.ValueOf(in)
 				if v.Kind() != reflect.Ptr || !v.IsNil() {
-					result = append(result, in)
+					ins[in.ID()] = in
 				}
 			}
 		}
-	}
-
-	if result != nil {
-		m.inputs = result
-	} else {
-		m.inputs = make([]inProvider, 0)
 	}
 }
 

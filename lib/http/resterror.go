@@ -20,44 +20,21 @@
 //		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //		THE SOFTWARE.
 
-package inout
+package http
 
-import (
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-
-	"github.com/ocdogan/fluentgo/lib/config"
-)
-
-type kinesisIO struct {
-	awsIO
-	client   *kinesis.Kinesis
-	connFunc func() *kinesis.Kinesis
+type RestErrorArg struct {
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
-func newKinesisIO(manager InOutManager, config *config.InOutConfig) *kinesisIO {
-	if config == nil {
-		return nil
-	}
-
-	awsio := newAwsIO(manager, config)
-	if awsio == nil {
-		return nil
-	}
-
-	kio := &kinesisIO{
-		awsIO: *awsio,
-	}
-
-	kio.connFunc = kio.funcGetClient
-
-	return kio
+type RestErrorArgs struct {
+	Query string         `json:"query,omitempty"`
+	Keys  []RestErrorArg `json:"keys,omitempty"`
 }
 
-func (kio *kinesisIO) funcGetClient() *kinesis.Kinesis {
-	if kio.client == nil {
-		defer recover()
-		kio.client = kinesis.New(session.New(), kio.getAwsConfig())
-	}
-	return kio.client
+type RestError struct {
+	Method      string        `json:"method,omitempty"`
+	ErrorString string        `json:"errorString,omitempty"`
+	ErrorCode   int           `json:"errorCode"`
+	Arguments   RestErrorArgs `json:"arguments,omitempty"`
 }

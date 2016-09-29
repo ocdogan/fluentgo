@@ -1,3 +1,25 @@
+//	The MIT License (MIT)
+//
+//	Copyright (c) 2016, Cagatay Dogan
+//
+//	Permission is hereby granted, free of charge, to any person obtaining a copy
+//	of this software and associated documentation files (the "Software"), to deal
+//	in the Software without restriction, including without limitation the rights
+//	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//	copies of the Software, and to permit persons to whom the Software is
+//	furnished to do so, subject to the following conditions:
+//
+//		The above copyright notice and this permission notice shall be included in
+//		all copies or substantial portions of the Software.
+//
+//		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//		THE SOFTWARE.
+
 package inout
 
 import (
@@ -41,7 +63,7 @@ type OutManager struct {
 	orphanLastXDays int
 	outQ            *OutQueue
 	logger          log.Logger
-	outputs         []outSender
+	outputs         map[lib.UUID]outSender
 	completed       chan bool
 }
 
@@ -60,6 +82,7 @@ func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
 		dataPattern:     dataPattern,
 		lastFlushTime:   time.Now(),
 		logger:          logger,
+		outputs:         make(map[lib.UUID]outSender),
 		timestampKey:    strings.TrimSpace(config.Outputs.TimestampKey),
 		timestampFormat: (&config.Outputs).GetTimestampFormat(),
 		bulkCount:       (&config.Outputs).GetBulkCount(),
@@ -77,16 +100,40 @@ func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
 	return manager
 }
 
-func (m *OutManager) setOutputs(config *config.OutputsConfig) {
-	var result []outSender
+func (m *OutManager) GetOutputs() []InOutInfo {
+	if m != nil && len(m.outputs) > 0 {
+		outputs := make([]InOutInfo, 0)
 
+		for _, in := range m.outputs {
+			outputs = append(outputs, InOutInfo{
+				ID:         in.ID().String(),
+				IOType:     in.GetIOType(),
+				Enabled:    in.Enabled(),
+				Processing: in.Processing(),
+			})
+		}
+		return outputs
+	}
+	return nil
+}
+
+func (m *OutManager) GetInputs() []InOutInfo {
+	return nil
+}
+
+func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 	if config != nil {
-		var out outSender
+		outs := m.outputs
+		if outs == nil {
+			outs = make(map[lib.UUID]outSender)
+			m.outputs = outs
+		}
 
 		for _, o := range config.Consumers {
 			t := strings.ToLower(o.Type)
 
-			out = nil
+			var out outSender
+
 			if t == "elastic" || t == "elasticsearch" {
 				out = newElasticOut(m, &o)
 			} else if t == "redis" || t == "redisout" {
@@ -110,16 +157,10 @@ func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 			if out != nil {
 				v := reflect.ValueOf(out)
 				if v.Kind() != reflect.Ptr || !v.IsNil() {
-					result = append(result, out)
+					outs[out.ID()] = out
 				}
 			}
 		}
-	}
-
-	if result != nil {
-		m.outputs = result
-	} else {
-		m.outputs = make([]outSender, 0)
 	}
 }
 

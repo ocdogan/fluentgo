@@ -1,3 +1,25 @@
+//	The MIT License (MIT)
+//
+//	Copyright (c) 2016, Cagatay Dogan
+//
+//	Permission is hereby granted, free of charge, to any person obtaining a copy
+//	of this software and associated documentation files (the "Software"), to deal
+//	in the Software without restriction, including without limitation the rights
+//	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//	copies of the Software, and to permit persons to whom the Software is
+//	furnished to do so, subject to the following conditions:
+//
+//		The above copyright notice and this permission notice shall be included in
+//		all copies or substantial portions of the Software.
+//
+//		THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//		IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//		FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//		AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//		LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//		OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//		THE SOFTWARE.
+
 package main
 
 import (
@@ -13,12 +35,14 @@ import (
 
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/lib/config"
+	httpsrv "github.com/ocdogan/fluentgo/lib/http"
 	"github.com/ocdogan/fluentgo/lib/inout"
 	"github.com/ocdogan/fluentgo/lib/log"
 	"github.com/ocdogan/fluentgo/lib/profiler"
 )
 
 var (
+	ioman       *inout.InAndOuts
 	configPath  = flag.String("config", "", "The config.json file fully qualified path.")
 	profileURL  = flag.String("profileURL", "", "Http endpoint serving profile data.")
 	cpuproFile  = flag.String("cpuprofile", "", "write CPU profile to file")
@@ -27,19 +51,61 @@ var (
 )
 
 func main() {
-	quitSignal := make(chan bool, 1)
 	defer func() {
-		defer recover()
-		close(quitSignal)
+		recover()
+		fmt.Println("Stopping application...")
 	}()
+	fmt.Println("Starting application...")
 
 	flag.Parse()
 
-	listenQuitSignal(quitSignal)
+	quitSignal := waitForQuit()
+
+	config.SetCurrentConfig(*configPath)
 
 	config := config.LoadConfig(*configPath)
 	logger := log.NewLogger(&config.Log)
 
+	profile(config, logger, quitSignal)
+	start(config, logger, quitSignal)
+}
+
+func waitForQuit() (quitSignal <-chan bool) {
+	ch := make(chan bool, 1)
+	quitSignal = ch
+
+	go func(signalChan chan<- bool) {
+		sch := make(chan os.Signal, 1)
+		signal.Notify(sch, os.Interrupt)
+		signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGQUIT)
+
+		<-sch
+
+		fmt.Println("Termination signalled...")
+		close(signalChan)
+	}(ch)
+
+	return quitSignal
+}
+
+func start(config *config.FluentConfig, logger log.Logger, quitSignal <-chan bool) {
+	mode, smode, ok := getServiceMode(config)
+
+	fmt.Printf("Service mode: %s\n", smode)
+	if !ok {
+		msg := fmt.Sprintf("Invalid service mode, setting service mode to 'inout'.")
+		logger.Println(msg)
+	}
+
+	startAdminModule(config, logger, quitSignal)
+
+	ioman = inout.NewInOutManager(mode, config, logger, quitSignal)
+	if ioman != nil {
+		ioman.Process()
+	}
+}
+
+func profile(config *config.FluentConfig, logger log.Logger, quitSignal <-chan bool) {
 	mpFile := getMemProFile(config)
 	cpFile := getCPUProFile(config)
 
@@ -60,16 +126,6 @@ func main() {
 			fn()
 		}()
 	}
-
-	smode, ok := getServiceMode(config)
-
-	fmt.Printf("Service mode: %s\n", smode)
-	if !ok {
-		msg := fmt.Sprintf("Invalid service mode, setting service mode to 'inout'.")
-		logger.Println(msg)
-	}
-
-	process(smode, config, logger, quitSignal)
 }
 
 func getProfileURL(config *config.FluentConfig) string {
@@ -104,74 +160,7 @@ func getCPUProFile(config *config.FluentConfig) string {
 	return strings.TrimSpace(proFile)
 }
 
-func process(smode string, config *config.FluentConfig, logger log.Logger, quitSignal <-chan bool) {
-	logger.Println("Starting service...")
-	defer logger.Println("Stopping service...")
-
-	var (
-		im *inout.InManager
-		om *inout.OutManager
-	)
-
-	if smode == lib.In || smode == lib.InOut {
-		im = inout.NewInManager(config, logger)
-	}
-
-	if smode == lib.Out || smode == lib.InOut {
-		om = inout.NewOutManager(config, logger)
-	}
-
-	imActive := im != nil
-	omActive := om != nil
-
-	// Handle orphan files before async process start
-	if imActive {
-		im.HandleOrphans()
-	}
-	if omActive {
-		om.HandleOrphans()
-	}
-
-	// Start processes
-	var (
-		imCompleted <-chan bool
-		omCompleted <-chan bool
-	)
-
-	if imActive {
-		imCompleted = im.Process()
-	}
-	if omActive {
-		omCompleted = om.Process()
-	}
-
-	for imActive || omActive {
-		select {
-		case <-quitSignal:
-			if imActive {
-				imActive = false
-				if im != nil {
-					im.Close()
-				}
-			}
-
-			if omActive {
-				omActive = false
-				if om != nil {
-					om.Close()
-				}
-			}
-		case <-imCompleted:
-			imActive = false
-		case <-omCompleted:
-			omActive = false
-		}
-
-		time.Sleep(time.Millisecond)
-	}
-}
-
-func getServiceMode(config *config.FluentConfig) (smode string, ok bool) {
+func getServiceMode(config *config.FluentConfig) (mode lib.ServiceMode, smode string, ok bool) {
 	ok = true
 	smode = strings.TrimSpace(*servicemode)
 	if smode == "" {
@@ -180,21 +169,28 @@ func getServiceMode(config *config.FluentConfig) (smode string, ok bool) {
 
 	smode = strings.ToLower(smode)
 
-	if !(smode == lib.In || smode == lib.Out || smode == lib.InOut) {
-		smode = lib.InOut
+	mode = lib.SmInOut
+	switch smode {
+	case lib.In:
+		mode = lib.SmIn
+	case lib.Out:
+		mode = lib.SmOut
+	case lib.InOut:
+		mode = lib.SmInOut
+	default:
 		ok = false
 	}
-	return smode, ok
+
+	return
 }
 
-func listenQuitSignal(quitSignal chan<- bool) {
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, os.Interrupt)
-	signal.Notify(sigc, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGQUIT)
+func startAdminModule(config *config.FluentConfig, logger log.Logger, quitSignal <-chan bool) {
+	defer recover()
 
-	go func() {
-		<-sigc
-		fmt.Println("Termination signalled...")
-		quitSignal <- true
-	}()
+	if config.Admin.Enabled {
+		server, _ := httpsrv.NewHttpServer(config.Admin.HTTPAddress,
+			config.Admin.TLS.CertFile, config.Admin.TLS.KeyFile,
+			logger, NewAdminRouter())
+		server.Start(quitSignal)
+	}
 }
