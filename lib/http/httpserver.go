@@ -36,6 +36,10 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+type HttpRouter struct {
+	fasthttprouter.Router
+}
+
 type HttpServer struct {
 	net.Listener
 	fasthttp.Server
@@ -43,10 +47,10 @@ type HttpServer struct {
 	addr       string
 	logger     log.Logger
 	certConfig *tls.Config
-	routing    *fasthttprouter.Router
+	routing    *HttpRouter
 }
 
-func NewHttpServer(addr, certFile, keyFile string, logger log.Logger, routing *fasthttprouter.Router) (*HttpServer, error) {
+func NewHttpServer(addr, certFile, keyFile string, logger log.Logger, routing *HttpRouter) (*HttpServer, error) {
 	if routing == nil {
 		return nil, fmt.Errorf("Routing cannot be nil.")
 	}

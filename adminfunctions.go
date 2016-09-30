@@ -32,7 +32,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func NewAdminRouter() *fasthttprouter.Router {
+func NewAdminRouter() *http.HttpRouter {
 	router := fasthttprouter.New()
 
 	router.NotFound = http.NotFound
@@ -44,7 +44,7 @@ func NewAdminRouter() *fasthttprouter.Router {
 	router.GET("/inputs/", getInputs)
 	router.GET("/outputs/", getOutputs)
 
-	return router
+	return &http.HttpRouter{Router: *router}
 }
 
 func welcome(ctx *fasthttp.RequestCtx, _ fasthttprouter.Params) {
