@@ -24,41 +24,43 @@ package lib
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 type WorkGroup struct {
-	workerCount int
+	workerCount int64
 	wg          sync.WaitGroup
 }
 
 func (w *WorkGroup) Add(delta int) {
 	if delta != 0 {
-		w.workerCount += delta
+		atomic.AddInt64(&w.workerCount, int64(delta))
 		w.wg.Add(delta)
 	}
 }
 
 func (w *WorkGroup) Done() {
-	if w.workerCount > 0 {
-		w.workerCount--
+	if atomic.AddInt64(&w.workerCount, -1) < 0 {
+		atomic.StoreInt64(&w.workerCount, 0)
+	} else {
 		w.wg.Done()
 	}
 }
 
 func (w *WorkGroup) Count() int {
-	return w.workerCount
+	return int(w.workerCount)
 }
 
 func (w *WorkGroup) Wait() {
-	if w.workerCount > 0 {
+	if atomic.LoadInt64(&w.workerCount) > 0 {
 		w.wg.Wait()
-		w.workerCount = 0
+		atomic.StoreInt64(&w.workerCount, 0)
 	}
 }
 
 func (w *WorkGroup) Close() {
-	if w.workerCount > 0 {
-		w.wg.Add(-w.workerCount)
-		w.workerCount = 0
+	old := atomic.SwapInt64(&w.workerCount, 0)
+	if old > 0 {
+		w.wg.Add(int(-old))
 	}
 }
