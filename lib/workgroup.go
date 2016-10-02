@@ -48,7 +48,7 @@ func (w *WorkGroup) Done() {
 }
 
 func (w *WorkGroup) Count() int {
-	return int(w.workerCount)
+	return int(atomic.LoadInt64(&w.workerCount))
 }
 
 func (w *WorkGroup) Wait() {
