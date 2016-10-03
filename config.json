@@ -123,6 +123,14 @@
                     { "name": "certFile", "value": "" },
                     { "name": "keyFile", "value": "" }
                 ]
+            },
+            {
+                "type": "udp",
+                "params":[
+                    { "name": "enabled", "value": false },
+                    { "name": "host", "value": "localhost:1234" },
+                    { "name": "compressed", "value": false }
+                ]
             }
         ]
     },
@@ -291,6 +299,14 @@
                     { "name": "compressed", "value": false },
                     { "name": "certFile", "value": "" },
                     { "name": "keyFile", "value": "" }
+                ]
+            },
+            { 
+                "type": "udp",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "host", "value": "localhost:12345" },
+                    { "name": "compressed", "value": false }
                 ]
             }
        ]
