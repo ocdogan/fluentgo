@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type udpIn struct {
@@ -57,13 +56,7 @@ func init() {
 	udpMsgStartLen = len(udpMsgStartChars)
 }
 
-func newUDPIn(manager InOutManager, config *config.InOutConfig) *udpIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newUDPIn(manager InOutManager, params map[string]interface{}) *udpIn {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type tcpIn struct {
@@ -44,13 +43,7 @@ type tcpIn struct {
 	listener    *net.Listener
 }
 
-func newTCPIn(manager InOutManager, config *config.InOutConfig) *tcpIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newTCPIn(manager InOutManager, params map[string]interface{}) *tcpIn {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

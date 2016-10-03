@@ -28,7 +28,6 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type redisListIn struct {
@@ -37,13 +36,7 @@ type redisListIn struct {
 	blockingCmd bool
 }
 
-func newRedisListIn(manager InOutManager, config *config.InOutConfig) *redisListIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newRedisListIn(manager InOutManager, params map[string]interface{}) *redisListIn {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

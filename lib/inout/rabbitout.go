@@ -24,7 +24,6 @@ package inout
 
 import (
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 	"github.com/streadway/amqp"
 )
 
@@ -35,13 +34,7 @@ type rabbitOut struct {
 	immediate bool
 }
 
-func newRabbitOut(manager InOutManager, config *config.InOutConfig) *rabbitOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newRabbitOut(manager InOutManager, params map[string]interface{}) *rabbitOut {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

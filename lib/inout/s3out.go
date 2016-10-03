@@ -33,7 +33,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type s3Out struct {
@@ -51,13 +50,7 @@ var (
 	s3oLastMinute int
 )
 
-func newS3Out(manager InOutManager, config *config.InOutConfig) *s3Out {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newS3Out(manager InOutManager, params map[string]interface{}) *s3Out {
 	var (
 		acl      string
 		bucket   string

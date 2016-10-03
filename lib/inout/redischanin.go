@@ -27,7 +27,6 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type redisChanIn struct {
@@ -36,13 +35,7 @@ type redisChanIn struct {
 	pConn *redis.PubSubConn
 }
 
-func newRedisChanIn(manager InOutManager, config *config.InOutConfig) *redisChanIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newRedisChanIn(manager InOutManager, params map[string]interface{}) *redisChanIn {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

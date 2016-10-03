@@ -29,7 +29,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type sqsIn struct {
@@ -39,13 +38,7 @@ type sqsIn struct {
 	maxNumberOfMessages int64
 }
 
-func newSqsIn(manager InOutManager, config *config.InOutConfig) *sqsIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newSqsIn(manager InOutManager, params map[string]interface{}) *sqsIn {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

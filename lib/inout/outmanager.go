@@ -133,27 +133,28 @@ func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 			t := strings.ToLower(o.Type)
 
 			var out outSender
+			params := o.GetParamsMap()
 
 			if t == "elastic" || t == "elasticsearch" {
-				out = newElasticOut(m, &o)
+				out = newElasticOut(m, params)
 			} else if t == "redis" || t == "redisout" {
-				out = newRedisOut(m, &o)
+				out = newRedisOut(m, params)
 			} else if t == "s3" || t == "s3out" {
-				out = newS3Out(m, &o)
+				out = newS3Out(m, params)
 			} else if t == "sqs" || t == "sqsout" {
-				out = newSqsOut(m, &o)
+				out = newSqsOut(m, params)
 			} else if t == "kinesis" || t == "kinesisout" {
-				out = newKinesisOut(m, &o)
+				out = newKinesisOut(m, params)
 			} else if t == "rabbit" || t == "rabbitout" {
-				out = newRabbitOut(m, &o)
+				out = newRabbitOut(m, params)
 			} else if t == "std" || t == "stdout" {
-				out = newStdOut(m, &o)
+				out = newStdOut(m, params)
 			} else if t == "tcp" || t == "tcpout" {
-				out = newTCPOut(m, &o)
+				out = newTCPOut(m, params)
 			} else if t == "udp" || t == "udpout" {
-				out = newUDPOut(m, &o)
+				out = newUDPOut(m, params)
 			} else if t == "null" || t == "nullout" {
-				out = newNullOut(m, &o)
+				out = newNullOut(m, params)
 			}
 
 			if out != nil {

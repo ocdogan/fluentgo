@@ -28,7 +28,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type kinesisOut struct {
@@ -40,13 +39,7 @@ type kinesisOut struct {
 	explicitHashKeys []string
 }
 
-func newKinesisOut(manager InOutManager, config *config.InOutConfig) *kinesisOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newKinesisOut(manager InOutManager, params map[string]interface{}) *kinesisOut {
 	var (
 		ok               bool
 		streamName       string

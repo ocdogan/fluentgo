@@ -25,7 +25,6 @@ package inout
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type sqsOut struct {
@@ -34,13 +33,7 @@ type sqsOut struct {
 	delaySeconds int64
 }
 
-func newSqsOut(manager InOutManager, config *config.InOutConfig) *sqsOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newSqsOut(manager InOutManager, params map[string]interface{}) *sqsOut {
 	sio := newSqsIO(manager, params)
 	if sio == nil {
 		return nil

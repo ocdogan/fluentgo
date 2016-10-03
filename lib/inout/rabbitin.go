@@ -25,7 +25,6 @@ package inout
 import (
 	"strings"
 
-	"github.com/ocdogan/fluentgo/lib/config"
 	"github.com/streadway/amqp"
 )
 
@@ -35,13 +34,7 @@ type rabbitIn struct {
 	deliveries <-chan amqp.Delivery
 }
 
-func newRabbitIn(manager InOutManager, config *config.InOutConfig) *rabbitIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newRabbitIn(manager InOutManager, params map[string]interface{}) *rabbitIn {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

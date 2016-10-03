@@ -195,21 +195,22 @@ func (m *InManager) setInputs(config *config.InputsConfig) {
 			t := strings.ToLower(p.Type)
 
 			var in inProvider
+			params := p.GetParamsMap()
 
 			if t == "redischan" || t == "redischanin" {
-				in = newRedisChanIn(m, &p)
+				in = newRedisChanIn(m, params)
 			} else if t == "redislist" || t == "redislistin" {
-				in = newRedisListIn(m, &p)
+				in = newRedisListIn(m, params)
 			} else if t == "kinesis" || t == "kinesisin" {
-				in = newKinesisIn(m, &p)
+				in = newKinesisIn(m, params)
 			} else if t == "sqs" || t == "sqsin" {
-				in = newSqsIn(m, &p)
+				in = newSqsIn(m, params)
 			} else if t == "rabbit" || t == "rabbitin" {
-				in = newRabbitIn(m, &p)
+				in = newRabbitIn(m, params)
 			} else if t == "tcp" || t == "tcpin" {
-				in = newTCPIn(m, &p)
+				in = newTCPIn(m, params)
 			} else if t == "udp" || t == "udpin" {
-				in = newUDPIn(m, &p)
+				in = newUDPIn(m, params)
 			}
 
 			if in != nil {

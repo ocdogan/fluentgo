@@ -29,7 +29,6 @@ import (
 	"reflect"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type udpOut struct {
@@ -38,13 +37,7 @@ type udpOut struct {
 	conn *net.UDPConn
 }
 
-func newUDPOut(manager InOutManager, config *config.InOutConfig) *udpOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newUDPOut(manager InOutManager, params map[string]interface{}) *udpOut {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

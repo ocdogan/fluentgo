@@ -22,19 +22,11 @@
 
 package inout
 
-import "github.com/ocdogan/fluentgo/lib/config"
-
 type nullOut struct {
 	outHandler
 }
 
-func newNullOut(manager InOutManager, config *config.InOutConfig) *nullOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newNullOut(manager InOutManager, params map[string]interface{}) *nullOut {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

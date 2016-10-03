@@ -40,13 +40,7 @@ type elasticOut struct {
 	client      *elastic.Client
 }
 
-func newElasticOut(manager InOutManager, config *config.InOutConfig) *elasticOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newElasticOut(manager InOutManager, params map[string]interface{}) *elasticOut {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

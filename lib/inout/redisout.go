@@ -27,7 +27,6 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type redisOut struct {
@@ -36,13 +35,7 @@ type redisOut struct {
 	trimSize int
 }
 
-func newRedisOut(manager InOutManager, config *config.InOutConfig) *redisOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newRedisOut(manager InOutManager, params map[string]interface{}) *redisOut {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

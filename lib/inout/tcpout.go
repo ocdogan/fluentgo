@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type tcpOut struct {
@@ -40,13 +39,7 @@ type tcpOut struct {
 	conn           net.Conn
 }
 
-func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newTCPOut(manager InOutManager, params map[string]interface{}) *tcpOut {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

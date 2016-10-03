@@ -233,7 +233,12 @@ func (rio *redisIO) Connect() {
 		connErr = nil
 		conn = getRedisConnection(rio.poolName, rio.server, rio.password)
 
-		if conn != nil {
+		if conn == nil {
+			l := rio.logger
+			if l != nil {
+				l.Printf("Cannot connect to REDIS: %s, %s\n", rio.poolName, rio.server)
+			}
+		} else {
 			connErr = rio.selectDb(conn)
 			if connErr != nil && rio.logger != nil {
 				rio.logger.Println(connErr)

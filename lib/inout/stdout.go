@@ -22,23 +22,13 @@
 
 package inout
 
-import (
-	"fmt"
-
-	"github.com/ocdogan/fluentgo/lib/config"
-)
+import "fmt"
 
 type stdOut struct {
 	outHandler
 }
 
-func newStdOut(manager InOutManager, config *config.InOutConfig) *stdOut {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newStdOut(manager InOutManager, params map[string]interface{}) *stdOut {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

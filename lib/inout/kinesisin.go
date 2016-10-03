@@ -30,7 +30,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type kinesisIn struct {
@@ -41,13 +40,7 @@ type kinesisIn struct {
 	limit         int64
 }
 
-func newKinesisIn(manager InOutManager, config *config.InOutConfig) *kinesisIn {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newKinesisIn(manager InOutManager, params map[string]interface{}) *kinesisIn {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil
