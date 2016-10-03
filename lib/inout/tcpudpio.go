@@ -33,8 +33,8 @@ type tcpUDPIO struct {
 
 func newTCPUDPIO(manager InOutManager, params map[string]interface{}) *tcpUDPIO {
 	var host string
-	if host, ok := params["host"].(string); ok {
-		host = strings.TrimSpace(host)
+	if s, ok := params["host"].(string); ok {
+		host = strings.TrimSpace(s)
 	}
 	if host == "" {
 		return nil
