@@ -208,6 +208,8 @@ func (m *InManager) setInputs(config *config.InputsConfig) {
 				in = newRabbitIn(m, &p)
 			} else if t == "tcp" || t == "tcpin" {
 				in = newTCPIn(m, &p)
+			} else if t == "udp" || t == "udpin" {
+				in = newUDPIn(m, &p)
 			}
 
 			if in != nil {

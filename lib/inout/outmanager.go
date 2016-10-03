@@ -150,6 +150,8 @@ func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 				out = newStdOut(m, &o)
 			} else if t == "tcp" || t == "tcpout" {
 				out = newTCPOut(m, &o)
+			} else if t == "udp" || t == "udpout" {
+				out = newUDPOut(m, &o)
 			} else if t == "null" || t == "nullout" {
 				out = newNullOut(m, &o)
 			}
