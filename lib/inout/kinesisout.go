@@ -86,14 +86,14 @@ func newKinesisOut(manager InOutManager, config *config.InOutConfig) *kinesisOut
 		return nil
 	}
 
-	sio := newKinesisIO(manager, config)
-	if sio == nil {
+	kio := newKinesisIO(manager, params)
+	if kio == nil {
 		return nil
 	}
 
 	ko := &kinesisOut{
 		outHandler:       *oh,
-		kinesisIO:        *sio,
+		kinesisIO:        *kio,
 		partitionKey:     partitionKey,
 		streamName:       streamName,
 		explicitHashKeys: explicitHashKeys,
@@ -144,7 +144,7 @@ func (ko *kinesisOut) funcPutMessages(messages []string, indexName string) {
 		if msg != "" {
 			data = []byte(msg)
 			if ko.compressed {
-				data = lib.Compress(data)
+				data = lib.Compress(data, ko.compressType)
 			}
 
 			rec := &kinesis.PutRecordsRequestEntry{

@@ -93,7 +93,6 @@ func (ri *redisListIn) funcReceive() {
 
 	completed := false
 
-	compressed := ri.compressed
 	maxMessageSize := ri.getMaxMessageSize()
 
 	loop := 0
@@ -134,14 +133,14 @@ func (ri *redisListIn) funcReceive() {
 			switch m := rep.(type) {
 			case []byte:
 				if !completed {
-					go ri.queueMessage(m, maxMessageSize, compressed)
+					go ri.queueMessage(m, maxMessageSize)
 				}
 			case string:
 				if !completed {
 					if ri.blockingCmd {
 						m = strings.SplitN(m, "\n", 2)[1]
 					}
-					go ri.queueMessage([]byte(m), maxMessageSize, compressed)
+					go ri.queueMessage([]byte(m), maxMessageSize)
 				}
 			case error:
 				if !completed {

@@ -38,7 +38,7 @@ import (
 
 type tcpIn struct {
 	inHandler
-	tcpIO
+	tcpUDPIO
 	lck         sync.Mutex
 	connections []net.Conn
 	listener    *net.Listener
@@ -49,12 +49,12 @@ func newTCPIn(manager InOutManager, config *config.InOutConfig) *tcpIn {
 		return nil
 	}
 
-	tio := newTCPIO(manager, config)
-	if tio == nil {
+	params := config.GetParamsMap()
+
+	tuio := newTCPUDPIO(manager, params)
+	if tuio == nil {
 		return nil
 	}
-
-	params := config.GetParamsMap()
 
 	ih := newInHandler(manager, params)
 	if ih == nil {
@@ -63,7 +63,7 @@ func newTCPIn(manager InOutManager, config *config.InOutConfig) *tcpIn {
 
 	tin := &tcpIn{
 		inHandler: *ih,
-		tcpIO:     *tio,
+		tcpUDPIO:  *tuio,
 	}
 
 	tin.iotype = "TCPIN"
@@ -259,7 +259,6 @@ func (tin *tcpIn) onNewConnection(conn net.Conn) {
 	endChars := []byte(lib.TCPUDPMsgEnd)
 	startChars := []byte(lib.TCPUDPMsgStart)
 
-	compressed := tin.compressed
 	maxMessageSize := tin.getMaxMessageSize()
 
 	for {
@@ -326,7 +325,7 @@ func (tin *tcpIn) onNewConnection(conn net.Conn) {
 
 						data := b[len(startChars):end]
 						if len(data) > 4 {
-							go tin.queueMessage(data[4:], maxMessageSize, compressed)
+							go tin.queueMessage(data[4:], maxMessageSize)
 						}
 					}
 				}

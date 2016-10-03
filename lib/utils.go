@@ -23,11 +23,13 @@
 package lib
 
 import (
+	"archive/zip"
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -216,15 +218,46 @@ func PrepareFile(filename string) string {
 	return filename
 }
 
-func Compress(data []byte) []byte {
+func Compress(data []byte, compType CompressionType) []byte {
 	if len(data) > 0 {
-		var buff bytes.Buffer
-		gzipW := gzip.NewWriter(&buff)
+		var (
+			buff    bytes.Buffer
+			zWriter io.Writer
+			closer  io.Closer
+		)
 
-		if gzipW != nil {
-			defer gzipW.Close()
+		if compType == CtZip {
+			zw := zip.NewWriter(&buff)
+			closer = zw
 
-			n, err := gzipW.Write(data)
+			header := &zip.FileHeader{
+				Name:         "comressed.dat",
+				Method:       zip.Store,
+				ModifiedTime: uint16(time.Now().UnixNano()),
+				ModifiedDate: uint16(time.Now().UnixNano()),
+			}
+
+			iow, err := zw.CreateHeader(header)
+			if err != nil {
+				return data
+			}
+
+			zWriter = iow
+		} else {
+			zw := gzip.NewWriter(&buff)
+			closer = zw
+
+			zWriter = zw
+		}
+
+		if zWriter != nil {
+			defer func() {
+				if closer != nil {
+					closer.Close()
+				}
+			}()
+
+			n, err := zWriter.Write(data)
 			if err != nil {
 				return data
 			} else if n > 0 {
@@ -235,17 +268,53 @@ func Compress(data []byte) []byte {
 	return nil
 }
 
-func Decompress(data []byte) []byte {
+func Decompress(data []byte, compType CompressionType) []byte {
 	if len(data) > 0 {
-		cmpReader, err := gzip.NewReader(bytes.NewReader(data))
-		if err == nil && cmpReader != nil {
-			defer cmpReader.Close()
+		var (
+			closer  io.Closer
+			zReader io.Reader
+		)
 
-			data, err = ioutil.ReadAll(cmpReader)
+		if compType == CtZip {
+			zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 			if err != nil {
 				return data
 			}
+
+			if len(zr.File) == 0 {
+				return data
+			}
+
+			iorc, err := zr.File[0].Open()
+			if err != nil {
+				return data
+			}
+
+			zReader = iorc
+			closer = iorc
+		} else {
+			zr, err := gzip.NewReader(bytes.NewReader(data))
+			if err != nil {
+				return data
+			}
+
+			zReader = zr
+			closer = zr
+		}
+
+		if zReader != nil {
+			defer func() {
+				if closer != nil {
+					closer.Close()
+				}
+			}()
+
+			cdata, err := ioutil.ReadAll(zReader)
+			if err != nil {
+				return data
+			}
+			return cdata
 		}
 	}
-	return nil
+	return data
 }

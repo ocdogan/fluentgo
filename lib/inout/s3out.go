@@ -95,7 +95,7 @@ func newS3Out(manager InOutManager, config *config.InOutConfig) *s3Out {
 		rootAttr = "messages"
 	}
 
-	awsio := newAwsIO(manager, config)
+	awsio := newAwsIO(manager, params)
 	if awsio == nil {
 		return nil
 	}
@@ -180,7 +180,7 @@ func (s3o *s3Out) funcPutMessages(messages []string, indexName string) {
 		if count > 0 {
 			body := buffer.Bytes()
 			if s3o.compressed {
-				body = lib.Compress(body)
+				body = lib.Compress(body, s3o.compressType)
 			}
 
 			params := &s3.PutObjectInput{

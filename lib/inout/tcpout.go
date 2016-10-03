@@ -35,7 +35,7 @@ import (
 
 type tcpOut struct {
 	outHandler
-	tcpIO
+	tcpUDPIO
 	connTimeoutSec int
 	conn           net.Conn
 }
@@ -45,12 +45,12 @@ func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
 		return nil
 	}
 
-	tio := newTCPIO(manager, config)
-	if tio == nil {
+	params := config.GetParamsMap()
+
+	tuio := newTCPUDPIO(manager, params)
+	if tuio == nil {
 		return nil
 	}
-
-	params := config.GetParamsMap()
 
 	oh := newOutHandler(manager, params)
 	if oh == nil {
@@ -69,7 +69,7 @@ func newTCPOut(manager InOutManager, config *config.InOutConfig) *tcpOut {
 
 	tout := &tcpOut{
 		outHandler:     *oh,
-		tcpIO:          *tio,
+		tcpUDPIO:       *tuio,
 		connTimeoutSec: connTimeoutSec,
 	}
 
@@ -209,7 +209,7 @@ func (tout *tcpOut) funcSendMessagesChunk(messages []string, channel string) {
 					if conn != nil {
 						body = []byte(msg)
 						if tout.compressed {
-							body = lib.Compress(body)
+							body = lib.Compress(body, tout.compressType)
 						}
 
 						conn.Write([]byte(lib.TCPUDPMsgStart))

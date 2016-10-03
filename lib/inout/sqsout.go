@@ -39,12 +39,12 @@ func newSqsOut(manager InOutManager, config *config.InOutConfig) *sqsOut {
 		return nil
 	}
 
-	sio := newSqsIO(manager, config)
+	params := config.GetParamsMap()
+
+	sio := newSqsIO(manager, params)
 	if sio == nil {
 		return nil
 	}
-
-	params := config.GetParamsMap()
 
 	delaySeconds := int64(0)
 	if f, ok := params["delaySeconds"].(float64); ok {

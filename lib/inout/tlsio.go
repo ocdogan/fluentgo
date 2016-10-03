@@ -24,58 +24,24 @@ package inout
 
 import (
 	"crypto/tls"
-	"net"
-	"strings"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
-	"github.com/ocdogan/fluentgo/lib/log"
 )
 
-type tcpIO struct {
-	id          lib.UUID
-	compressed  bool
-	host        string
+type tlsIO struct {
 	secure      bool
 	certFile    string
 	keyFile     string
 	tlsConfig   *tls.Config
-	logger      log.Logger
 	loadTLSFunc func() (secure bool, config *tls.Config, err error)
 }
 
-func newTCPIO(manager InOutManager, config *config.InOutConfig) *tcpIO {
-	if config == nil {
-		return nil
-	}
-
-	id, err := lib.NewUUID()
-	if err != nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newTLSIO(manager InOutManager, params map[string]interface{}) *tlsIO {
 	var (
-		ok   bool
-		s    string
-		host string
+		ok       bool
+		certFile string
+		keyFile  string
 	)
-
-	if s, ok = params["host"].(string); ok {
-		host = strings.TrimSpace(s)
-	}
-	if host == "" {
-		return nil
-	}
-
-	var (
-		compressed bool
-		certFile   string
-		keyFile    string
-	)
-
-	compressed, ok = params["compressed"].(bool)
 
 	certFile, ok = params["certFile"].(string)
 	if ok {
@@ -88,60 +54,32 @@ func newTCPIO(manager InOutManager, config *config.InOutConfig) *tcpIO {
 		}
 	}
 
-	tio := &tcpIO{
-		id:         *id,
-		host:       host,
-		compressed: compressed,
-		logger:     manager.GetLogger(),
+	return &tlsIO{
+		certFile: certFile,
+		keyFile:  keyFile,
 	}
-
-	return tio
 }
 
-func (tio *tcpIO) ID() lib.UUID {
-	return tio.id
-}
-
-func (tio *tcpIO) tryToCloseConn(conn net.Conn) error {
-	var closeErr error
-	if conn != nil {
-		defer func() {
-			err := recover()
-			if closeErr == nil {
-				closeErr, _ = err.(error)
-			}
-		}()
-		closeErr = conn.Close()
-	}
-	return closeErr
-}
-
-func (tio *tcpIO) loadCert() error {
+func (wio *tlsIO) loadCert() error {
 	tlsLoaded := false
 	var config *tls.Config
 
 	defer func() {
 		if tlsLoaded {
-			tio.tlsConfig = config
-			tio.secure = true
+			wio.tlsConfig = config
+			wio.secure = true
 		} else {
-			tio.secure = false
-			tio.tlsConfig = nil
+			wio.secure = false
+			wio.tlsConfig = nil
 		}
 	}()
 
-	if tio.loadTLSFunc != nil {
+	if wio.loadTLSFunc != nil {
 		var err error
-		tlsLoaded, config, err = tio.loadTLSFunc()
+		tlsLoaded, config, err = wio.loadTLSFunc()
 
 		if err != nil {
 			tlsLoaded, config = false, nil
-
-			l := tio.logger
-			if l != nil {
-				l.Print(err)
-			}
-
 			return err
 		}
 	}

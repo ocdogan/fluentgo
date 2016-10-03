@@ -22,81 +22,39 @@
 
 package inout
 
-import "sync/atomic"
+import (
+	"net"
+	"strings"
+)
 
-type ioHandler struct {
-	tlsIO
-	baseIO
-	runFunc         func()
-	beforeCloseFunc func()
-	afterCloseFunc  func()
-	completed       chan bool
+type tcpUDPIO struct {
+	host string
 }
 
-func newIOHandler(manager InOutManager, params map[string]interface{}) *ioHandler {
-	tio := newTLSIO(manager, params)
-	if tio == nil {
+func newTCPUDPIO(manager InOutManager, params map[string]interface{}) *tcpUDPIO {
+	var host string
+	if host, ok := params["host"].(string); ok {
+		host = strings.TrimSpace(host)
+	}
+	if host == "" {
 		return nil
 	}
 
-	bio := newBaseIO(manager, params)
-	if bio == nil {
-		return nil
-	}
-
-	return &ioHandler{
-		tlsIO:     *tio,
-		baseIO:    *bio,
-		completed: make(chan bool),
+	return &tcpUDPIO{
+		host: host,
 	}
 }
 
-func (ioh *ioHandler) Close() {
-	defer func() {
-		recover()
-
-		ioh.SetProcessing(false)
-		if ioh.afterCloseFunc != nil {
-			ioh.afterCloseFunc()
-		}
-	}()
-
-	if ioh.beforeCloseFunc != nil {
-		ioh.beforeCloseFunc()
-	}
-
-	if ioh.Processing() {
-		c := ioh.completed
-		if c != nil {
-			defer func() {
-				ioh.completed = nil
-			}()
-			close(c)
-		}
-	}
-}
-
-func (ioh *ioHandler) Run() {
-	if atomic.CompareAndSwapInt32(&ioh.processing, 0, 1) {
+func (tio *tcpUDPIO) tryToCloseConn(conn net.Conn) error {
+	var closeErr error
+	if conn != nil {
 		defer func() {
-			defer recover()
-
-			completed := atomic.CompareAndSwapInt32(&ioh.processing, 1, 0)
-			func() {
-				defer recover()
-				ioh.Close()
-			}()
-
-			if !completed && ioh.completed != nil {
-				func() {
-					defer recover()
-					ioh.completed <- true
-				}()
+			err := recover()
+			if closeErr == nil {
+				closeErr, _ = err.(error)
 			}
 		}()
-
-		if ioh.runFunc != nil {
-			ioh.runFunc()
-		}
+		closeErr = conn.Close()
 	}
+	return closeErr
 }

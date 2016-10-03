@@ -51,45 +51,46 @@ func newSqsIn(manager InOutManager, config *config.InOutConfig) *sqsIn {
 		return nil
 	}
 
-	sio := newSqsIO(manager, config)
-	if sio != nil {
-		var (
-			f  float64
-			ok bool
-		)
-
-		waitTimeSeconds := int64(0)
-		if f, ok = params["waitTimeSeconds"].(float64); ok {
-			waitTimeSeconds = int64(f)
-		}
-		if !ok || waitTimeSeconds < 0 {
-			waitTimeSeconds = 0
-		}
-
-		maxNumberOfMessages := int64(10)
-		if f, ok = params["maxNumberOfMessages"].(float64); ok {
-			maxNumberOfMessages = int64(f)
-		} else if !ok {
-			maxNumberOfMessages = 10
-		}
-		if !ok || maxNumberOfMessages < 1 {
-			maxNumberOfMessages = 1
-		}
-
-		si := &sqsIn{
-			sqsIO:               *sio,
-			inHandler:           *ih,
-			waitTimeSeconds:     waitTimeSeconds,
-			maxNumberOfMessages: maxNumberOfMessages,
-		}
-
-		si.iotype = "SQSIN"
-
-		si.runFunc = si.funcReceive
-
-		return si
+	sio := newSqsIO(manager, params)
+	if sio == nil {
+		return nil
 	}
-	return nil
+
+	var (
+		f  float64
+		ok bool
+	)
+
+	waitTimeSeconds := int64(0)
+	if f, ok = params["waitTimeSeconds"].(float64); ok {
+		waitTimeSeconds = int64(f)
+	}
+	if !ok || waitTimeSeconds < 0 {
+		waitTimeSeconds = 0
+	}
+
+	maxNumberOfMessages := int64(10)
+	if f, ok = params["maxNumberOfMessages"].(float64); ok {
+		maxNumberOfMessages = int64(f)
+	} else if !ok {
+		maxNumberOfMessages = 10
+	}
+	if !ok || maxNumberOfMessages < 1 {
+		maxNumberOfMessages = 1
+	}
+
+	si := &sqsIn{
+		sqsIO:               *sio,
+		inHandler:           *ih,
+		waitTimeSeconds:     waitTimeSeconds,
+		maxNumberOfMessages: maxNumberOfMessages,
+	}
+
+	si.iotype = "SQSIN"
+
+	si.runFunc = si.funcReceive
+
+	return si
 }
 
 func (si *sqsIn) deleteMessage(msg *sqs.Message) error {
@@ -177,7 +178,7 @@ func (si *sqsIn) funcReceive() {
 
 					err := si.deleteMessage(msg)
 					if err == nil {
-						go sin.queueMessage([]byte(*msg.Body), maxMessageSize, false)
+						go sin.queueMessage([]byte(*msg.Body), maxMessageSize)
 					} else {
 						l := si.GetLogger()
 						if l != nil {

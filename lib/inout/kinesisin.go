@@ -53,50 +53,51 @@ func newKinesisIn(manager InOutManager, config *config.InOutConfig) *kinesisIn {
 		return nil
 	}
 
-	kio := newKinesisIO(manager, config)
-	if kio != nil {
-		var (
-			ok            bool
-			f             float64
-			shardIterator string
-			streamName    string
-		)
-
-		streamName, ok = params["streamName"].(string)
-		if ok {
-			streamName = strings.TrimSpace(streamName)
-		}
-		if streamName == "" {
-			return nil
-		}
-
-		shardIterator, ok = params["shardIterator"].(string)
-		if ok {
-			shardIterator = strings.TrimSpace(shardIterator)
-		}
-		if shardIterator == "" {
-			return nil
-		}
-
-		limit := int64(1)
-		if f, ok = params["limit"].(float64); ok {
-			limit = lib.MaxInt64(int64(f), 1)
-		}
-
-		ki := &kinesisIn{
-			kinesisIO:     *kio,
-			inHandler:     *ih,
-			limit:         limit,
-			shardIterator: shardIterator,
-		}
-
-		ki.iotype = "KINESISIN"
-
-		ki.runFunc = ki.funcReceive
-
-		return ki
+	kio := newKinesisIO(manager, params)
+	if kio == nil {
+		return nil
 	}
-	return nil
+
+	var (
+		ok            bool
+		f             float64
+		shardIterator string
+		streamName    string
+	)
+
+	streamName, ok = params["streamName"].(string)
+	if ok {
+		streamName = strings.TrimSpace(streamName)
+	}
+	if streamName == "" {
+		return nil
+	}
+
+	shardIterator, ok = params["shardIterator"].(string)
+	if ok {
+		shardIterator = strings.TrimSpace(shardIterator)
+	}
+	if shardIterator == "" {
+		return nil
+	}
+
+	limit := int64(1)
+	if f, ok = params["limit"].(float64); ok {
+		limit = lib.MaxInt64(int64(f), 1)
+	}
+
+	ki := &kinesisIn{
+		kinesisIO:     *kio,
+		inHandler:     *ih,
+		limit:         limit,
+		shardIterator: shardIterator,
+	}
+
+	ki.iotype = "KINESISIN"
+
+	ki.runFunc = ki.funcReceive
+
+	return ki
 }
 
 func (ki *kinesisIn) funcReceive() {
@@ -116,7 +117,6 @@ func (ki *kinesisIn) funcReceive() {
 
 	completed := false
 
-	compressed := ki.compressed
 	maxMessageSize := ki.getMaxMessageSize()
 
 	params := &kinesis.GetRecordsInput{
@@ -176,7 +176,7 @@ func (ki *kinesisIn) funcReceive() {
 					defer wg.Done()
 
 					if err == nil {
-						kin.queueMessage(rec.Data, maxMessageSize, compressed)
+						kin.queueMessage(rec.Data, maxMessageSize)
 					} else {
 						l := ki.GetLogger()
 						if l != nil {

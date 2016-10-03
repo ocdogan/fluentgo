@@ -28,7 +28,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type sqsIO struct {
@@ -39,8 +38,9 @@ type sqsIO struct {
 	connFunc   func() *sqs.SQS
 }
 
-func newSqsIO(manager InOutManager, config *config.InOutConfig) *sqsIO {
-	if config == nil {
+func newSqsIO(manager InOutManager, params map[string]interface{}) *sqsIO {
+	awsio := newAwsIO(manager, params)
+	if awsio == nil {
 		return nil
 	}
 
@@ -49,12 +49,6 @@ func newSqsIO(manager InOutManager, config *config.InOutConfig) *sqsIO {
 		pName, pValue string
 	)
 
-	awsio := newAwsIO(manager, config)
-	if awsio == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
 	attributes := make(map[string]*sqs.MessageAttributeValue, 0)
 
 	for k, v := range params {

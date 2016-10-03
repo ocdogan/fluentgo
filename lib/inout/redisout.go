@@ -130,7 +130,7 @@ func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
 					conn = ro.conn
 					if conn != nil {
 						if ro.compressed {
-							msg = string(lib.Compress([]byte(msg)))
+							msg = string(lib.Compress([]byte(msg), ro.compressType))
 						}
 
 						sendErr = conn.Send(ro.command, channel, msg)

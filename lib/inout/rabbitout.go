@@ -111,7 +111,7 @@ func (ro *rabbitOut) funcSendMessagesChunk(messages []string, channel string) {
 					if channel != nil {
 						body = []byte(msg)
 						if ro.compressed {
-							body = lib.Compress(body)
+							body = lib.Compress(body, ro.compressType)
 						}
 
 						if len(body) > 0 {

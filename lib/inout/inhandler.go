@@ -49,7 +49,7 @@ func (ih *inHandler) getMaxMessageSize() int {
 	return lib.MinInt(lib.InvalidMessageSize, lib.MaxInt(-1, msgSize))
 }
 
-func (ih *inHandler) queueMessage(data []byte, maxMsgSize int, compressed bool) {
+func (ih *inHandler) queueMessage(data []byte, maxMsgSize int) {
 	ln := len(data)
 	if ln > 0 && (maxMsgSize < 1 || ln <= maxMsgSize) {
 		defer recover()
@@ -59,14 +59,11 @@ func (ih *inHandler) queueMessage(data []byte, maxMsgSize int, compressed bool) 
 			q := m.GetInQueue()
 
 			if q != nil {
-				if compressed {
-					uncdata := lib.Decompress(data)
-					if uncdata != nil {
-						m := ih.GetManager()
-						if m != nil {
-							q.Push(uncdata)
-							return
-						}
+				if ih.compressed {
+					decdata := lib.Decompress(data, ih.compressType)
+					if decdata != nil {
+						q.Push(decdata)
+						return
 					}
 				}
 				q.Push(data)

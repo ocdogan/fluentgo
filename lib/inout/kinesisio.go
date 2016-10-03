@@ -25,8 +25,6 @@ package inout
 import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
-
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 type kinesisIO struct {
@@ -35,12 +33,8 @@ type kinesisIO struct {
 	connFunc func() *kinesis.Kinesis
 }
 
-func newKinesisIO(manager InOutManager, config *config.InOutConfig) *kinesisIO {
-	if config == nil {
-		return nil
-	}
-
-	awsio := newAwsIO(manager, config)
+func newKinesisIO(manager InOutManager, params map[string]interface{}) *kinesisIO {
+	awsio := newAwsIO(manager, params)
 	if awsio == nil {
 		return nil
 	}

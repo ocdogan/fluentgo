@@ -36,3 +36,10 @@ const (
 	SmOut
 	SmInOut
 )
+
+type CompressionType int
+
+const (
+	CtGZip CompressionType = iota
+	CtZip
+)

@@ -34,17 +34,16 @@ import (
 )
 
 type redisIO struct {
-	id         lib.UUID
-	db         int
-	command    string
-	server     string
-	password   string
-	channel    string
-	poolName   string
-	compressed bool
-	connFunc   func(redis.Conn) error
-	conn       redis.Conn
-	logger     log.Logger
+	id       lib.UUID
+	db       int
+	command  string
+	server   string
+	password string
+	channel  string
+	poolName string
+	connFunc func(redis.Conn) error
+	conn     redis.Conn
+	logger   log.Logger
 }
 
 func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
@@ -105,19 +104,15 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 		db = lib.MinInt(15, lib.MaxInt(0, int(f)))
 	}
 
-	var compressed bool
-	compressed, ok = params["compressed"].(bool)
-
 	rio := &redisIO{
-		id:         *id,
-		db:         db,
-		command:    command,
-		server:     server,
-		poolName:   poolName,
-		password:   password,
-		compressed: compressed,
-		channel:    channel,
-		logger:     logger,
+		id:       *id,
+		db:       db,
+		command:  command,
+		server:   server,
+		poolName: poolName,
+		password: password,
+		channel:  channel,
+		logger:   logger,
 	}
 
 	return rio

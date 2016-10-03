@@ -34,7 +34,6 @@ import (
 )
 
 type rabbitIO struct {
-	id              lib.UUID
 	port            int
 	host            string
 	username        string
@@ -55,7 +54,6 @@ type rabbitIO struct {
 	internal        bool
 	autoAck         bool
 	noLocal         bool
-	compressed      bool
 	connected       bool
 	timeout         time.Duration
 	connFunc        func(*amqp.Connection, *amqp.Channel) error
@@ -66,11 +64,6 @@ type rabbitIO struct {
 
 func newRabbitIO(logger log.Logger, params map[string]interface{}) *rabbitIO {
 	if params == nil {
-		return nil
-	}
-
-	id, err := lib.NewUUID()
-	if err != nil {
 		return nil
 	}
 
@@ -179,7 +172,6 @@ func newRabbitIO(logger log.Logger, params map[string]interface{}) *rabbitIO {
 		autoAck         bool
 		internal        bool
 		noLocal         bool
-		compressed      bool
 	)
 
 	exchangeDeclare, ok = params["exchangeDeclare"].(bool)
@@ -192,10 +184,7 @@ func newRabbitIO(logger log.Logger, params map[string]interface{}) *rabbitIO {
 	autoAck, ok = params["autoAck"].(bool)
 	noLocal, ok = params["noLocal"].(bool)
 
-	compressed, ok = params["compressed"].(bool)
-
 	rio := &rabbitIO{
-		id:              *id,
 		host:            host,
 		port:            port,
 		vhost:           vhost,
@@ -216,16 +205,11 @@ func newRabbitIO(logger log.Logger, params map[string]interface{}) *rabbitIO {
 		autoAck:         autoAck,
 		noLocal:         noLocal,
 		timeout:         timeout,
-		compressed:      compressed,
 		contentType:     contentType,
 		logger:          logger,
 	}
 
 	return rio
-}
-
-func (rio *rabbitIO) ID() lib.UUID {
-	return rio.id
 }
 
 func (rio *rabbitIO) funcAfterClose() {

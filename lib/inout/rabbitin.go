@@ -126,7 +126,6 @@ func (ri *rabbitIn) funcReceive() {
 
 	completed := false
 
-	compressed := ri.compressed
 	maxMessageSize := ri.getMaxMessageSize()
 
 	for !completed {
@@ -144,7 +143,7 @@ func (ri *rabbitIn) funcReceive() {
 
 			msg.Ack(false)
 			if len(msg.Body) > 0 && ri.validContentType(msg.ContentType) {
-				go ri.queueMessage(msg.Body, maxMessageSize, compressed)
+				go ri.queueMessage(msg.Body, maxMessageSize)
 			}
 		}
 	}

@@ -28,7 +28,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 	"github.com/ocdogan/fluentgo/lib/log"
 )
 
@@ -40,17 +39,10 @@ type awsIO struct {
 	disableSSL      bool
 	maxRetries      int
 	logLevel        uint
-	compressed      bool
 	getLoggerFunc   func() log.Logger
 }
 
-func newAwsIO(manager InOutManager, config *config.InOutConfig) *awsIO {
-	if config == nil {
-		return nil
-	}
-
-	params := config.GetParamsMap()
-
+func newAwsIO(manager InOutManager, params map[string]interface{}) *awsIO {
 	var (
 		ok              bool
 		accessKeyID     string
@@ -85,7 +77,6 @@ func newAwsIO(manager InOutManager, config *config.InOutConfig) *awsIO {
 
 	var (
 		f          float64
-		compressed bool
 		disableSSL bool
 	)
 
@@ -106,10 +97,6 @@ func newAwsIO(manager InOutManager, config *config.InOutConfig) *awsIO {
 		logLevel = lib.MaxInt(int(f), 0)
 	}
 
-	if compressed, ok = params["compressed"].(bool); !ok {
-		compressed = false
-	}
-
 	awsio := &awsIO{
 		accessKeyID:     accessKeyID,
 		secretAccessKey: secretAccessKey,
@@ -118,7 +105,6 @@ func newAwsIO(manager InOutManager, config *config.InOutConfig) *awsIO {
 		disableSSL:      disableSSL,
 		maxRetries:      maxRetries,
 		logLevel:        uint(logLevel),
-		compressed:      compressed,
 	}
 
 	return awsio
