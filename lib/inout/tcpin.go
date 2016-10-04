@@ -80,7 +80,7 @@ func (tin *tcpIn) funcAfterClose() {
 }
 
 func (tin *tcpIn) loadServerCert() (secure bool, config *tls.Config, err error) {
-	config, err = lib.LoadServerCert(tin.certFile, tin.keyFile)
+	config, err = lib.LoadServerCert(tin.certFile, tin.keyFile, tin.caFile, tin.verifySsl)
 	secure = (err == nil) && (config != nil)
 	return
 }

@@ -72,49 +72,49 @@ func newUDPIn(manager InOutManager, params map[string]interface{}) *udpIn {
 		bufferSize = lib.MinInt(int(math.MaxInt16), lib.MaxInt(1024, int(f)))
 	}
 
-	tin := &udpIn{
+	uin := &udpIn{
 		inHandler:  *ih,
 		tcpUDPIO:   *tuio,
 		bufferSize: bufferSize,
 	}
 
-	tin.iotype = "UDPIN"
+	uin.iotype = "UDPIN"
 
-	tin.runFunc = tin.funcReceive
-	tin.afterCloseFunc = tin.funcAfterClose
-	tin.loadTLSFunc = tin.loadServerCert
+	uin.runFunc = uin.funcReceive
+	uin.afterCloseFunc = uin.funcAfterClose
+	uin.loadTLSFunc = uin.loadServerCert
 
-	return tin
+	return uin
 }
 
-func (tin *udpIn) funcAfterClose() {
-	if tin.conn != nil {
+func (uin *udpIn) funcAfterClose() {
+	if uin.conn != nil {
 		defer recover()
 
-		conn := tin.conn
-		tin.conn = nil
+		conn := uin.conn
+		uin.conn = nil
 
 		conn.Close()
 	}
 }
 
-func (tin *udpIn) loadServerCert() (secure bool, config *tls.Config, err error) {
-	config, err = lib.LoadServerCert(tin.certFile, tin.keyFile)
+func (uin *udpIn) loadServerCert() (secure bool, config *tls.Config, err error) {
+	config, err = lib.LoadServerCert(uin.certFile, uin.keyFile, uin.caFile, uin.verifySsl)
 	secure = (err == nil) && (config != nil)
 	return
 }
 
-func (tin *udpIn) listen(listenEnded chan bool) {
-	lg := tin.logger
+func (uin *udpIn) listen(listenEnded chan bool) {
+	lg := uin.logger
 	if lg != nil {
-		defer lg.Printf("'UDPIN' completed listening at '%s'.\n", tin.host)
-		lg.Printf("'UDPIN' starting to listen at '%s'...\n", tin.host)
+		defer lg.Printf("'UDPIN' completed listening at '%s'.\n", uin.host)
+		lg.Printf("'UDPIN' starting to listen at '%s'...\n", uin.host)
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp", tin.host)
+	udpAddr, err := net.ResolveUDPAddr("udp", uin.host)
 	if err != nil {
 		if lg != nil {
-			lg.Printf("'UDPIN' address error at '%s'.\n", tin.host)
+			lg.Printf("'UDPIN' address error at '%s'.\n", uin.host)
 		}
 		return
 	}
@@ -132,21 +132,21 @@ func (tin *udpIn) listen(listenEnded chan bool) {
 		close(ch)
 	}(conn, listenEnded)
 
-	tin.conn = conn
-	tin.accept()
+	uin.conn = conn
+	uin.accept()
 }
 
-func (tin *udpIn) accept() {
-	if tin.conn == nil {
+func (uin *udpIn) accept() {
+	if uin.conn == nil {
 		return
 	}
 
-	buffer := make([]byte, tin.bufferSize)
-	maxMessageSize := tin.getMaxMessageSize()
+	buffer := make([]byte, uin.bufferSize)
+	maxMessageSize := uin.getMaxMessageSize()
 
-	lg := tin.logger
-	for tin.Processing() {
-		conn := tin.conn
+	lg := uin.logger
+	for uin.Processing() {
+		conn := uin.conn
 		// Listen for an incoming connection.
 		if conn == nil {
 			time.Sleep(time.Millisecond)
@@ -173,38 +173,38 @@ func (tin *udpIn) accept() {
 
 		if reqLen > 0 && reqLen <= maxMessageSize {
 			buf := make([]byte, reqLen)
-			go tin.onNewMessage(buf)
+			go uin.onNewMessage(buf)
 		}
 	}
 }
 
-func (tin *udpIn) onNewMessage(b []byte) {
+func (uin *udpIn) onNewMessage(b []byte) {
 	if len(b) >= udpMsgStartLen+udpMsgEndLen+4 {
-		maxMessageSize := tin.getMaxMessageSize()
+		maxMessageSize := uin.getMaxMessageSize()
 
 		expectedLen := int(binary.BigEndian.Uint32(b[udpMsgStartLen : udpMsgStartLen+4]))
 		if expectedLen <= maxMessageSize {
-			tin.queueMessage(b[udpMsgStartLen+4:], maxMessageSize)
+			uin.queueMessage(b[udpMsgStartLen+4:], maxMessageSize)
 		}
 	}
 }
 
-func (tin *udpIn) funcReceive() {
+func (uin *udpIn) funcReceive() {
 	defer func() {
 		recover()
 
-		l := tin.GetLogger()
+		l := uin.GetLogger()
 		if l != nil {
 			l.Println("Stoping 'UDPIN'...")
 		}
 	}()
 
-	l := tin.GetLogger()
+	l := uin.GetLogger()
 	if l != nil {
 		l.Println("Starting 'UDPIN'...")
 	}
 
-	err := tin.loadCert()
+	err := uin.loadCert()
 	if err != nil {
 		return
 	}
@@ -219,12 +219,12 @@ func (tin *udpIn) funcReceive() {
 		if !chanOpen {
 			listenEnded = make(chan bool)
 		}
-		go tin.listen(listenEnded)
+		go uin.listen(listenEnded)
 
 		select {
-		case <-tin.completed:
+		case <-uin.completed:
 			completed = true
-			tin.Close()
+			uin.Close()
 			return
 		case _, chanOpen = <-listenEnded:
 			if completed {

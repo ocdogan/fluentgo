@@ -113,8 +113,10 @@ type OutputsConfig struct {
 }
 
 type TLSConfig struct {
-	CertFile string `json:"certFile,omitempty"`
-	KeyFile  string `json:"keyFile,omitempty"`
+	CertFile  string `json:"certFile,omitempty"`
+	KeyFile   string `json:"keyFile,omitempty"`
+	CAFile    string `json:"caFile,omitempty"`
+	VerifySsl bool   `json:"verifySsl,omitempty"`
 }
 
 type AdminConfig struct {

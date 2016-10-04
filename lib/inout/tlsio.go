@@ -30,17 +30,21 @@ import (
 
 type tlsIO struct {
 	secure      bool
+	verifySsl   bool
 	certFile    string
 	keyFile     string
+	caFile      string
 	tlsConfig   *tls.Config
 	loadTLSFunc func() (secure bool, config *tls.Config, err error)
 }
 
 func newTLSIO(manager InOutManager, params map[string]interface{}) *tlsIO {
 	var (
-		ok       bool
-		certFile string
-		keyFile  string
+		ok        bool
+		verifySsl bool
+		caFile    string
+		certFile  string
+		keyFile   string
 	)
 
 	certFile, ok = params["certFile"].(string)
@@ -50,13 +54,23 @@ func newTLSIO(manager InOutManager, params map[string]interface{}) *tlsIO {
 			keyFile, ok = params["keyFile"].(string)
 			if ok {
 				keyFile = lib.PrepareFile(keyFile)
+				if keyFile != "" {
+					verifySsl, _ = params["verifySsl"].(bool)
+
+					caFile, ok = params["caFile"].(string)
+					if ok {
+						caFile = lib.PrepareFile(caFile)
+					}
+				}
 			}
 		}
 	}
 
 	return &tlsIO{
-		certFile: certFile,
-		keyFile:  keyFile,
+		caFile:    caFile,
+		certFile:  certFile,
+		keyFile:   keyFile,
+		verifySsl: verifySsl,
 	}
 }
 

@@ -139,7 +139,7 @@ func (tout *tcpOut) Connect() {
 }
 
 func (tout *tcpOut) loadClientCert() (secure bool, config *tls.Config, err error) {
-	config, err = lib.LoadClientCert(tout.certFile, tout.keyFile)
+	config, err = lib.LoadClientCert(tout.certFile, tout.keyFile, tout.caFile, tout.verifySsl)
 	secure = (err == nil) && (config != nil)
 	return
 }

@@ -156,7 +156,7 @@ func PreparePath(dir string) string {
 	return dir
 }
 
-func LoadClientCert(certFile, keyFile string) (config *tls.Config, err error) {
+func LoadClientCert(certFile, keyFile, caFile string, verifySsl bool) (config *tls.Config, err error) {
 	if certFile != "" && keyFile != "" {
 		var cert tls.Certificate
 		cert, err = tls.LoadX509KeyPair(certFile, keyFile)
@@ -166,35 +166,71 @@ func LoadClientCert(certFile, keyFile string) (config *tls.Config, err error) {
 			return
 		}
 
-		config = &tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+		var caCertPool *x509.CertPool
+		if caFile != "" {
+			var caCert []byte
+			caCert, err = ioutil.ReadFile(caFile)
+			if err != nil {
+				err = fmt.Errorf("Error parsing server certificate: %v", err)
+				return nil, err
+			}
+
+			caCertPool = x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+		}
+
+		config = &tls.Config{
+			Certificates:       []tls.Certificate{cert},
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: verifySsl,
+		}
 		return
 	}
 	return nil, nil
 }
 
-func LoadServerCert(certFile, keyFile string) (config *tls.Config, err error) {
+func LoadServerCert(certFile, keyFile, caFile string, verifySsl bool) (config *tls.Config, err error) {
 	keyFile = PrepareFile(keyFile)
 	certFile = PrepareFile(certFile)
 
-	if certFile != "" && keyFile != "" {
-		var cert tls.Certificate
-		cert, err = tls.LoadX509KeyPair(certFile, keyFile)
-
-		if err != nil {
-			err = fmt.Errorf("Error loading client certificate: %v", err)
-			return nil, err
-		}
-
-		cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
-		if err != nil {
-			err = fmt.Errorf("Error parsing client certificate: %v", err)
-			return nil, err
-		}
-
-		config = &tls.Config{Certificates: []tls.Certificate{cert}}
-		return
+	if certFile == "" || keyFile == "" {
+		return nil, nil
 	}
-	return nil, nil
+
+	var cert tls.Certificate
+	cert, err = tls.LoadX509KeyPair(certFile, keyFile)
+
+	if err != nil {
+		err = fmt.Errorf("Error loading server certificate: %v", err)
+		return nil, err
+	}
+
+	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		err = fmt.Errorf("Error parsing server certificate: %v", err)
+		return nil, err
+	}
+
+	var caCertPool *x509.CertPool
+	if caFile != "" {
+		var caCert []byte
+		caCert, err = ioutil.ReadFile(caFile)
+		if err != nil {
+			err = fmt.Errorf("Error parsing server certificate: %v", err)
+			return nil, err
+		}
+
+		caCertPool = x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	config = &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: verifySsl,
+	}
+
+	return
 }
 
 func PrepareFile(filename string) string {

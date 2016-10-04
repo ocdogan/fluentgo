@@ -56,9 +56,11 @@ func NewHttpServer(routing *HttpRouter, logger log.Logger, params map[string]int
 	}
 
 	var (
-		addr     string
-		certFile string
-		keyFile  string
+		addr      string
+		certFile  string
+		keyFile   string
+		caFile    string
+		verifySsl bool
 	)
 
 	if s, ok := params["addr"].(string); ok {
@@ -73,11 +75,17 @@ func NewHttpServer(routing *HttpRouter, logger log.Logger, params map[string]int
 		if certFile != "" {
 			if s, ok := params["keyFile"].(string); ok {
 				keyFile = lib.PrepareFile(s)
+				if keyFile != "" {
+					verifySsl, _ = params["verifySsl"].(bool)
+					if s, ok := params["caFile"].(string); ok {
+						caFile = lib.PrepareFile(s)
+					}
+				}
 			}
 		}
 	}
 
-	certConfig, err := lib.LoadClientCert(certFile, keyFile)
+	certConfig, err := lib.LoadClientCert(certFile, keyFile, caFile, verifySsl)
 	if err != nil {
 		if logger != nil {
 			logger.Printf("Error loading certification files '%s', '%s', %v", certFile, keyFile, err)
