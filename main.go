@@ -188,9 +188,12 @@ func startAdminModule(config *config.FluentConfig, logger log.Logger, quitSignal
 	defer recover()
 
 	if config.Admin.Enabled {
-		server, _ := httpsrv.NewHttpServer(config.Admin.HTTPAddress,
-			config.Admin.TLS.CertFile, config.Admin.TLS.KeyFile,
-			logger, NewAdminRouter())
+		params := make(map[string]interface{}, 3)
+		params["addr"] = config.Admin.HTTPAddress
+		params["certFile"] = config.Admin.TLS.CertFile
+		params["keyFile"] = config.Admin.TLS.KeyFile
+
+		server, _ := httpsrv.NewHttpServer(NewAdminRouter(), logger, params)
 		server.Start(quitSignal)
 	}
 }

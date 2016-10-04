@@ -50,14 +50,31 @@ type HttpServer struct {
 	routing    *HttpRouter
 }
 
-func NewHttpServer(addr, certFile, keyFile string, logger log.Logger, routing *HttpRouter) (*HttpServer, error) {
+func NewHttpServer(routing *HttpRouter, logger log.Logger, params map[string]interface{}) (*HttpServer, error) {
 	if routing == nil {
 		return nil, fmt.Errorf("Routing cannot be nil.")
 	}
 
-	addr = strings.TrimSpace(addr)
+	var (
+		addr     string
+		certFile string
+		keyFile  string
+	)
+
+	if s, ok := params["addr"].(string); ok {
+		addr = strings.TrimSpace(s)
+	}
 	if addr == "" {
 		addr = ":8080"
+	}
+
+	if s, ok := params["certFile"].(string); ok {
+		certFile = lib.PrepareFile(s)
+		if certFile != "" {
+			if s, ok := params["keyFile"].(string); ok {
+				keyFile = lib.PrepareFile(s)
+			}
+		}
 	}
 
 	certConfig, err := lib.LoadClientCert(certFile, keyFile)
