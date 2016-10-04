@@ -147,6 +147,8 @@ func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 				out = newKinesisOut(m, params)
 			} else if t == "rabbit" || t == "rabbitout" {
 				out = newRabbitOut(m, params)
+			} else if t == "kafka" || t == "kafkaout" {
+				out = newKafkaOut(m, params)
 			} else if t == "std" || t == "stdout" {
 				out = newStdOut(m, params)
 			} else if t == "tcp" || t == "tcpout" {

@@ -207,6 +207,8 @@ func (m *InManager) setInputs(config *config.InputsConfig) {
 				in = newSqsIn(m, params)
 			} else if t == "rabbit" || t == "rabbitin" {
 				in = newRabbitIn(m, params)
+			} else if t == "kafka" || t == "kafkain" {
+				in = newKafkaIn(m, params)
 			} else if t == "tcp" || t == "tcpin" {
 				in = newTCPIn(m, params)
 			} else if t == "udp" || t == "udpin" {
