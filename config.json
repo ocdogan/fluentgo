@@ -15,7 +15,7 @@
         "queue": {
             "maxSize": 10240000,
             "maxCount": 2000,
-            "onSeverySec": 30
+            "onEverySec": 30
         },
         "buffer": {
             "path": "/fluentgo/buffer",
