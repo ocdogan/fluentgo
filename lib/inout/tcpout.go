@@ -39,7 +39,12 @@ type tcpOut struct {
 	conn           net.Conn
 }
 
-func newTCPOut(manager InOutManager, params map[string]interface{}) *tcpOut {
+func init() {
+	RegisterOut("tcp", newTCPOut)
+	RegisterOut("tcpout", newTCPOut)
+}
+
+func newTCPOut(manager InOutManager, params map[string]interface{}) OutSender {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

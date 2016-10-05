@@ -40,7 +40,12 @@ type kinesisIn struct {
 	limit         int64
 }
 
-func newKinesisIn(manager InOutManager, params map[string]interface{}) *kinesisIn {
+func init() {
+	RegisterIn("kinesis", newKinesisIn)
+	RegisterIn("kinesisin", newKinesisIn)
+}
+
+func newKinesisIn(manager InOutManager, params map[string]interface{}) InProvider {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

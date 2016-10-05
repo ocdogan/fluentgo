@@ -28,7 +28,12 @@ type stdOut struct {
 	outHandler
 }
 
-func newStdOut(manager InOutManager, params map[string]interface{}) *stdOut {
+func init() {
+	RegisterOut("std", newStdOut)
+	RegisterOut("stdout", newStdOut)
+}
+
+func newStdOut(manager InOutManager, params map[string]interface{}) OutSender {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

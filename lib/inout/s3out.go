@@ -50,7 +50,12 @@ var (
 	s3oLastMinute int
 )
 
-func newS3Out(manager InOutManager, params map[string]interface{}) *s3Out {
+func init() {
+	RegisterOut("s3", newS3Out)
+	RegisterOut("s3out", newS3Out)
+}
+
+func newS3Out(manager InOutManager, params map[string]interface{}) OutSender {
 	var (
 		acl      string
 		bucket   string

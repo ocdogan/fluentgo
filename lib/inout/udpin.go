@@ -54,9 +54,12 @@ func init() {
 
 	udpMsgEndLen = len(udpMsgEndChars)
 	udpMsgStartLen = len(udpMsgStartChars)
+
+	RegisterIn("udp", newUDPIn)
+	RegisterIn("udpin", newUDPIn)
 }
 
-func newUDPIn(manager InOutManager, params map[string]interface{}) *udpIn {
+func newUDPIn(manager InOutManager, params map[string]interface{}) InProvider {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

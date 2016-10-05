@@ -43,7 +43,12 @@ type tcpIn struct {
 	listener    *net.Listener
 }
 
-func newTCPIn(manager InOutManager, params map[string]interface{}) *tcpIn {
+func init() {
+	RegisterIn("tcp", newTCPIn)
+	RegisterIn("tcpin", newTCPIn)
+}
+
+func newTCPIn(manager InOutManager, params map[string]interface{}) InProvider {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil

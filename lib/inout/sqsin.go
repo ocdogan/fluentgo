@@ -38,7 +38,12 @@ type sqsIn struct {
 	maxNumberOfMessages int64
 }
 
-func newSqsIn(manager InOutManager, params map[string]interface{}) *sqsIn {
+func init() {
+	RegisterIn("sqs", newSqsIn)
+	RegisterIn("sqsin", newSqsIn)
+}
+
+func newSqsIn(manager InOutManager, params map[string]interface{}) InProvider {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

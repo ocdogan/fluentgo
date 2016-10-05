@@ -35,7 +35,12 @@ type redisOut struct {
 	trimSize int
 }
 
-func newRedisOut(manager InOutManager, params map[string]interface{}) *redisOut {
+func init() {
+	RegisterOut("redis", newRedisOut)
+	RegisterOut("redisout", newRedisOut)
+}
+
+func newRedisOut(manager InOutManager, params map[string]interface{}) OutSender {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

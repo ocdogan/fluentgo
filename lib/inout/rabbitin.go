@@ -34,7 +34,12 @@ type rabbitIn struct {
 	deliveries <-chan amqp.Delivery
 }
 
-func newRabbitIn(manager InOutManager, params map[string]interface{}) *rabbitIn {
+func init() {
+	RegisterIn("rabbit", newRabbitIn)
+	RegisterIn("rabbitin", newRabbitIn)
+}
+
+func newRabbitIn(manager InOutManager, params map[string]interface{}) InProvider {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

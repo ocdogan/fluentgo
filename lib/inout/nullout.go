@@ -26,7 +26,12 @@ type nullOut struct {
 	outHandler
 }
 
-func newNullOut(manager InOutManager, params map[string]interface{}) *nullOut {
+func init() {
+	RegisterOut("null", newNullOut)
+	RegisterOut("nullout", newNullOut)
+}
+
+func newNullOut(manager InOutManager, params map[string]interface{}) OutSender {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

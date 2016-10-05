@@ -34,7 +34,12 @@ type rabbitOut struct {
 	immediate bool
 }
 
-func newRabbitOut(manager InOutManager, params map[string]interface{}) *rabbitOut {
+func init() {
+	RegisterOut("rabbit", newRabbitOut)
+	RegisterOut("rabbitout", newRabbitOut)
+}
+
+func newRabbitOut(manager InOutManager, params map[string]interface{}) OutSender {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

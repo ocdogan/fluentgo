@@ -33,7 +33,12 @@ type sqsOut struct {
 	delaySeconds int64
 }
 
-func newSqsOut(manager InOutManager, params map[string]interface{}) *sqsOut {
+func init() {
+	RegisterOut("sqs", newSqsOut)
+	RegisterOut("sqsout", newSqsOut)
+}
+
+func newSqsOut(manager InOutManager, params map[string]interface{}) OutSender {
 	sio := newSqsIO(manager, params)
 	if sio == nil {
 		return nil

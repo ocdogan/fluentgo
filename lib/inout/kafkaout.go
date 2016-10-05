@@ -36,7 +36,12 @@ type kafkaOut struct {
 	producer *kafka.Producer
 }
 
-func newKafkaOut(manager InOutManager, params map[string]interface{}) *kafkaOut {
+func init() {
+	RegisterOut("kafka", newKafkaOut)
+	RegisterOut("kafkaout", newKafkaOut)
+}
+
+func newKafkaOut(manager InOutManager, params map[string]interface{}) OutSender {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil

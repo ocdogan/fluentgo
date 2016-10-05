@@ -35,7 +35,7 @@ func ScheduleMemProfiler(memproFile string, logger log.Logger, quit <-chan bool)
 
 	if memproFile != "" {
 		if logger != nil {
-			logger.Printf("Profiling memory to %s", memproFile)
+			logger.Printf("Profiling memory to %s\n", memproFile)
 		}
 
 		ticker := time.NewTicker(1 * time.Second)

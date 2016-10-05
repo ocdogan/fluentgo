@@ -36,7 +36,12 @@ type redisListIn struct {
 	blockingCmd bool
 }
 
-func newRedisListIn(manager InOutManager, params map[string]interface{}) *redisListIn {
+func init() {
+	RegisterIn("redislist", newRedisListIn)
+	RegisterIn("redislistin", newRedisListIn)
+}
+
+func newRedisListIn(manager InOutManager, params map[string]interface{}) InProvider {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

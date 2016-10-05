@@ -34,7 +34,12 @@ type kafkaIn struct {
 	consumer *kafka.Consumer
 }
 
-func newKafkaIn(manager InOutManager, params map[string]interface{}) *kafkaIn {
+func init() {
+	RegisterIn("kafka", newKafkaIn)
+	RegisterIn("kafkain", newKafkaIn)
+}
+
+func newKafkaIn(manager InOutManager, params map[string]interface{}) InProvider {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil

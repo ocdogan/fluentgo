@@ -24,7 +24,7 @@ package inout
 
 import "github.com/ocdogan/fluentgo/lib"
 
-type ioClient interface {
+type IOClient interface {
 	ID() lib.UUID
 	Run()
 	Enabled() bool

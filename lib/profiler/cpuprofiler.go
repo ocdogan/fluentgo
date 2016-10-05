@@ -34,7 +34,7 @@ func ScheduleCPUProfiler(cpuproFile string, logger log.Logger) func() {
 
 	if cpuproFile != "" {
 		if logger != nil {
-			logger.Printf("Profiling CPU to %s", cpuproFile)
+			logger.Printf("Profiling CPU to %s\n", cpuproFile)
 		}
 
 		f, err := os.Create(cpuproFile)

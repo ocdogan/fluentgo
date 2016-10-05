@@ -40,9 +40,11 @@ import (
 	"github.com/ocdogan/fluentgo/lib/log"
 )
 
-type inProvider interface {
-	ioClient
+type InProvider interface {
+	IOClient
 }
+
+type FuncNewIn func(manage InOutManager, params map[string]interface{}) InProvider
 
 type bufferFile struct {
 	count int
@@ -69,11 +71,45 @@ type InManager struct {
 	lastProcessTime time.Time
 	orphanDelete    bool
 	orphanLastXDays int
-	inputs          map[lib.UUID]inProvider
+	inputs          map[lib.UUID]InProvider
 	logger          log.Logger
 	inQ             *InQueue
 	bufFile         *bufferFile
 	completed       chan bool
+}
+
+var (
+	inputMethods map[string]FuncNewIn
+)
+
+func init() {
+	inputMethods = make(map[string]FuncNewIn)
+}
+
+func RegisterIn(providerType string, fn FuncNewIn) {
+	if fn != nil {
+		providerType = strings.TrimSpace(providerType)
+		if providerType != "" {
+			if inputMethods == nil {
+				inputMethods = make(map[string]FuncNewIn)
+			}
+
+			providerType = strings.ToLower(providerType)
+			inputMethods[providerType] = fn
+		}
+	}
+}
+
+func UnregisterIn(providerType string) {
+	if inputMethods != nil {
+		providerType = strings.TrimSpace(providerType)
+		if providerType != "" {
+			providerType = strings.ToLower(providerType)
+			if _, ok := inputMethods[providerType]; ok {
+				delete(inputMethods, providerType)
+			}
+		}
+	}
 }
 
 func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
@@ -95,7 +131,7 @@ func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
 		outputDir:       outputDir,
 		lastFlushTime:   time.Now(),
 		lastProcessTime: time.Now(),
-		inputs:          make(map[lib.UUID]inProvider),
+		inputs:          make(map[lib.UUID]InProvider),
 		prefix:          (&config.Inputs.Buffer).GetPrefix(),
 		extension:       (&config.Inputs.Buffer).GetExtension(),
 		flushSize:       (&config.Inputs.Buffer).GetFlushSize(),
@@ -116,7 +152,7 @@ func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
 
 func (m *InManager) GetInputs() []InOutInfo {
 	if m != nil && len(m.inputs) > 0 {
-		inputs := make([]InOutInfo, 0)
+		var inputs []InOutInfo
 
 		for _, in := range m.inputs {
 			inputs = append(inputs, InOutInfo{
@@ -187,38 +223,22 @@ func (m *InManager) setInputs(config *config.InputsConfig) {
 	if config != nil {
 		ins := m.inputs
 		if ins == nil {
-			ins = make(map[lib.UUID]inProvider)
+			ins = make(map[lib.UUID]InProvider)
 			m.inputs = ins
 		}
 
 		for _, p := range config.Producers {
 			t := strings.ToLower(p.Type)
 
-			var in inProvider
-			params := p.GetParamsMap()
+			if fn, ok := inputMethods[t]; ok {
+				params := p.GetParamsMap()
+				in := fn(m, params)
 
-			if t == "redischan" || t == "redischanin" {
-				in = newRedisChanIn(m, params)
-			} else if t == "redislist" || t == "redislistin" {
-				in = newRedisListIn(m, params)
-			} else if t == "kinesis" || t == "kinesisin" {
-				in = newKinesisIn(m, params)
-			} else if t == "sqs" || t == "sqsin" {
-				in = newSqsIn(m, params)
-			} else if t == "rabbit" || t == "rabbitin" {
-				in = newRabbitIn(m, params)
-			} else if t == "kafka" || t == "kafkain" {
-				in = newKafkaIn(m, params)
-			} else if t == "tcp" || t == "tcpin" {
-				in = newTCPIn(m, params)
-			} else if t == "udp" || t == "udpin" {
-				in = newUDPIn(m, params)
-			}
-
-			if in != nil {
-				v := reflect.ValueOf(in)
-				if v.Kind() != reflect.Ptr || !v.IsNil() {
-					ins[in.ID()] = in
+				if in != nil {
+					v := reflect.ValueOf(in)
+					if v.Kind() != reflect.Ptr || !v.IsNil() {
+						ins[in.ID()] = in
+					}
 				}
 			}
 		}

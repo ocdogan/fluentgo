@@ -39,7 +39,12 @@ type kinesisOut struct {
 	explicitHashKeys []string
 }
 
-func newKinesisOut(manager InOutManager, params map[string]interface{}) *kinesisOut {
+func init() {
+	RegisterOut("kinesis", newKinesisOut)
+	RegisterOut("kinesisout", newKinesisOut)
+}
+
+func newKinesisOut(manager InOutManager, params map[string]interface{}) OutSender {
 	var (
 		ok               bool
 		streamName       string

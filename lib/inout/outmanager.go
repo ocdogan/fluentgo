@@ -39,10 +39,12 @@ import (
 	"github.com/ocdogan/fluentgo/lib/log"
 )
 
-type outSender interface {
-	ioClient
+type OutSender interface {
+	IOClient
 	Send(messages []string)
 }
+
+type FuncNewOut func(manage InOutManager, params map[string]interface{}) OutSender
 
 type OutManager struct {
 	sync.Mutex
@@ -63,8 +65,42 @@ type OutManager struct {
 	orphanLastXDays int
 	outQ            *OutQueue
 	logger          log.Logger
-	outputs         map[lib.UUID]outSender
+	outputs         map[lib.UUID]OutSender
 	completed       chan bool
+}
+
+var (
+	outputMethods map[string]FuncNewOut
+)
+
+func init() {
+	outputMethods = make(map[string]FuncNewOut)
+}
+
+func RegisterOut(senderType string, fn FuncNewOut) {
+	if fn != nil {
+		senderType = strings.TrimSpace(senderType)
+		if senderType != "" {
+			if outputMethods == nil {
+				outputMethods = make(map[string]FuncNewOut)
+			}
+
+			senderType = strings.ToLower(senderType)
+			outputMethods[senderType] = fn
+		}
+	}
+}
+
+func UnregisterOut(senderType string) {
+	if outputMethods != nil {
+		senderType = strings.TrimSpace(senderType)
+		if senderType != "" {
+			senderType = strings.ToLower(senderType)
+			if _, ok := outputMethods[senderType]; ok {
+				delete(outputMethods, senderType)
+			}
+		}
+	}
 }
 
 func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
@@ -82,7 +118,7 @@ func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
 		dataPattern:     dataPattern,
 		lastFlushTime:   time.Now(),
 		logger:          logger,
-		outputs:         make(map[lib.UUID]outSender),
+		outputs:         make(map[lib.UUID]OutSender),
 		timestampKey:    strings.TrimSpace(config.Outputs.TimestampKey),
 		timestampFormat: (&config.Outputs).GetTimestampFormat(),
 		bulkCount:       (&config.Outputs).GetBulkCount(),
@@ -102,7 +138,7 @@ func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
 
 func (m *OutManager) GetOutputs() []InOutInfo {
 	if m != nil && len(m.outputs) > 0 {
-		outputs := make([]InOutInfo, 0)
+		var outputs []InOutInfo
 
 		for _, in := range m.outputs {
 			outputs = append(outputs, InOutInfo{
@@ -125,44 +161,22 @@ func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 	if config != nil {
 		outs := m.outputs
 		if outs == nil {
-			outs = make(map[lib.UUID]outSender)
+			outs = make(map[lib.UUID]OutSender)
 			m.outputs = outs
 		}
 
 		for _, o := range config.Consumers {
 			t := strings.ToLower(o.Type)
 
-			var out outSender
-			params := o.GetParamsMap()
+			if fn, ok := outputMethods[t]; ok {
+				params := o.GetParamsMap()
+				out := fn(m, params)
 
-			if t == "elastic" || t == "elasticsearch" {
-				out = newElasticOut(m, params)
-			} else if t == "redis" || t == "redisout" {
-				out = newRedisOut(m, params)
-			} else if t == "s3" || t == "s3out" {
-				out = newS3Out(m, params)
-			} else if t == "sqs" || t == "sqsout" {
-				out = newSqsOut(m, params)
-			} else if t == "kinesis" || t == "kinesisout" {
-				out = newKinesisOut(m, params)
-			} else if t == "rabbit" || t == "rabbitout" {
-				out = newRabbitOut(m, params)
-			} else if t == "kafka" || t == "kafkaout" {
-				out = newKafkaOut(m, params)
-			} else if t == "std" || t == "stdout" {
-				out = newStdOut(m, params)
-			} else if t == "tcp" || t == "tcpout" {
-				out = newTCPOut(m, params)
-			} else if t == "udp" || t == "udpout" {
-				out = newUDPOut(m, params)
-			} else if t == "null" || t == "nullout" {
-				out = newNullOut(m, params)
-			}
-
-			if out != nil {
-				v := reflect.ValueOf(out)
-				if v.Kind() != reflect.Ptr || !v.IsNil() {
-					outs[out.ID()] = out
+				if out != nil {
+					v := reflect.ValueOf(out)
+					if v.Kind() != reflect.Ptr || !v.IsNil() {
+						outs[out.ID()] = out
+					}
 				}
 			}
 		}
@@ -536,7 +550,7 @@ func (m *OutManager) tryToSend(messages []string) {
 	}
 }
 
-func (m *OutManager) send(to outSender, messages []string, wg *lib.WorkGroup) {
+func (m *OutManager) send(to OutSender, messages []string, wg *lib.WorkGroup) {
 	defer wg.Done()
 	if to != nil && m.Processing() {
 		to.Send(messages)

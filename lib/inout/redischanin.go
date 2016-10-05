@@ -35,7 +35,12 @@ type redisChanIn struct {
 	pConn *redis.PubSubConn
 }
 
-func newRedisChanIn(manager InOutManager, params map[string]interface{}) *redisChanIn {
+func init() {
+	RegisterIn("redischan", newRedisChanIn)
+	RegisterIn("redischanin", newRedisChanIn)
+}
+
+func newRedisChanIn(manager InOutManager, params map[string]interface{}) InProvider {
 	ih := newInHandler(manager, params)
 	if ih == nil {
 		return nil
@@ -61,28 +66,29 @@ func newRedisChanIn(manager InOutManager, params map[string]interface{}) *redisC
 		ri.iotype = "REDISCHANIN"
 
 		ri.runFunc = ri.funcReceive
-		ri.connFunc = ri.funcSubscribe
-		ri.afterCloseFunc = ri.funcUnsubscribe
+		ri.connFunc = ri.funcInitPubSub
+		ri.afterCloseFunc = ri.funcClosePubSub
 
 		return ri
 	}
 	return nil
 }
 
-func (ri *redisChanIn) funcUnsubscribe() {
+func (ri *redisChanIn) funcClosePubSub() {
 	defer ri.funcAfterClose()
 
-	if ri.channel != "" {
-		pConn := ri.pConn
-		if pConn != nil {
-			defer recover()
-			ri.pConn = nil
+	pConn := ri.pConn
+	if pConn != nil {
+		defer recover()
+
+		ri.pConn = nil
+		if ri.channel != "" {
 			pConn.Unsubscribe(ri.channel)
 		}
 	}
 }
 
-func (ri *redisChanIn) funcSubscribe(conn redis.Conn) error {
+func (ri *redisChanIn) funcInitPubSub(conn redis.Conn) error {
 	var subsErr error
 	defer func() {
 		err, _ := recover().(error)
@@ -164,6 +170,11 @@ func (ri *redisChanIn) funcReceive() {
 					if !ri.Processing() {
 						ri.completed <- true
 						return
+					}
+
+					conn := pConn.Conn
+					if conn != nil && conn.Err() == nil {
+						ri.tryToCloseConn(conn)
 					}
 				}
 			case redis.Subscription:
