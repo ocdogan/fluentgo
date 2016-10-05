@@ -37,7 +37,12 @@ type udpOut struct {
 	conn *net.UDPConn
 }
 
-func newUDPOut(manager InOutManager, params map[string]interface{}) *udpOut {
+func init() {
+	RegisterOut("udp", newUDPOut)
+	RegisterOut("udpout", newUDPOut)
+}
+
+func newUDPOut(manager InOutManager, params map[string]interface{}) OutSender {
 	tuio := newTCPUDPIO(manager, params)
 	if tuio == nil {
 		return nil
