@@ -71,18 +71,20 @@ func main() {
 }
 
 func waitForQuit() (quitSignal <-chan bool) {
-	ch := make(chan bool, 1)
+	ch := make(chan bool)
 	quitSignal = ch
 
 	go func(signalChan chan<- bool) {
+		defer func() {
+			fmt.Println("Termination signalled...")
+			close(signalChan)
+		}()
+
 		sch := make(chan os.Signal, 1)
 		signal.Notify(sch, os.Interrupt)
 		signal.Notify(sch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGQUIT)
 
 		<-sch
-
-		fmt.Println("Termination signalled...")
-		close(signalChan)
 	}(ch)
 
 	return quitSignal
