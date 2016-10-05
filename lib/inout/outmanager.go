@@ -140,12 +140,14 @@ func (m *OutManager) GetOutputs() []InOutInfo {
 	if m != nil && len(m.outputs) > 0 {
 		var outputs []InOutInfo
 
-		for _, in := range m.outputs {
+		for _, out := range m.outputs {
 			outputs = append(outputs, InOutInfo{
-				ID:         in.ID().String(),
-				IOType:     in.GetIOType(),
-				Enabled:    in.Enabled(),
-				Processing: in.Processing(),
+				ID:          out.ID().String(),
+				Name:        out.Name(),
+				Description: out.Description(),
+				IOType:      out.GetIOType(),
+				Enabled:     out.Enabled(),
+				Processing:  out.Processing(),
 			})
 		}
 		return outputs
@@ -175,6 +177,9 @@ func (m *OutManager) setOutputs(config *config.OutputsConfig) {
 				if out != nil {
 					v := reflect.ValueOf(out)
 					if v.Kind() != reflect.Ptr || !v.IsNil() {
+						out.SetName(o.Name)
+						out.SetDescription(o.Description)
+
 						outs[out.ID()] = out
 					}
 				}

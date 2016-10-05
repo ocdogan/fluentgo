@@ -156,10 +156,12 @@ func (m *InManager) GetInputs() []InOutInfo {
 
 		for _, in := range m.inputs {
 			inputs = append(inputs, InOutInfo{
-				ID:         in.ID().String(),
-				IOType:     in.GetIOType(),
-				Enabled:    in.Enabled(),
-				Processing: in.Processing(),
+				ID:          in.ID().String(),
+				Name:        in.Name(),
+				Description: in.Description(),
+				IOType:      in.GetIOType(),
+				Enabled:     in.Enabled(),
+				Processing:  in.Processing(),
 			})
 		}
 		return inputs
@@ -237,6 +239,9 @@ func (m *InManager) setInputs(config *config.InputsConfig) {
 				if in != nil {
 					v := reflect.ValueOf(in)
 					if v.Kind() != reflect.Ptr || !v.IsNil() {
+						in.SetName(p.Name)
+						in.SetDescription(p.Description)
+
 						ins[in.ID()] = in
 					}
 				}

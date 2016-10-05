@@ -35,6 +35,7 @@
         "producers": [
             {
                 "type": "redischan",
+                "description": "Register to Redis pub-sub log channel for ElasticSearch out.",
                 "params":[
                     { "name": "enabled", "value": true },
                     { "name": "poolName", "value": "pubsub" },
@@ -118,10 +119,10 @@
                 "type": "kafka",
                 "params": [
                     { "name": "enabled", "value": false },
-                    { "name": "servers", "value": "localhost:9092;localhost:9093" },                    
-                    { "name": "compressed", "value": false },                    
-                    { "name": "partition", "value": 0 },                    
-                    { "name": "offset", "value": "newest" },                    
+                    { "name": "servers", "value": "localhost:9092;localhost:9093" },
+                    { "name": "compressed", "value": false },
+                    { "name": "partition", "value": 0 },
+                    { "name": "offset", "value": "newest" },
                     { "name": "dialTimeoutMSec", "value": 10000 },
                     { "name": "dialRetryWaitMSec", "value": 500 },
                     { "name": "dialRetryLimit", "value": 10 },
@@ -174,7 +175,7 @@
             { 
                 "type": "std",
                 "params": [
-                    { "name": "enabled", "value": false }
+                    { "name": "enabled", "value": true }
                 ]
             },
             { 
@@ -342,7 +343,7 @@
             { 
                 "type": "udp",
                 "params": [
-                    { "name": "enabled", "value": true },
+                    { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost:23456" },
                     { "name": "compressed", "value": false }
                 ]

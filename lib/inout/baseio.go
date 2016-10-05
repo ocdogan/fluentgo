@@ -32,6 +32,8 @@ import (
 
 type baseIO struct {
 	id           lib.UUID
+	name         string
+	description  string
 	enabled      bool
 	iotype       string
 	processing   int32
@@ -47,36 +49,68 @@ func newBaseIO(manager InOutManager, params map[string]interface{}) *baseIO {
 		return nil
 	}
 
+	name := ""
+	description := ""
+
 	enabled := true
+	compressed := false
+	compressType := lib.CtGZip
+
+	var ok bool
 	if params != nil {
-		var ok bool
 		enabled, ok = params["enabled"].(bool)
 		if !ok {
 			enabled = true
 		}
-	}
 
-	compressed, _ := params["compressed"].(bool)
+		compressed, _ = params["compressed"].(bool)
 
-	compressType := lib.CtGZip
-	if s, ok := params["compressType"].(string); ok {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			s = strings.ToLower(s)
-			if s == "zip" {
-				compressType = lib.CtZip
+		var s string
+		if s, ok = params["compressType"].(string); ok {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				s = strings.ToLower(s)
+				if s == "zip" {
+					compressType = lib.CtZip
+				}
 			}
+		}
+
+		if name, ok = params["@name"].(string); ok {
+			name = strings.TrimSpace(s)
+		}
+
+		if description, ok = params["@description"].(string); ok {
+			description = strings.TrimSpace(s)
 		}
 	}
 
 	return &baseIO{
 		id:           *id,
+		name:         name,
+		description:  description,
 		enabled:      enabled,
 		compressed:   compressed,
 		compressType: compressType,
 		manager:      manager,
 		logger:       manager.GetLogger(),
 	}
+}
+
+func (bio *baseIO) Name() string {
+	return bio.name
+}
+
+func (bio *baseIO) SetName(name string) {
+	bio.name = strings.TrimSpace(name)
+}
+
+func (bio *baseIO) Description() string {
+	return bio.description
+}
+
+func (bio *baseIO) SetDescription(description string) {
+	bio.description = strings.TrimSpace(description)
 }
 
 func (bio *baseIO) ID() lib.UUID {

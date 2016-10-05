@@ -80,8 +80,10 @@ type inOutParamConfig struct {
 }
 
 type InOutConfig struct {
-	Type   string             `json:"type,omitempty"`
-	Params []inOutParamConfig `json:"params,omitempty"`
+	Type        string             `json:"type,omitempty"`
+	Name        string             `json:"name,omitempty"`
+	Description string             `json:"description,omitempty"`
+	Params      []inOutParamConfig `json:"params,omitempty"`
 }
 
 type InputsConfig struct {
@@ -329,7 +331,18 @@ func (cfg *InOutConfig) GetParamsMap() map[string]interface{} {
 		return make(map[string]interface{}, 0)
 	}
 
-	params := make(map[string]interface{}, len(cfg.Params))
+	params := make(map[string]interface{}, len(cfg.Params)+2)
+
+	name := strings.TrimSpace(cfg.Name)
+	if name != "" {
+		params["@name"] = name
+	}
+
+	description := strings.TrimSpace(cfg.Description)
+	if description != "" {
+		params["@description"] = description
+	}
+
 	for _, p := range cfg.Params {
 		params[p.Name] = p.Value
 	}

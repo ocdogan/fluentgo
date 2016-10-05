@@ -31,4 +31,8 @@ type IOClient interface {
 	GetIOType() string
 	Processing() bool
 	Close()
+	Name() string
+	SetName(name string)
+	Description() string
+	SetDescription(description string)
 }
