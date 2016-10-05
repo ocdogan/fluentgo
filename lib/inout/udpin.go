@@ -66,7 +66,7 @@ func newUDPIn(manager InOutManager, params map[string]interface{}) InProvider {
 
 	bufferSize := int(math.MaxInt16)
 	if f, ok := params["bufferSize"].(float64); ok {
-		bufferSize = lib.MinInt(int(math.MaxInt16), lib.MaxInt(1024, int(f)))
+		bufferSize = lib.MinInt(int(math.MaxUint16), lib.MaxInt(1024, int(f)))
 	}
 
 	uin := &udpIn{
