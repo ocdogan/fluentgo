@@ -41,20 +41,14 @@ type udpIn struct {
 }
 
 var (
-	udpMsgEndLen   int
-	udpMsgStartLen int
+	udpMsgEndChars   = []byte(lib.TCPUDPMsgEnd)
+	udpMsgStartChars = []byte(lib.TCPUDPMsgStart)
 
-	udpMsgEndChars   []byte
-	udpMsgStartChars []byte
+	udpMsgEndLen   = len(udpMsgEndChars)
+	udpMsgStartLen = len(udpMsgStartChars)
 )
 
 func init() {
-	udpMsgEndChars = []byte(lib.TCPUDPMsgEnd)
-	udpMsgStartChars = []byte(lib.TCPUDPMsgStart)
-
-	udpMsgEndLen = len(udpMsgEndChars)
-	udpMsgStartLen = len(udpMsgStartChars)
-
 	RegisterIn("udp", newUDPIn)
 	RegisterIn("udpin", newUDPIn)
 }

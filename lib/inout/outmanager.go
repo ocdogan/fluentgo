@@ -70,12 +70,8 @@ type OutManager struct {
 }
 
 var (
-	outputMethods map[string]FuncNewOut
-)
-
-func init() {
 	outputMethods = make(map[string]FuncNewOut)
-}
+)
 
 func RegisterOut(senderType string, fn FuncNewOut) {
 	if fn != nil {

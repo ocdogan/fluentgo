@@ -79,12 +79,8 @@ type InManager struct {
 }
 
 var (
-	inputMethods map[string]FuncNewIn
-)
-
-func init() {
 	inputMethods = make(map[string]FuncNewIn)
-}
+)
 
 func RegisterIn(providerType string, fn FuncNewIn) {
 	if fn != nil {
