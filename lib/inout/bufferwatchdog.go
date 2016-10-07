@@ -62,6 +62,12 @@ func (b *bufferWatchDog) Processing() bool {
 }
 
 func (b *bufferWatchDog) Process() {
+	if b.enabled && atomic.LoadInt32(&b.processing) == 0 {
+		go b.run()
+	}
+}
+
+func (b *bufferWatchDog) run() {
 	if !b.enabled || !atomic.CompareAndSwapInt32(&b.processing, 0, 1) {
 		return
 	}
