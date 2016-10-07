@@ -32,7 +32,8 @@
                 "immediate": true,
                 "minSizeInMB": 50,
                 "minSizeInPercentage": 10,
-                "onEverySec": 10
+                "onEverySec": 10,
+                "keepLastXDays": 5
             }
         },
         "orphanFiles": {
