@@ -64,14 +64,24 @@ type OrphanConfig struct {
 	ReplayLastXDays int  `json:"replayLastXDays"`
 }
 
+type DiskWatchDogConfig struct {
+	Enabled             bool          `json:"enabled"`
+	Immediate           bool          `json:"immediate"`
+	MinSizeInMB         int           `json:"minSizeInMB"`
+	MinSizeInPercentage float64       `json:"minSizeInPercentage"`
+	KeepLastXDays       int           `json:"keepLastXDays"`
+	OnEverySec          time.Duration `json:"onEverySec"`
+}
+
 type BufferConfig struct {
-	Path            string      `json:"path,omitempty"`
-	Prefix          string      `json:"prefix,omitempty"`
-	Extension       string      `json:"extension,omitempty"`
-	MaxMessageSize  int         `json:"maxMessageSize"`
-	TimestampKey    string      `json:"timestampKey,omitempty"`
-	TimestampFormat string      `json:"timestampFormat,omitempty"`
-	Flush           FlushConfig `json:"flush,omitempty"`
+	Path            string             `json:"path,omitempty"`
+	Prefix          string             `json:"prefix,omitempty"`
+	Extension       string             `json:"extension,omitempty"`
+	MaxMessageSize  int                `json:"maxMessageSize"`
+	TimestampKey    string             `json:"timestampKey,omitempty"`
+	TimestampFormat string             `json:"timestampFormat,omitempty"`
+	Flush           FlushConfig        `json:"flush,omitempty"`
+	DiskWatchDog    DiskWatchDogConfig `json:"diskWatchDog,omitempty"`
 }
 
 type inOutParamConfig struct {
@@ -406,5 +416,41 @@ func (cfg *OrphanConfig) GetReplayLastXDays() int {
 	if cfg != nil {
 		val = cfg.ReplayLastXDays
 	}
+	return lib.MinInt(365, lib.MaxInt(-1, val))
+}
+
+func (cfg *DiskWatchDogConfig) GetOnEverySec() time.Duration {
+	var val int64
+	if cfg != nil {
+		val = int64(cfg.OnEverySec)
+	}
+
+	return time.Duration(lib.MinInt64(300, lib.MaxInt64(5, val))) * time.Second
+}
+
+func (cfg *DiskWatchDogConfig) GetMinSizeInMB() int {
+	var val int
+	if cfg != nil {
+		val = cfg.MinSizeInMB
+	}
+
+	return lib.MinInt(500000, lib.MaxInt(10, val))
+}
+
+func (cfg *DiskWatchDogConfig) GetMinSizeInPercentage() float64 {
+	var val float64
+	if cfg != nil {
+		val = cfg.MinSizeInPercentage
+	}
+
+	return lib.MinFloat64(99, lib.MaxFloat64(1, val))
+}
+
+func (cfg *DiskWatchDogConfig) GetKeepLastXDays() int {
+	var val int
+	if cfg != nil {
+		val = cfg.KeepLastXDays
+	}
+
 	return lib.MinInt(365, lib.MaxInt(-1, val))
 }

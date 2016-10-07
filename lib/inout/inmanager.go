@@ -54,28 +54,31 @@ type bufferFile struct {
 
 type InManager struct {
 	sync.Mutex
-	processing      int32
-	poppingQueue    int32
-	indexer         int64
-	inputDir        string
-	outputDir       string
-	prefix          string
-	extension       string
-	timestampKey    string
-	timestampFormat string
-	maxMessageSize  int
-	flushSize       int
-	flushCount      int
-	flushOnEverySec time.Duration
-	lastFlushTime   time.Time
-	lastProcessTime time.Time
-	orphanDelete    bool
-	orphanLastXDays int
-	inputs          map[lib.UUID]InProvider
-	logger          log.Logger
-	inQ             *InQueue
-	bufFile         *bufferFile
-	completed       chan bool
+	processing        int32
+	poppingQueue      int32
+	indexer           int64
+	inputDir          string
+	outputDir         string
+	prefix            string
+	extension         string
+	timestampKey      string
+	timestampFormat   string
+	maxMessageSize    int
+	flushSize         int
+	flushCount        int
+	flushOnEverySec   time.Duration
+	lastFlushTime     time.Time
+	lastProcessTime   time.Time
+	orphanDelete      bool
+	orphanLastXDays   int
+	inputs            map[lib.UUID]InProvider
+	logger            log.Logger
+	inQ               *InQueue
+	bufFile           *bufferFile
+	watchDog          *bufferWatchDog
+	completedChansMux sync.Mutex
+	completedChans    []chan<- bool
+	completed         chan bool
 }
 
 var (
@@ -139,6 +142,7 @@ func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
 		orphanDelete:    (&config.Inputs.OrphanFiles).GetDeleteAll(),
 		orphanLastXDays: (&config.Inputs.OrphanFiles).GetReplayLastXDays(),
 		inQ:             NewInQueue((&config.Inputs.Queue).GetMaxParams()),
+		watchDog:        newBufferWatchDog(config, logger),
 	}
 
 	manager.setInputs(&config.Inputs)
@@ -186,7 +190,10 @@ func (m *InManager) GetLogger() log.Logger {
 }
 
 func (m *InManager) Close() {
-	defer recover()
+	defer func() {
+		recover()
+		m.watchDog.Close()
+	}()
 
 	if m.Processing() {
 		c := m.completed
@@ -207,14 +214,68 @@ func (m *InManager) Processing() bool {
 	return atomic.LoadInt32(&m.processing) != 0
 }
 
-func (m *InManager) Process() (completed <-chan bool) {
-	if atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		if len(m.inputs) > 0 {
-			m.completed = make(chan bool)
-			go m.processInputs()
+func (m *InManager) Process(signal chan<- bool) {
+	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+		if signal != nil {
+			signal <- true
+		}
+		return
+	}
+
+	if len(m.inputs) == 0 {
+		atomic.StoreInt32(&m.processing, 0)
+		if signal != nil {
+			signal <- true
+		}
+		return
+	}
+
+	m.completed = make(chan bool)
+	m.SignalOnComplete(signal)
+	m.watchDog.Process()
+
+	go m.processInputs()
+}
+
+func (m *InManager) SignalOnComplete(signal chan<- bool) {
+	if signal != nil {
+		m.completedChansMux.Lock()
+		defer m.completedChansMux.Unlock()
+
+		m.completedChans = append(m.completedChans, signal)
+	}
+}
+
+func (m *InManager) RemoveCompleteSignal(signal chan<- bool) {
+	if signal != nil {
+		m.completedChansMux.Lock()
+		defer m.completedChansMux.Unlock()
+
+		if len(m.completedChans) > 0 {
+			for i, ch := range m.completedChans {
+				if ch == signal {
+					m.completedChans = append(m.completedChans[:i], m.completedChans[i+1:]...)
+					break
+				}
+			}
 		}
 	}
-	return m.completed
+}
+
+func (m *InManager) signalCompleted() {
+	if len(m.completedChans) > 0 {
+		m.completedChansMux.Lock()
+		defer m.completedChansMux.Unlock()
+
+		for _, ch := range m.completedChans {
+			if ch != nil {
+				func(signal chan<- bool) {
+					defer recover()
+					ch <- true
+				}(ch)
+			}
+		}
+	}
 }
 
 func (m *InManager) setInputs(config *config.InputsConfig) {
@@ -533,7 +594,10 @@ func (m *InManager) processInputs() {
 	completeSignal := m.completed
 
 	defer func() {
-		defer recover()
+		defer func() {
+			recover()
+			m.signalCompleted()
+		}()
 
 		recover()
 		atomic.StoreInt32(&m.processing, 0)

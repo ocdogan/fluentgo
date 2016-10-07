@@ -48,25 +48,27 @@ type FuncNewOut func(manage InOutManager, params map[string]interface{}) OutSend
 
 type OutManager struct {
 	sync.Mutex
-	dataPath        string
-	dataPattern     string
-	timestampKey    string
-	timestampFormat string
-	bulkCount       int
-	maxMessageSize  int
-	flushOnEverySec time.Duration
-	sleepOnEverySec time.Duration
-	sleepForMSec    time.Duration
-	lastFlushTime   time.Time
-	processing      int32
-	processingFiles int32
-	processingQueue int32
-	orphanDelete    bool
-	orphanLastXDays int
-	outQ            *OutQueue
-	logger          log.Logger
-	outputs         map[lib.UUID]OutSender
-	completed       chan bool
+	dataPath          string
+	dataPattern       string
+	timestampKey      string
+	timestampFormat   string
+	bulkCount         int
+	maxMessageSize    int
+	flushOnEverySec   time.Duration
+	sleepOnEverySec   time.Duration
+	sleepForMSec      time.Duration
+	lastFlushTime     time.Time
+	processing        int32
+	processingFiles   int32
+	processingQueue   int32
+	orphanDelete      bool
+	orphanLastXDays   int
+	outQ              *OutQueue
+	logger            log.Logger
+	outputs           map[lib.UUID]OutSender
+	completed         chan bool
+	completedChansMux sync.Mutex
+	completedChans    []chan<- bool
 }
 
 var (
@@ -218,14 +220,67 @@ func (m *OutManager) Processing() bool {
 	return atomic.LoadInt32(&m.processing) != 0
 }
 
-func (m *OutManager) Process() (completed <-chan bool) {
-	if atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		if len(m.outputs) > 0 {
-			m.completed = make(chan bool)
-			go m.feedOutputs()
+func (m *OutManager) Process(signal chan<- bool) {
+	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+		if signal != nil {
+			signal <- true
+		}
+		return
+	}
+
+	if len(m.outputs) == 0 {
+		atomic.StoreInt32(&m.processing, 0)
+		if signal != nil {
+			signal <- true
+		}
+		return
+	}
+
+	m.completed = make(chan bool)
+	m.SignalOnComplete(signal)
+
+	go m.feedOutputs()
+}
+
+func (m *OutManager) SignalOnComplete(signal chan<- bool) {
+	if signal != nil {
+		m.completedChansMux.Lock()
+		defer m.completedChansMux.Unlock()
+
+		m.completedChans = append(m.completedChans, signal)
+	}
+}
+
+func (m *OutManager) RemoveCompleteSignal(signal chan<- bool) {
+	if signal != nil {
+		m.completedChansMux.Lock()
+		defer m.completedChansMux.Unlock()
+
+		if len(m.completedChans) > 0 {
+			for i, ch := range m.completedChans {
+				if ch == signal {
+					m.completedChans = append(m.completedChans[:i], m.completedChans[i+1:]...)
+					break
+				}
+			}
 		}
 	}
-	return m.completed
+}
+
+func (m *OutManager) signalCompleted() {
+	if len(m.completedChans) > 0 {
+		m.completedChansMux.Lock()
+		defer m.completedChansMux.Unlock()
+
+		for _, ch := range m.completedChans {
+			if ch != nil {
+				func(signal chan<- bool) {
+					defer recover()
+					ch <- true
+				}(ch)
+			}
+		}
+	}
 }
 
 func (m *OutManager) closeOutputs() {
@@ -244,7 +299,10 @@ func (m *OutManager) feedOutputs() {
 	completed := m.completed
 
 	defer func() {
-		defer recover()
+		defer func() {
+			recover()
+			m.signalCompleted()
+		}()
 
 		recover()
 		atomic.StoreInt32(&m.processing, 0)

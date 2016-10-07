@@ -21,11 +21,18 @@
             "path": "/fluentgo/buffer",
             "prefix": "bf",
             "extension": "buf",
-            "timestampKey":"@timestamp",
-            "timestampFormat":"2006-01-02T15:04:05.999-07:00",
+            "timestampKey": "@timestamp",
+            "timestampFormat": "2006-01-02T15:04:05.999-07:00",
             "flush": {
                 "count": 1000,
                 "size": 1024000
+            },
+            "diskWatchDog": {
+                "enabled": true,
+                "immediate": true,
+                "minSizeInMB": 50,
+                "minSizeInPercentage": 10,
+                "onEverySec": 10
             }
         },
         "orphanFiles": {

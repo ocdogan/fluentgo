@@ -68,16 +68,14 @@ func (iao *InAndOuts) Process() {
 	}
 
 	// Start processes
-	var (
-		imCompleted <-chan bool
-		omCompleted <-chan bool
-	)
+	imCompleted := make(chan bool)
+	omCompleted := make(chan bool)
 
 	if imActive {
-		imCompleted = iao.iman.Process()
+		iao.iman.Process(imCompleted)
 	}
 	if omActive {
-		omCompleted = iao.oman.Process()
+		iao.oman.Process(omCompleted)
 	}
 
 	defer func() {

@@ -30,8 +30,10 @@ type InOutManager interface {
 	GetMaxMessageSize() int
 	GetInQueue() *InQueue
 	GetOutQueue() *OutQueue
-	Process() (completed <-chan bool)
+	Process(signal chan<- bool)
 	Processing() bool
+	SignalOnComplete(signal chan<- bool)
+	RemoveCompleteSignal(signal chan<- bool)
 	HandleOrphans()
 	GetInputs() []InOutInfo
 	GetOutputs() []InOutInfo

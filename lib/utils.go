@@ -115,6 +115,34 @@ func MaxInt64(a, b int64) int64 {
 	return b
 }
 
+func MinFloat32(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func MaxFloat32(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func MinFloat64(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func MaxFloat64(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func MinDuration(a, b time.Duration) time.Duration {
 	if a < b {
 		return a

@@ -54,4 +54,9 @@ const (
 
 	TCPUDPMsgStart = "///*["
 	TCPUDPMsgEnd   = "]*\\\\\\"
+
+	Byte  = 1
+	KByte = 1024 * Byte
+	MByte = 1024 * KByte
+	GByte = 1024 * MByte
 )
