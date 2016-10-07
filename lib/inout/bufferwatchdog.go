@@ -204,24 +204,26 @@ func (b *bufferWatchDog) runDog() {
 
 			if b.keepLastXDays > 0 {
 				checkDate = true
-				timeTreshold = time.Duration(24*b.keepLastXDays) * time.Hour
+				timeTreshold = time.Duration(b.keepLastXDays) * 24 * time.Hour
 			}
 
 			fi, err := os.Stat(filename)
 			if err == nil && !fi.IsDir() {
 				date := fi.ModTime()
-				if !checkDate || time.Now().Sub(date) <= timeTreshold {
+				if !checkDate || time.Now().Sub(date) >= timeTreshold {
 					files = append(files,
 						lib.NewFileInfo(filename, date, uint64(fi.Size())))
 				}
 			}
 		}
 
+		if len(files) > 1 {
+			sort.Stable(files)
+		}
+
 		if len(files) == 0 {
 			return
 		}
-
-		sort.Stable(files)
 
 		count = 0
 		for _, file := range files {
