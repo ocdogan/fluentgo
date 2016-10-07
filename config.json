@@ -33,7 +33,7 @@
                 "minSizeInMB": 50,
                 "minSizeInPercentage": 10,
                 "onEverySec": 10,
-                "keepLastXDays": 5
+                "keepLastXHours": 5
             }
         },
         "orphanFiles": {

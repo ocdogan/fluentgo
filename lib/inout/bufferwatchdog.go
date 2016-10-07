@@ -15,31 +15,31 @@ import (
 )
 
 type bufferWatchDog struct {
-	processing    int32
-	checking      int32
-	enabled       bool
-	immediate     bool
-	path          string
-	onEverySec    time.Duration
-	sizeInMB      int
-	percentage    float64
-	keepLastXDays int
-	logger        log.Logger
-	completed     chan bool
+	processing     int32
+	checking       int32
+	enabled        bool
+	immediate      bool
+	path           string
+	onEverySec     time.Duration
+	sizeInMB       int
+	percentage     float64
+	keepLastXHours int
+	logger         log.Logger
+	completed      chan bool
 }
 
 func newBufferWatchDog(config *config.FluentConfig, logger log.Logger) *bufferWatchDog {
 	path := (&config.Inputs.Buffer).GetPath() + "completed" + string(os.PathSeparator)
 
 	return &bufferWatchDog{
-		path:          path,
-		logger:        logger,
-		enabled:       config.Inputs.Buffer.DiskWatchDog.Enabled,
-		immediate:     config.Inputs.Buffer.DiskWatchDog.Immediate,
-		sizeInMB:      (&config.Inputs.Buffer.DiskWatchDog).GetMinSizeInMB(),
-		percentage:    (&config.Inputs.Buffer.DiskWatchDog).GetMinSizeInPercentage(),
-		onEverySec:    (&config.Inputs.Buffer.DiskWatchDog).GetOnEverySec(),
-		keepLastXDays: (&config.Inputs.Buffer.DiskWatchDog).GetKeepLastXDays(),
+		path:           path,
+		logger:         logger,
+		enabled:        config.Inputs.Buffer.DiskWatchDog.Enabled,
+		immediate:      config.Inputs.Buffer.DiskWatchDog.Immediate,
+		sizeInMB:       (&config.Inputs.Buffer.DiskWatchDog).GetMinSizeInMB(),
+		percentage:     (&config.Inputs.Buffer.DiskWatchDog).GetMinSizeInPercentage(),
+		onEverySec:     (&config.Inputs.Buffer.DiskWatchDog).GetOnEverySec(),
+		keepLastXHours: (&config.Inputs.Buffer.DiskWatchDog).GetKeepLastXHours(),
 	}
 }
 
@@ -202,9 +202,9 @@ func (b *bufferWatchDog) runDog() {
 			checkDate := false
 			var timeTreshold time.Duration
 
-			if b.keepLastXDays > 0 {
+			if b.keepLastXHours > 0 {
 				checkDate = true
-				timeTreshold = time.Duration(b.keepLastXDays) * 24 * time.Hour
+				timeTreshold = time.Duration(b.keepLastXHours) * time.Hour
 			}
 
 			fi, err := os.Stat(filename)

@@ -69,7 +69,7 @@ type DiskWatchDogConfig struct {
 	Immediate           bool          `json:"immediate"`
 	MinSizeInMB         int           `json:"minSizeInMB"`
 	MinSizeInPercentage float64       `json:"minSizeInPercentage"`
-	KeepLastXDays       int           `json:"keepLastXDays"`
+	KeepLastXHours      int           `json:"keepLastXHours"`
 	OnEverySec          time.Duration `json:"onEverySec"`
 }
 
@@ -446,11 +446,11 @@ func (cfg *DiskWatchDogConfig) GetMinSizeInPercentage() float64 {
 	return lib.MinFloat64(99, lib.MaxFloat64(1, val))
 }
 
-func (cfg *DiskWatchDogConfig) GetKeepLastXDays() int {
+func (cfg *DiskWatchDogConfig) GetKeepLastXHours() int {
 	var val int
 	if cfg != nil {
-		val = cfg.KeepLastXDays
+		val = cfg.KeepLastXHours
 	}
 
-	return lib.MinInt(365, lib.MaxInt(-1, val))
+	return lib.MinInt(24*365, lib.MaxInt(-1, val))
 }
