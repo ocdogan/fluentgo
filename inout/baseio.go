@@ -27,7 +27,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/log"
+	"github.com/ocdogan/fluentgo/log"
 )
 
 type baseIO struct {

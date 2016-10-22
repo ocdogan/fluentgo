@@ -30,7 +30,7 @@ import (
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/log"
+	"github.com/ocdogan/fluentgo/log"
 )
 
 type redisIO struct {

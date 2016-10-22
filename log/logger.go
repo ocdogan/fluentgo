@@ -31,8 +31,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
 )
 
 var (

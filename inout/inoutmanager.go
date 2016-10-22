@@ -22,7 +22,7 @@
 
 package inout
 
-import "github.com/ocdogan/fluentgo/lib/log"
+import "github.com/ocdogan/fluentgo/log"
 
 type InOutManager interface {
 	Close()

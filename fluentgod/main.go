@@ -34,11 +34,11 @@ import (
 	"time"
 
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/config"
-	httpsrv "github.com/ocdogan/fluentgo/lib/http"
-	"github.com/ocdogan/fluentgo/lib/inout"
-	"github.com/ocdogan/fluentgo/lib/log"
-	"github.com/ocdogan/fluentgo/lib/profiler"
+	"github.com/ocdogan/fluentgo/config"
+	httpsrv "github.com/ocdogan/fluentgo/http"
+	"github.com/ocdogan/fluentgo/inout"
+	"github.com/ocdogan/fluentgo/log"
+	"github.com/ocdogan/fluentgo/profiler"
 )
 
 var (

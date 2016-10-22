@@ -25,27 +25,38 @@ package profiler
 import (
 	"os"
 	"runtime/pprof"
+	"time"
 
-	"github.com/ocdogan/fluentgo/lib/log"
+	"github.com/ocdogan/fluentgo/log"
 )
 
-func ScheduleCPUProfiler(cpuproFile string, logger log.Logger) func() {
+func ScheduleMemProfiler(memproFile string, logger log.Logger, quit <-chan bool) {
 	defer recover()
 
-	if cpuproFile != "" {
+	if memproFile != "" {
 		if logger != nil {
-			logger.Printf("Profiling CPU to %s\n", cpuproFile)
+			logger.Printf("Profiling memory to %s\n", memproFile)
 		}
 
-		f, err := os.Create(cpuproFile)
-		if err != nil {
-			logger.Fatal(err)
-		}
+		ticker := time.NewTicker(1 * time.Second)
+		go func() {
+			defer recover()
 
-		pprof.StartCPUProfile(f)
-		return func() {
-			pprof.StopCPUProfile()
-		}
+			f, err := os.Create(memproFile)
+			if err != nil {
+				logger.Fatal(err)
+			}
+			defer f.Close()
+
+			for {
+				select {
+				case <-ticker.C:
+					pprof.WriteHeapProfile(f)
+				case <-quit:
+					ticker.Stop()
+					return
+				}
+			}
+		}()
 	}
-	return nil
 }

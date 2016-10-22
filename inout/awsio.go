@@ -28,7 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/ocdogan/fluentgo/lib"
-	"github.com/ocdogan/fluentgo/lib/log"
+	"github.com/ocdogan/fluentgo/log"
 )
 
 type awsIO struct {

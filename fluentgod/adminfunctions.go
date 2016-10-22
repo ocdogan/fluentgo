@@ -28,8 +28,8 @@ import (
 	"strings"
 
 	"github.com/buaazp/fasthttprouter"
-	"github.com/ocdogan/fluentgo/lib/config"
-	"github.com/ocdogan/fluentgo/lib/http"
+	"github.com/ocdogan/fluentgo/config"
+	"github.com/ocdogan/fluentgo/http"
 	"github.com/valyala/fasthttp"
 )
 
