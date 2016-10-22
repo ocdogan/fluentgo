@@ -150,6 +150,24 @@ func NewInManager(config *config.FluentConfig, logger log.Logger) *InManager {
 	return manager
 }
 
+func (m *InManager) FindInput(id string) IOClient {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+
+	uuid, err := lib.ParseUUID(id)
+	if err != nil {
+		return nil
+	}
+
+	return m.inputs[*uuid]
+}
+
+func (m *InManager) FindOutput(id string) IOClient {
+	return nil
+}
+
 func (m *InManager) GetInputs() []InOutInfo {
 	if m != nil && len(m.inputs) > 0 {
 		var inputs []InOutInfo

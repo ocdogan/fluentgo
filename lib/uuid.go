@@ -26,6 +26,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -155,4 +156,37 @@ func initHAddr() {
 			}
 		}
 	}
+}
+
+func ParseUUID(uuid string) (*UUID, error) {
+	var offsets1 [][]int
+	if len(uuid) == 32 {
+		offsets1 = [][]int{{0, 8}, {8, 12}, {12, 16}, {16, 20}, {20, len(uuid)}}
+	} else if len(uuid) == 36 &&
+		(uuid[8] == sep && uuid[13] == sep && uuid[18] == sep && uuid[23] == sep) {
+		offsets1 = [][]int{{0, 8}, {9, 13}, {14, 18}, {19, 23}, {24, len(uuid)}}
+	}
+
+	if offsets1 != nil {
+		var (
+			err      error
+			pair2    []int
+			offsets2 = [][]int{{0, 4}, {4, 6}, {6, 8}, {8, 10}}
+		)
+
+		result := new(UUID)
+
+		for i, pair1 := range offsets1 {
+			pair2 = offsets2[i]
+
+			_, err = hex.Decode([]byte(uuid[pair1[0]:pair1[1]]), result[pair2[0]:pair2[1]])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("Not a valid UUID.")
 }

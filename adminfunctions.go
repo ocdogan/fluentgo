@@ -25,6 +25,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/ocdogan/fluentgo/lib/config"
@@ -43,6 +44,8 @@ func NewAdminRouter() *http.HttpRouter {
 	router.GET("/config/", getConfig)
 	router.GET("/inputs/", getInputs)
 	router.GET("/outputs/", getOutputs)
+	router.GET("/inputs/stop/:id", stopInput)
+	router.GET("/outputs/stop/:id", stopOutput)
 
 	return &http.HttpRouter{Router: *router}
 }
@@ -110,4 +113,56 @@ func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	}
 
 	fmt.Fprint(ctx, string(data))
+}
+
+func stopInput(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+	ctx.Response.Header.SetContentType("application/json")
+	if ioman == nil || len(prms) == 0 {
+		http.SetRestError(ctx, prms, fmt.Errorf("Cannot handle the request."), 503)
+		return
+	}
+
+	id := prms.ByName("id")
+	if id != "" {
+		id = strings.TrimSpace(id)
+	}
+	if id == "" {
+		http.SetRestError(ctx, prms, fmt.Errorf("Input ID required."), 503)
+		return
+	}
+
+	ioc := ioman.FindInput(id)
+	if ioc == nil {
+		http.SetRestError(ctx, prms, fmt.Errorf("Cannot find input with id: %s.", id), 503)
+		return
+	}
+
+	ioc.Close()
+	fmt.Fprint(ctx, "{\"result\":\"ok\"}")
+}
+
+func stopOutput(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+	ctx.Response.Header.SetContentType("application/json")
+	if ioman == nil || len(prms) == 0 {
+		http.SetRestError(ctx, prms, fmt.Errorf("Cannot handle the request."), 503)
+		return
+	}
+
+	id := prms.ByName("id")
+	if id != "" {
+		id = strings.TrimSpace(id)
+	}
+	if id == "" {
+		http.SetRestError(ctx, prms, fmt.Errorf("Input ID required."), 503)
+		return
+	}
+
+	ioc := ioman.FindOutput(id)
+	if ioc == nil {
+		http.SetRestError(ctx, prms, fmt.Errorf("Cannot find input with id: %s.", id), 503)
+		return
+	}
+
+	ioc.Close()
+	fmt.Fprint(ctx, "{\"result\":\"ok\"}")
 }

@@ -122,3 +122,17 @@ func (iao *InAndOuts) GetOutputs() []InOutInfo {
 	}
 	return nil
 }
+
+func (iao *InAndOuts) FindInput(id string) IOClient {
+	if iao != nil && iao.iman != nil {
+		return iao.iman.FindInput(id)
+	}
+	return nil
+}
+
+func (iao *InAndOuts) FindOutput(id string) IOClient {
+	if iao != nil && iao.oman != nil {
+		return iao.oman.FindOutput(id)
+	}
+	return nil
+}

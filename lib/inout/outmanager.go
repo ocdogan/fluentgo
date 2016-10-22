@@ -153,6 +153,24 @@ func (m *OutManager) GetOutputs() []InOutInfo {
 	return nil
 }
 
+func (m *OutManager) FindInput(id string) IOClient {
+	return nil
+}
+
+func (m *OutManager) FindOutput(id string) IOClient {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil
+	}
+
+	uuid, err := lib.ParseUUID(id)
+	if err != nil {
+		return nil
+	}
+
+	return m.outputs[*uuid]
+}
+
 func (m *OutManager) GetInputs() []InOutInfo {
 	return nil
 }
