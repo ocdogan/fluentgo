@@ -157,19 +157,21 @@ func NewJsonPath(s string) *JsonPath {
 					}
 					jp.Parts = append(jp.Parts, ep)
 				}
+			}
 
-				if i == len(mi)-1 {
-					s1 = s[m[1]:len(s)]
-					if len(s1) > 0 {
-						ep = &JsonPathPart{
-							Data:  s1,
-							Type:  JPPStatic,
-							Start: m[1],
-							Len:   len(s) - m[1],
-						}
-						jp.Parts = append(jp.Parts, ep)
-					}
+			last := mi[len(mi)-1]
+			lastLen := len(s) - last[1]
+
+			if lastLen > 1 {
+				s1 = s[last[1]:len(s)]
+
+				ep = &JsonPathPart{
+					Data:  s1,
+					Type:  JPPStatic,
+					Start: last[1],
+					Len:   len(s) - last[1],
 				}
+				jp.Parts = append(jp.Parts, ep)
 			}
 		}
 	}
