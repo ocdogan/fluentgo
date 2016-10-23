@@ -23,6 +23,7 @@
 package inout
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/garyburd/redigo/redis"
@@ -32,7 +33,8 @@ import (
 type redisOut struct {
 	redisIO
 	outHandler
-	trimSize int
+	trimSize    int
+	channelPath *lib.JsonPath
 }
 
 func init() {
@@ -47,35 +49,42 @@ func newRedisOut(manager InOutManager, params map[string]interface{}) OutSender 
 	}
 
 	rio := newRedisIO(manager.GetLogger(), params)
-	if rio != nil {
-		cmd := strings.ToUpper(rio.command)
-		if !(cmd == lib.Publish || cmd == lib.LPush || cmd == lib.RPush) {
-			rio.command = lib.Publish
-		}
-
-		ro := &redisOut{
-			redisIO:    *rio,
-			outHandler: *oh,
-		}
-
-		f, ok := params["trimSize"].(float64)
-		if ok {
-			ro.trimSize = lib.MaxInt(0, int(f))
-		}
-
-		ro.iotype = "REDISOUT"
-
-		ro.runFunc = ro.funcWait
-		ro.connFunc = ro.funcPing
-
-		ro.afterCloseFunc = rio.funcAfterClose
-
-		ro.getDestinationFunc = ro.funcChannel
-		ro.sendChunkFunc = ro.funcSendMessagesChunk
-
-		return ro
+	if rio == nil {
+		return nil
 	}
-	return nil
+
+	channelPath := lib.NewJsonPath(rio.channel)
+	if channelPath == nil {
+		return nil
+	}
+
+	cmd := strings.ToUpper(rio.command)
+	if !(cmd == lib.Publish || cmd == lib.LPush || cmd == lib.RPush) {
+		rio.command = lib.Publish
+	}
+
+	ro := &redisOut{
+		redisIO:     *rio,
+		outHandler:  *oh,
+		channelPath: channelPath,
+	}
+
+	f, ok := params["trimSize"].(float64)
+	if ok {
+		ro.trimSize = lib.MaxInt(0, int(f))
+	}
+
+	ro.iotype = "REDISOUT"
+
+	ro.runFunc = ro.funcWait
+	ro.connFunc = ro.funcPing
+
+	ro.afterCloseFunc = rio.funcAfterClose
+
+	ro.getDestinationFunc = ro.funcChannel
+	ro.sendChunkFunc = ro.funcSendMessagesChunk
+
+	return ro
 }
 
 func (ro *redisOut) funcPing(conn redis.Conn) error {
@@ -94,55 +103,102 @@ func (ro *redisOut) funcPing(conn redis.Conn) error {
 }
 
 func (ro *redisOut) funcChannel() string {
-	return ro.channel
+	return "null"
+}
+
+func (ro *redisOut) putMessages(messages []string, channel string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	m := ro.GetManager()
+	if m == nil {
+		return
+	}
+
+	var (
+		err  error
+		conn redis.Conn
+	)
+
+	for _, msg := range messages {
+		if !(err == nil && ro.Processing() && m.Processing()) {
+			break
+		}
+
+		if msg != "" {
+			err = func() error {
+				var sendErr error
+				defer func() {
+					sendErr, _ = recover().(error)
+				}()
+
+				ro.Connect()
+
+				conn = ro.conn
+				if conn != nil {
+					if ro.compressed {
+						msg = string(lib.Compress([]byte(msg), ro.compressType))
+					}
+
+					sendErr = conn.Send(ro.command, channel, msg)
+
+					if sendErr == nil && ro.trimSize > 0 {
+						func() {
+							defer recover()
+							conn.Send("LTRIM", channel, 0, ro.trimSize)
+						}()
+					}
+				}
+				return sendErr
+			}()
+		}
+	}
 }
 
 func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
-	if len(messages) > 0 {
-		m := ro.GetManager()
-		if m == nil {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	if ro.channelPath.IsStatic() {
+		channel, _, err := ro.channelPath.Eval(nil, true)
+		if err != nil {
 			return
 		}
 
-		defer recover()
-
+		ro.putMessages(messages, channel)
+	} else {
 		var (
-			err  error
-			conn redis.Conn
+			channel     string
+			channelList []string
 		)
 
+		channels := make(map[string][]string)
+
 		for _, msg := range messages {
-			if !(err == nil && ro.Processing() && m.Processing()) {
-				break
-			}
-
 			if msg != "" {
-				err = func() error {
-					var sendErr error
-					defer func() {
-						sendErr, _ = recover().(error)
-					}()
+				var data interface{}
 
-					ro.Connect()
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
 
-					conn = ro.conn
-					if conn != nil {
-						if ro.compressed {
-							msg = string(lib.Compress([]byte(msg), ro.compressType))
-						}
+				channel, _, err = ro.channelPath.Eval(data, true)
+				if err != nil {
+					continue
+				}
 
-						sendErr = conn.Send(ro.command, channel, msg)
-
-						if sendErr == nil && ro.trimSize > 0 {
-							func() {
-								defer recover()
-								conn.Send("LTRIM", channel, 0, ro.trimSize)
-							}()
-						}
-					}
-					return sendErr
-				}()
+				channelList, _ = channels[channel]
+				channels[channel] = append(channelList, msg)
 			}
+		}
+
+		for channel, channelList = range channels {
+			ro.putMessages(messages, channel)
 		}
 	}
 }
