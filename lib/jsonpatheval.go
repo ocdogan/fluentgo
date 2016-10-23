@@ -105,6 +105,12 @@ func NewJsonPath(s string) *JsonPath {
 	jp := &JsonPath{Type: JPStatic}
 
 	if len(s) == 0 {
+		ep = &JsonPathPart{
+			Data: s,
+			Type: JPPStatic,
+		}
+		jp.Parts = append(jp.Parts, ep)
+
 		return jp
 	}
 
