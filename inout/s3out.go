@@ -133,7 +133,7 @@ func (s3o *s3Out) funcAfterClose() {
 }
 
 func (s3o *s3Out) funcGetObjectName() string {
-	return ""
+	return "null"
 }
 
 func (s3o *s3Out) getFilenameIndex() uint64 {
@@ -234,7 +234,6 @@ func (s3o *s3Out) groupMessages(messages []string) map[string]map[string][]strin
 		if err != nil {
 			return nil
 		}
-		prefix = strings.TrimSpace(prefix)
 
 		buckets = make(map[string]map[string][]string)
 
