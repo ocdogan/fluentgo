@@ -23,6 +23,7 @@
 package inout
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/ocdogan/fluentgo/lib"
@@ -33,7 +34,8 @@ import (
 type kafkaOut struct {
 	outHandler
 	kafkaIO
-	producer *kafka.Producer
+	producer  *kafka.Producer
+	topicPath *lib.JsonPath
 }
 
 func init() {
@@ -52,9 +54,15 @@ func newKafkaOut(manager InOutManager, params map[string]interface{}) OutSender 
 		return nil
 	}
 
+	topicPath := lib.NewJsonPath(kio.topic)
+	if topicPath == nil {
+		return nil
+	}
+
 	ko := &kafkaOut{
 		outHandler: *oh,
 		kafkaIO:    *kio,
+		topicPath:  topicPath,
 	}
 
 	ko.iotype = "KAFKAOUT"
@@ -83,11 +91,10 @@ func (ko *kafkaOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (ko *kafkaOut) funcPutMessages(messages []string, indexName string) {
+func (ko *kafkaOut) putMessages(messages []string, topic string) {
 	if len(messages) == 0 {
 		return
 	}
-
 	defer recover()
 
 	err := ko.Connect()
@@ -106,9 +113,55 @@ func (ko *kafkaOut) funcPutMessages(messages []string, indexName string) {
 			}
 
 			kmsg := &proto.Message{Value: data}
-			if _, err := producer.Produce(ko.topic, ko.partition, kmsg); err != nil && l != nil {
+			if _, err := producer.Produce(topic, ko.partition, kmsg); err != nil && l != nil {
 				l.Printf("Cannot produce KAFKAOUT message to %s:%d: %s", ko.topic, ko.partition, err)
 			}
+		}
+	}
+}
+
+func (ko *kafkaOut) funcPutMessages(messages []string, topic string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	if ko.topicPath.IsStatic() {
+		topic, _, err := ko.topicPath.Eval(nil, true)
+		if err != nil {
+			return
+		}
+
+		ko.putMessages(messages, topic)
+	} else {
+		var (
+			topic     string
+			topicList []string
+		)
+
+		topics := make(map[string][]string)
+
+		for _, msg := range messages {
+			if msg != "" {
+				var data interface{}
+
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
+
+				topic, _, err = ko.topicPath.Eval(data, true)
+				if err != nil {
+					continue
+				}
+
+				topicList, _ = topics[topic]
+				topics[topic] = append(topicList, msg)
+			}
+		}
+
+		for topic, topicList = range topics {
+			ko.putMessages(messages, topic)
 		}
 	}
 }
