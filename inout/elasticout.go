@@ -23,20 +23,21 @@
 package inout
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/config"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 	"gopkg.in/olivere/elastic.v2"
 )
 
 type elasticOut struct {
 	outHandler
-	indexPrefix string
-	indexType   string
+	indexPrefix *lib.JsonPath
+	indexType   *lib.JsonPath
 	client      *elastic.Client
 }
 
@@ -109,7 +110,7 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 			}
 		}
 	}
-	indexPrefix := s
+	indexPrefix := lib.NewJsonPath(s)
 
 	s, ok = params["index.type"].(string)
 	if !ok {
@@ -122,7 +123,7 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 			s = strings.ToLower(s)
 		}
 	}
-	indexType := s
+	indexType := lib.NewJsonPath(s)
 
 	i = 0
 	if f, ok = params["maxRetries"].(float64); ok {
@@ -210,8 +211,8 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 
 	eo.runFunc = eo.funcWait
 	eo.afterCloseFunc = eo.funcAfterClose
-	eo.getDestinationFunc = eo.funcGetIndexName
-	eo.sendChunkFunc = eo.funcSendMessagesChunk
+	eo.getDestinationFunc = eo.funcDestination
+	eo.sendChunkFunc = eo.funcPutMessages
 
 	return eo
 }
@@ -270,32 +271,149 @@ func (eo *elasticOut) funcAfterClose() {
 	}
 }
 
-func (eo *elasticOut) funcGetIndexName() string {
-	if eo.indexPrefix != "" {
-		t := time.Now()
-		return fmt.Sprintf("%s%d.%02d.%02d", eo.indexPrefix, t.Year(), t.Month(), t.Day())
-	}
-	return ""
+func (eo *elasticOut) funcDestination() string {
+	return "null"
 }
 
-func (eo *elasticOut) funcSendMessagesChunk(messages []string, indexName string) {
-	if len(messages) > 0 {
-		defer recover()
+func (eo *elasticOut) getIndexName(prefix string) string {
+	t := time.Now()
+	if prefix != "" {
+		return fmt.Sprintf("%s%d.%02d.%02d", prefix, t.Year(), t.Month(), t.Day())
+	}
+	return fmt.Sprintf("%d.%02d.%02d", t.Year(), t.Month(), t.Day())
+}
 
-		doSend := false
-		bulkRequest := eo.client.Bulk()
+func (eo *elasticOut) putMessages(messages []string, indexName, indexType string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	doSend := false
+	bulkRequest := eo.client.Bulk()
+
+	for _, msg := range messages {
+		if msg != "" {
+			doSend = true
+
+			req := elastic.NewBulkIndexRequest().Index(indexName).Type(indexType).Doc(msg)
+			bulkRequest = bulkRequest.Add(req)
+		}
+	}
+
+	if doSend {
+		bulkRequest.Do()
+	}
+}
+
+func (eo *elasticOut) groupMessages(messages []string) map[string]map[string][]string {
+	defer recover()
+
+	var indexPrefixes map[string]map[string][]string
+
+	if eo.indexPrefix.IsStatic() && eo.indexType.IsStatic() {
+		indexPrefix, _, err := eo.indexPrefix.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		indexType, _, err := eo.indexType.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		indexPrefixes = make(map[string]map[string][]string)
+
+		indexTypes := make(map[string][]string)
+		indexTypes[indexType] = messages
+
+		indexPrefixes[indexPrefix] = indexTypes
+	} else {
+		var (
+			indexPrefix string
+			indexType   string
+		)
+
+		isIndexPrefixestatic := eo.indexPrefix.IsStatic()
+		isIndexTypeStatic := eo.indexType.IsStatic()
+
+		if isIndexPrefixestatic {
+			s, _, err := eo.indexPrefix.Eval(nil, true)
+			if err != nil || len(s) == 0 {
+				return nil
+			}
+			indexPrefix = s
+		}
+
+		if isIndexTypeStatic {
+			s, _, err := eo.indexType.Eval(nil, true)
+			if err != nil {
+				return nil
+			}
+			indexType = s
+		}
+
+		var (
+			ok             bool
+			indexTypeList  []string
+			indexPrefixMap map[string][]string
+		)
+
+		indexPrefixes = make(map[string]map[string][]string)
 
 		for _, msg := range messages {
 			if msg != "" {
-				doSend = true
+				var data interface{}
 
-				req := elastic.NewBulkIndexRequest().Index(indexName).Type(eo.indexType).Doc(msg)
-				bulkRequest = bulkRequest.Add(req)
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
+
+				if !isIndexPrefixestatic {
+					indexPrefix, _, err = eo.indexPrefix.Eval(data, true)
+					if err != nil || len(indexPrefix) == 0 {
+						continue
+					}
+				}
+
+				if !isIndexTypeStatic {
+					indexType, _, err = eo.indexType.Eval(data, true)
+					if err != nil {
+						continue
+					}
+				}
+
+				indexPrefixMap, ok = indexPrefixes[indexPrefix]
+				if !ok || indexPrefixMap == nil {
+					indexPrefixMap = make(map[string][]string)
+					indexPrefixes[indexPrefix] = indexPrefixMap
+				}
+
+				indexTypeList, _ = indexPrefixMap[indexType]
+				indexPrefixMap[indexType] = append(indexTypeList, msg)
 			}
 		}
+	}
+	return indexPrefixes
+}
 
-		if doSend {
-			bulkRequest.Do()
+func (eo *elasticOut) funcPutMessages(messages []string, filename string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	indexPrefixes := eo.groupMessages(messages)
+	if indexPrefixes == nil {
+		return
+	}
+
+	for indexPrefix, indexPrefixMap := range indexPrefixes {
+		indexName := eo.getIndexName(indexPrefix)
+
+		for indexType, msgs := range indexPrefixMap {
+			eo.putMessages(msgs, indexName, indexType)
 		}
 	}
 }
