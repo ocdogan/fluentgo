@@ -23,6 +23,7 @@
 package inout
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -34,9 +35,9 @@ type kinesisOut struct {
 	outHandler
 	kinesisIO
 	hashKeyIndex     int64
-	streamName       string
-	partitionKey     string
 	explicitHashKeys []string
+	streamName       *lib.JsonPath
+	partitionKey     *lib.JsonPath
 }
 
 func init() {
@@ -47,16 +48,34 @@ func init() {
 func newKinesisOut(manager InOutManager, params map[string]interface{}) OutSender {
 	var (
 		ok               bool
-		streamName       string
-		partitionKey     string
+		s                string
 		hashKeys         string
 		explicitHashKeys []string
+		streamName       *lib.JsonPath
+		partitionKey     *lib.JsonPath
 	)
 
-	if partitionKey, ok = params["partitionKey"].(string); ok {
-		partitionKey = strings.TrimSpace(partitionKey)
+	if s, ok = params["partitionKey"].(string); ok {
+		s = strings.TrimSpace(s)
 	}
-	if partitionKey == "" {
+	if s == "" {
+		return nil
+	}
+
+	partitionKey = lib.NewJsonPath(s)
+	if partitionKey == nil {
+		return nil
+	}
+
+	if s, ok = params["streamName"].(string); ok {
+		s = strings.TrimSpace(s)
+	}
+	if s == "" {
+		return nil
+	}
+
+	streamName = lib.NewJsonPath(s)
+	if streamName == nil {
 		return nil
 	}
 
@@ -75,10 +94,6 @@ func newKinesisOut(manager InOutManager, params map[string]interface{}) OutSende
 		}
 	}
 
-	if streamName, ok = params["streamName"].(string); ok {
-		streamName = strings.TrimSpace(streamName)
-	}
-
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil
@@ -92,9 +107,9 @@ func newKinesisOut(manager InOutManager, params map[string]interface{}) OutSende
 	ko := &kinesisOut{
 		outHandler:       *oh,
 		kinesisIO:        *kio,
+		explicitHashKeys: explicitHashKeys,
 		partitionKey:     partitionKey,
 		streamName:       streamName,
-		explicitHashKeys: explicitHashKeys,
 	}
 
 	ko.iotype = "KINESISOUT"
@@ -118,7 +133,7 @@ func (ko *kinesisOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (ko *kinesisOut) funcPutMessages(messages []string, indexName string) {
+func (ko *kinesisOut) putMessages(messages []string, partitionKey, streamName string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -146,8 +161,8 @@ func (ko *kinesisOut) funcPutMessages(messages []string, indexName string) {
 			}
 
 			rec := &kinesis.PutRecordsRequestEntry{
-				Data:         data,                        // Required
-				PartitionKey: aws.String(ko.partitionKey), // Required
+				Data:         data,                     // Required
+				PartitionKey: aws.String(partitionKey), // Required
 			}
 
 			if keyLen > 0 {
@@ -168,9 +183,120 @@ func (ko *kinesisOut) funcPutMessages(messages []string, indexName string) {
 	if len(records) > 0 {
 		params := &kinesis.PutRecordsInput{
 			Records:    records,
-			StreamName: aws.String(ko.streamName), // Required
+			StreamName: aws.String(streamName), // Required
 		}
 		client.PutRecords(params)
+	}
+}
+
+func (ko *kinesisOut) groupMessages(messages []string) map[string]map[string][]string {
+	defer recover()
+
+	var partitionKeys map[string]map[string][]string
+
+	if ko.partitionKey.IsStatic() && ko.streamName.IsStatic() {
+		partitionKey, _, err := ko.partitionKey.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		streamName, _, err := ko.streamName.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		partitionKeys = make(map[string]map[string][]string)
+
+		streamNamees := make(map[string][]string)
+		streamNamees[streamName] = messages
+
+		partitionKeys[partitionKey] = streamNamees
+	} else {
+		var (
+			partitionKey string
+			streamName   string
+		)
+
+		isPartitionKeyStatic := ko.partitionKey.IsStatic()
+		isStreamNameStatic := ko.streamName.IsStatic()
+
+		if isPartitionKeyStatic {
+			s, _, err := ko.partitionKey.Eval(nil, true)
+			if err != nil || len(s) == 0 {
+				return nil
+			}
+			partitionKey = s
+		}
+
+		if isStreamNameStatic {
+			s, _, err := ko.streamName.Eval(nil, true)
+			if err != nil {
+				return nil
+			}
+			streamName = s
+		}
+
+		var (
+			ok              bool
+			streamNameList  []string
+			partitionKeyMap map[string][]string
+		)
+
+		partitionKeys = make(map[string]map[string][]string)
+
+		for _, msg := range messages {
+			if msg != "" {
+				var data interface{}
+
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
+
+				if !isPartitionKeyStatic {
+					partitionKey, _, err = ko.partitionKey.Eval(data, true)
+					if err != nil || len(partitionKey) == 0 {
+						continue
+					}
+				}
+
+				if !isStreamNameStatic {
+					streamName, _, err = ko.streamName.Eval(data, true)
+					if err != nil {
+						continue
+					}
+				}
+
+				partitionKeyMap, ok = partitionKeys[partitionKey]
+				if !ok || partitionKeyMap == nil {
+					partitionKeyMap = make(map[string][]string)
+					partitionKeys[partitionKey] = partitionKeyMap
+				}
+
+				streamNameList, _ = partitionKeyMap[streamName]
+				partitionKeyMap[streamName] = append(streamNameList, msg)
+			}
+		}
+	}
+	return partitionKeys
+}
+
+func (ko *kinesisOut) funcPutMessages(messages []string, filename string) {
+	if len(messages) == 0 {
+		return
+	}
+
+	defer recover()
+
+	partitionKeys := ko.groupMessages(messages)
+	if partitionKeys == nil {
+		return
+	}
+
+	for partitionKey, partitionKeyMap := range partitionKeys {
+		for streamName, msgs := range partitionKeyMap {
+			ko.putMessages(msgs, partitionKey, streamName)
+		}
 	}
 }
 
