@@ -23,6 +23,8 @@
 package inout
 
 import (
+	"encoding/json"
+
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/streadway/amqp"
 )
@@ -30,8 +32,10 @@ import (
 type rabbitOut struct {
 	rabbitIO
 	outHandler
-	mandatory bool
-	immediate bool
+	mandatory    bool
+	immediate    bool
+	exchangePath *lib.JsonPath
+	queuePath    *lib.JsonPath
 }
 
 func init() {
@@ -46,87 +50,212 @@ func newRabbitOut(manager InOutManager, params map[string]interface{}) OutSender
 	}
 
 	rio := newRabbitIO(manager.GetLogger(), params)
-	if rio != nil {
-		mandatory, _ := params["mandatory"].(bool)
-		immediate, _ := params["immediate"].(bool)
-
-		ro := &rabbitOut{
-			rabbitIO:   *rio,
-			outHandler: *oh,
-			mandatory:  mandatory,
-			immediate:  immediate,
-		}
-
-		ro.iotype = "RABBITOUT"
-
-		ro.runFunc = ro.funcWait
-		ro.connFunc = ro.funcSubscribe
-
-		ro.afterCloseFunc = rio.funcAfterClose
-
-		ro.getDestinationFunc = ro.funcChannel
-		ro.sendChunkFunc = ro.funcSendMessagesChunk
-
-		return ro
+	if rio == nil {
+		return nil
 	}
-	return nil
+
+	exchangePath := lib.NewJsonPath(rio.exchange)
+	if exchangePath != nil {
+		return nil
+	}
+
+	queuePath := lib.NewJsonPath(rio.queue)
+	if queuePath == nil {
+		return nil
+	}
+
+	mandatory, _ := params["mandatory"].(bool)
+	immediate, _ := params["immediate"].(bool)
+
+	ro := &rabbitOut{
+		rabbitIO:     *rio,
+		outHandler:   *oh,
+		mandatory:    mandatory,
+		immediate:    immediate,
+		exchangePath: exchangePath,
+		queuePath:    queuePath,
+	}
+
+	ro.iotype = "RABBITOUT"
+
+	ro.runFunc = ro.funcWait
+	ro.connFunc = ro.funcSubscribe
+
+	ro.afterCloseFunc = rio.funcAfterClose
+
+	ro.getDestinationFunc = ro.funcChannel
+	ro.sendChunkFunc = ro.funcPutMessages
+
+	return ro
 }
 
 func (ro *rabbitOut) funcChannel() string {
-	return ""
+	return "null"
 }
 
-func (ro *rabbitOut) funcSendMessagesChunk(messages []string, channel string) {
-	if len(messages) > 0 {
-		m := ro.GetManager()
-		if m == nil {
-			return
+func (ro *rabbitOut) putMessages(messages []string, exchange, queue string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	m := ro.GetManager()
+	if m == nil {
+		return
+	}
+
+	var (
+		err     error
+		channel *amqp.Channel
+	)
+
+	var body []byte
+	for _, msg := range messages {
+		if !(err == nil && ro.Processing() && m.Processing()) {
+			break
 		}
 
-		defer recover()
+		if msg != "" {
+			err = func() error {
+				var sendErr error
+				defer func() {
+					sendErr, _ = recover().(error)
+				}()
 
+				ro.Connect()
+
+				channel = ro.channel
+				if channel != nil {
+					body = []byte(msg)
+					if ro.compressed {
+						body = lib.Compress(body, ro.compressType)
+					}
+
+					if len(body) > 0 {
+						sendErr = channel.Publish(
+							exchange,     // exchange
+							queue,        // routing key
+							ro.mandatory, // mandatory
+							ro.immediate, // immediate
+							amqp.Publishing{
+								ContentType: ro.contentType,
+								Body:        body,
+							})
+					}
+				}
+				return sendErr
+			}()
+		}
+	}
+}
+
+func (ro *rabbitOut) groupMessages(messages []string) map[string]map[string][]string {
+	defer recover()
+
+	var exchanges map[string]map[string][]string
+
+	if ro.exchangePath.IsStatic() && ro.queuePath.IsStatic() {
+		exchange, _, err := ro.exchangePath.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		queue, _, err := ro.queuePath.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		exchanges = make(map[string]map[string][]string)
+
+		queues := make(map[string][]string)
+		queues[queue] = messages
+
+		exchanges[exchange] = queues
+	} else {
 		var (
-			err     error
-			channel *amqp.Channel
+			exchange string
+			queue    string
 		)
 
-		var body []byte
+		isExchangeStatic := ro.exchangePath.IsStatic()
+		isQueueStatic := ro.queuePath.IsStatic()
+
+		if isExchangeStatic {
+			s, _, err := ro.exchangePath.Eval(nil, true)
+			if err != nil || len(s) == 0 {
+				return nil
+			}
+			exchange = s
+		}
+
+		if isQueueStatic {
+			s, _, err := ro.queuePath.Eval(nil, true)
+			if err != nil {
+				return nil
+			}
+			queue = s
+		}
+
+		var (
+			ok          bool
+			queueList   []string
+			exchangeMap map[string][]string
+		)
+
+		exchanges = make(map[string]map[string][]string)
+
 		for _, msg := range messages {
-			if !(err == nil && ro.Processing() && m.Processing()) {
-				break
-			}
-
 			if msg != "" {
-				err = func() error {
-					var sendErr error
-					defer func() {
-						sendErr, _ = recover().(error)
-					}()
+				var data interface{}
 
-					ro.Connect()
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
 
-					channel = ro.channel
-					if channel != nil {
-						body = []byte(msg)
-						if ro.compressed {
-							body = lib.Compress(body, ro.compressType)
-						}
-
-						if len(body) > 0 {
-							sendErr = channel.Publish(
-								ro.exchange,  // exchange
-								ro.queue,     // routing key
-								ro.mandatory, // mandatory
-								ro.immediate, // immediate
-								amqp.Publishing{
-									ContentType: ro.contentType,
-									Body:        body,
-								})
-						}
+				if !isExchangeStatic {
+					exchange, _, err = ro.exchangePath.Eval(data, true)
+					if err != nil || len(exchange) == 0 {
+						continue
 					}
-					return sendErr
-				}()
+				}
+
+				if !isQueueStatic {
+					queue, _, err = ro.queuePath.Eval(data, true)
+					if err != nil {
+						continue
+					}
+				}
+
+				exchangeMap, ok = exchanges[exchange]
+				if !ok || exchangeMap == nil {
+					exchangeMap = make(map[string][]string)
+					exchanges[exchange] = exchangeMap
+				}
+
+				queueList, _ = exchangeMap[queue]
+				exchangeMap[queue] = append(queueList, msg)
 			}
+		}
+	}
+	return exchanges
+}
+
+func (ro *rabbitOut) funcPutMessages(messages []string, channel string) {
+	if len(messages) == 0 {
+		return
+	}
+
+	defer recover()
+
+	exchanges := ro.groupMessages(messages)
+	if len(exchanges) == 0 {
+		return
+	}
+
+	for exchange, exchangeMap := range exchanges {
+		for queue, msgs := range exchangeMap {
+			ro.putMessages(msgs, exchange, queue)
 		}
 	}
 }
