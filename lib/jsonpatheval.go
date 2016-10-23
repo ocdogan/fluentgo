@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/oliveagle/jsonpath"
 )
@@ -38,8 +39,8 @@ const (
 	JPPDynamic
 )
 
-func (t JsonPathPartType) String() string {
-	if t == JPPStatic {
+func (jt JsonPathPartType) String() string {
+	if jt == JPPStatic {
 		return "Static"
 	}
 	return "Dynamic"
@@ -50,6 +51,10 @@ type JsonPathPart struct {
 	Type  JsonPathPartType
 	Start int
 	Len   int
+}
+
+func (jp *JsonPathPart) IsStatic() bool {
+	return jp.Type == JPPStatic
 }
 
 func (jp *JsonPathPart) String() string {
@@ -63,8 +68,8 @@ const (
 	JPComplex
 )
 
-func (t JsonPathType) String() string {
-	if t == JPStatic {
+func (jt JsonPathType) String() string {
+	if jt == JPStatic {
 		return "Static"
 	}
 	return "Complex"
@@ -73,6 +78,10 @@ func (t JsonPathType) String() string {
 type JsonPath struct {
 	Type  JsonPathType
 	Parts []*JsonPathPart
+}
+
+func (jp *JsonPath) IsStatic() bool {
+	return jp.Type == JPStatic
 }
 
 func (jp *JsonPath) String() string {
@@ -94,6 +103,10 @@ func init() {
 func NewJsonPath(s string) *JsonPath {
 	var ep *JsonPathPart
 	jp := &JsonPath{Type: JPStatic}
+
+	if len(s) == 0 {
+		return jp
+	}
 
 	r := rgx.Copy()
 	if r == nil {
@@ -120,7 +133,6 @@ func NewJsonPath(s string) *JsonPath {
 
 			for i, m := range mi {
 				if i == 0 {
-					s1 = s[0:m[0]]
 					if len(s1) > 0 {
 						ep = &JsonPathPart{
 							Data:  s1,
@@ -179,11 +191,7 @@ func NewJsonPath(s string) *JsonPath {
 	return jp
 }
 
-func (jp *JsonPath) Eval(jsonData interface{}) (result string, err error) {
-	if jsonData == nil {
-		return "", fmt.Errorf("Unable to evaluate nil json data.")
-	}
-
+func (jp *JsonPath) evalJson(jsonData interface{}, trimSpace bool) (result string, err error) {
 	var (
 		s     string
 		jpath string
@@ -193,42 +201,90 @@ func (jp *JsonPath) Eval(jsonData interface{}) (result string, err error) {
 
 	for _, p := range jp.Parts {
 		s = p.Data
+		if trimSpace {
+			s = strings.TrimSpace(s)
+		}
+
 		if len(s) > 0 {
-			if p.Type == JPPStatic {
+			if p.IsStatic() {
 				b.WriteString(s)
 			} else if len(s) > 4 {
 				jpath = s[2 : len(s)-2]
+				if trimSpace {
+					jpath = strings.TrimSpace(jpath)
+				}
 
-				res, err := jsonpath.JsonPathLookup(jsonData, jpath)
-				if err != nil {
-					return "", err
-				} else if res == nil {
-					b.WriteString(jpath)
-				} else {
-					switch res.(type) {
-					case string:
-						b.WriteString(fmt.Sprint(res))
-					case float64:
-						b.WriteString(fmt.Sprint(res))
-					case bool:
-						b.WriteString(fmt.Sprint(res))
-					default:
-						return "", fmt.Errorf("Cannot evaluate path: %s.", jpath)
+				if len(jpath) > 0 {
+					res, err := jsonpath.JsonPathLookup(jsonData, jpath)
+					if err != nil {
+						return "", err
+					} else if res == nil {
+						b.WriteString(jpath)
+					} else {
+						switch res.(type) {
+						case string:
+						case float64:
+						case bool:
+							jpath = fmt.Sprint(res)
+							if trimSpace {
+								jpath = strings.TrimSpace(jpath)
+							}
+
+							if len(jpath) > 0 {
+								b.WriteString(jpath)
+							}
+						default:
+							return "", fmt.Errorf("Cannot evaluate path: %s.", jpath)
+						}
 					}
 				}
 			}
 		}
 	}
-
 	return b.String(), nil
 }
 
-func (jp *JsonPath) EvalString(jsonData string) (result string, data interface{}, err error) {
-	if jp.Type == JPStatic {
+func (jp *JsonPath) Eval(jsonData interface{}, trimSpace bool) (result string, data interface{}, err error) {
+	if jp.IsStatic() {
 		if len(jp.Parts) > 0 {
-			return "", jp.Parts[0].Data, nil
+			result = jp.Parts[0].Data
+			if trimSpace {
+				result = strings.TrimSpace(result)
+			}
 		}
-		return "", nil, nil
+		return "", result, nil
+	}
+
+	if jsonData == nil {
+		return "", "", fmt.Errorf("Unable to evaluate nil json data.")
+	}
+
+	s, ok := jsonData.(string)
+	if ok {
+		if len(s) == 0 {
+			return "", "", nil
+		}
+
+		err = json.Unmarshal([]byte(s), &data)
+		if err != nil {
+			return
+		}
+	}
+
+	data = jsonData
+	result, err = jp.evalJson(jsonData, trimSpace)
+	return
+}
+
+func (jp *JsonPath) EvalString(jsonData string, trimSpace bool) (result string, data interface{}, err error) {
+	if jp.IsStatic() {
+		if len(jp.Parts) > 0 {
+			result = jp.Parts[0].Data
+			if trimSpace {
+				result = strings.TrimSpace(result)
+			}
+		}
+		return result, nil, nil
 	}
 
 	if len(jsonData) == 0 {
@@ -240,6 +296,6 @@ func (jp *JsonPath) EvalString(jsonData string) (result string, data interface{}
 		return
 	}
 
-	result, err = jp.Eval(data)
+	result, err = jp.evalJson(data, trimSpace)
 	return
 }

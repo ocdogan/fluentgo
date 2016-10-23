@@ -24,6 +24,7 @@ package inout
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -39,15 +40,15 @@ type s3Out struct {
 	outHandler
 	awsIO
 	acl      string
-	bucket   string
-	prefix   string
 	rootAttr string
+	bucket   *lib.JsonPath
+	prefix   *lib.JsonPath
 	client   *s3.S3
 }
 
 var (
-	s3oIndex      uint64
-	s3oLastMinute int
+	s3oIndex         uint64
+	s3oLastIndexDate = time.Now()
 )
 
 func init() {
@@ -57,20 +58,22 @@ func init() {
 
 func newS3Out(manager InOutManager, params map[string]interface{}) OutSender {
 	var (
+		s        string
 		acl      string
-		bucket   string
-		prefix   string
+		bucket   *lib.JsonPath
+		prefix   *lib.JsonPath
 		rootAttr string
 		ok       bool
 	)
 
-	bucket, ok = params["bucket"].(string)
+	s, ok = params["bucket"].(string)
 	if ok {
-		bucket = strings.TrimSpace(bucket)
+		s = strings.TrimSpace(s)
 	}
-	if bucket == "" {
+	if s == "" {
 		return nil
 	}
+	bucket = lib.NewJsonPath(s)
 
 	acl, ok = params["acl"].(string)
 	if ok {
@@ -80,10 +83,11 @@ func newS3Out(manager InOutManager, params map[string]interface{}) OutSender {
 		acl = s3.BucketCannedACLPublicRead
 	}
 
-	prefix, ok = params["prefix"].(string)
+	s, ok = params["prefix"].(string)
 	if ok {
-		prefix = strings.TrimSpace(prefix)
+		s = strings.TrimSpace(s)
 	}
+	prefix = lib.NewJsonPath(s)
 
 	rootAttr, ok = params["root"].(string)
 	if ok {
@@ -129,74 +133,201 @@ func (s3o *s3Out) funcAfterClose() {
 }
 
 func (s3o *s3Out) funcGetObjectName() string {
+	return ""
+}
+
+func (s3o *s3Out) getFilenameIndex() uint64 {
 	t := time.Now()
 
 	index := uint64(0)
-	if s3oLastMinute != t.Minute() {
-		index = 0
-		s3oLastMinute = t.Minute()
+	d := t.Sub(s3oLastIndexDate)
 
+	if d.Hours() > 0 || d.Minutes() > 0 {
+		s3oLastIndexDate = t
+
+		index = 0
 		atomic.StoreUint64(&s3oIndex, 0)
 	} else {
 		index = atomic.AddUint64(&s3oIndex, 1)
 	}
+	return index
+}
 
-	if s3o.prefix != "" {
-		return fmt.Sprintf("%s/%d%02d%02d/%02d%02d%02d%03d", s3o.prefix, t.Year(), t.Month(), t.Day(),
+func (s3o *s3Out) getFilename(prefix string) string {
+	t := time.Now()
+	index := s3o.getFilenameIndex()
+
+	if prefix != "" {
+		return fmt.Sprintf("%s/%d%02d%02d/%02d%02d%02d%03d", prefix, t.Year(), t.Month(), t.Day(),
 			t.Hour(), t.Minute(), t.Second(), index)
 	}
 	return fmt.Sprintf("%d%02d%02d/%02d%02d%02d%03d", t.Year(), t.Month(), t.Day(),
 		t.Hour(), t.Minute(), t.Second(), index)
 }
 
-func (s3o *s3Out) funcPutMessages(messages []string, indexName string) {
-	if len(messages) > 0 {
-		defer recover()
+func (s3o *s3Out) putMessages(messages []string, bucket, filename string) {
+	defer recover()
 
-		client := s3o.getClient()
-		if client == nil {
-			return
-		}
+	client := s3o.getClient()
+	if client == nil {
+		return
+	}
 
-		t := time.Now()
-		buffer := bytes.NewBufferString(
-			fmt.Sprintf("{\"date\":\"%d.%02d.%02d %02d:%02d:%02d\",\"%s\":[",
-				t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), s3o.rootAttr))
+	count := 0
+	var buffer *bytes.Buffer
 
-		count := 0
-		for _, msg := range messages {
-			if msg != "" {
-				if count > 0 {
-					buffer.WriteString(",")
-				}
-				count++
-				buffer.WriteString(msg)
+	for _, msg := range messages {
+		if msg != "" {
+			if count == 0 {
+				t := time.Now()
+				buffer = bytes.NewBufferString(
+					fmt.Sprintf("{\"date\":\"%d.%02d.%02d %02d:%02d:%02d\",\"%s\":[",
+						t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), s3o.rootAttr))
+			} else {
+				buffer.WriteString(",")
 			}
+
+			count++
+			buffer.WriteString(msg)
 		}
+	}
+
+	if count > 0 {
 		buffer.WriteString("]}")
 
-		if count > 0 {
-			body := buffer.Bytes()
-			if s3o.compressed {
-				body = lib.Compress(body, s3o.compressType)
-			}
+		body := buffer.Bytes()
+		if s3o.compressed {
+			body = lib.Compress(body, s3o.compressType)
+		}
 
-			params := &s3.PutObjectInput{
-				ACL:           aws.String(s3o.acl),
-				Bucket:        aws.String(s3o.bucket),
-				Body:          bytes.NewReader(body),
-				ContentLength: aws.Int64(int64(len(body))),
-			}
+		params := &s3.PutObjectInput{
+			ACL:           aws.String(s3o.acl),
+			Bucket:        aws.String(bucket),
+			Body:          bytes.NewReader(body),
+			ContentLength: aws.Int64(int64(len(body))),
+		}
 
-			if s3o.compressed {
-				params.Key = aws.String(indexName + ".gz")
-				params.ContentType = aws.String("application/x-gzip")
-			} else {
-				params.Key = aws.String(indexName + ".txt")
-				params.ContentType = aws.String("text/plain")
-			}
+		if s3o.compressed {
+			params.Key = aws.String(filename + ".gz")
+			params.ContentType = aws.String("application/x-gzip")
+		} else {
+			params.Key = aws.String(filename + ".txt")
+			params.ContentType = aws.String("text/plain")
+		}
 
-			client.PutObject(params)
+		client.PutObject(params)
+	}
+}
+
+func (s3o *s3Out) groupMessages(messages []string) map[string]map[string][]string {
+	defer recover()
+
+	var buckets map[string]map[string][]string
+
+	if s3o.bucket.IsStatic() && s3o.prefix.IsStatic() {
+		bucket, _, err := s3o.bucket.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		prefix, _, err := s3o.prefix.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+		prefix = strings.TrimSpace(prefix)
+
+		buckets = make(map[string]map[string][]string)
+
+		prefixes := make(map[string][]string)
+		prefixes[prefix] = messages
+
+		buckets[bucket] = prefixes
+	} else {
+		var (
+			bucket string
+			prefix string
+		)
+
+		isBucketStatic := s3o.bucket.IsStatic()
+		isPrefixStatic := s3o.prefix.IsStatic()
+
+		if isBucketStatic {
+			s, _, err := s3o.bucket.Eval(nil, true)
+			if err != nil || len(s) == 0 {
+				return nil
+			}
+			bucket = s
+		}
+
+		if isPrefixStatic {
+			s, _, err := s3o.prefix.Eval(nil, true)
+			if err != nil {
+				return nil
+			}
+			prefix = s
+		}
+
+		var (
+			ok         bool
+			prefixList []string
+			bucketMap  map[string][]string
+		)
+
+		buckets = make(map[string]map[string][]string)
+
+		for _, msg := range messages {
+			if msg != "" {
+				var data interface{}
+
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
+
+				if !isBucketStatic {
+					bucket, _, err = s3o.bucket.Eval(data, true)
+					if err != nil || len(bucket) == 0 {
+						continue
+					}
+				}
+
+				if !isPrefixStatic {
+					prefix, _, err = s3o.prefix.Eval(data, true)
+					if err != nil {
+						continue
+					}
+				}
+
+				bucketMap, ok = buckets[bucket]
+				if !ok || bucketMap == nil {
+					bucketMap = make(map[string][]string)
+					buckets[bucket] = bucketMap
+				}
+
+				prefixList, _ = bucketMap[prefix]
+				bucketMap[prefix] = append(prefixList, msg)
+			}
+		}
+	}
+	return buckets
+}
+
+func (s3o *s3Out) funcPutMessages(messages []string, filename string) {
+	if len(messages) == 0 {
+		return
+	}
+
+	defer recover()
+
+	buckets := s3o.groupMessages(messages)
+	if buckets == nil {
+		return
+	}
+
+	for bucket, bucketMap := range buckets {
+		for prefix, msgs := range bucketMap {
+			filename := s3o.getFilename(prefix)
+			s3o.putMessages(msgs, bucket, filename)
 		}
 	}
 }
