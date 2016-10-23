@@ -23,14 +23,18 @@
 package inout
 
 import (
+	"encoding/json"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/ocdogan/fluentgo/lib"
 )
 
 type sqsOut struct {
 	outHandler
 	sqsIO
 	delaySeconds int64
+	queuePath    *lib.JsonPath
 }
 
 func init() {
@@ -41,6 +45,11 @@ func init() {
 func newSqsOut(manager InOutManager, params map[string]interface{}) OutSender {
 	sio := newSqsIO(manager, params)
 	if sio == nil {
+		return nil
+	}
+
+	queuePath := lib.NewJsonPath(sio.queueURL)
+	if queuePath == nil {
 		return nil
 	}
 
@@ -61,6 +70,7 @@ func newSqsOut(manager InOutManager, params map[string]interface{}) OutSender {
 		outHandler:   *oh,
 		sqsIO:        *sio,
 		delaySeconds: delaySeconds,
+		queuePath:    queuePath,
 	}
 
 	sqso.iotype = "SQSOUT"
@@ -84,29 +94,76 @@ func (sqso *sqsOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (sqso *sqsOut) funcPutMessages(messages []string, indexName string) {
-	if len(messages) > 0 {
-		defer recover()
+func (sqso *sqsOut) putMessages(messages []string, queueURL string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
 
-		client := sqso.getClient()
-		if client == nil {
+	client := sqso.getClient()
+	if client == nil {
+		return
+	}
+
+	for _, msg := range messages {
+		if msg != "" {
+			params := &sqs.SendMessageInput{
+				MessageBody:  aws.String(msg),
+				QueueUrl:     aws.String(queueURL),
+				DelaySeconds: aws.Int64(sqso.delaySeconds),
+			}
+
+			if len(sqso.attributes) > 0 {
+				params.MessageAttributes = sqso.attributes
+			}
+
+			client.SendMessage(params)
+		}
+	}
+}
+
+func (sqso *sqsOut) funcPutMessages(messages []string, indexName string) {
+	if len(messages) == 0 {
+		return
+	}
+	defer recover()
+
+	if sqso.queuePath.IsStatic() {
+		queueURL, _, err := sqso.queuePath.Eval(nil, true)
+		if err != nil {
 			return
 		}
 
+		sqso.putMessages(messages, queueURL)
+	} else {
+		var (
+			queueURL  string
+			queueList []string
+		)
+
+		queues := make(map[string][]string)
+
 		for _, msg := range messages {
 			if msg != "" {
-				params := &sqs.SendMessageInput{
-					MessageBody:  aws.String(msg),
-					QueueUrl:     aws.String(sqso.queueURL),
-					DelaySeconds: aws.Int64(sqso.delaySeconds),
+				var data interface{}
+
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
 				}
 
-				if len(sqso.attributes) > 0 {
-					params.MessageAttributes = sqso.attributes
+				queueURL, _, err = sqso.queuePath.Eval(data, true)
+				if err != nil {
+					continue
 				}
 
-				client.SendMessage(params)
+				queueList, _ = queues[queueURL]
+				queues[queueURL] = append(queueList, msg)
 			}
+		}
+
+		for queueURL, queueList = range queues {
+			sqso.putMessages(messages, queueURL)
 		}
 	}
 }
