@@ -23,6 +23,8 @@
 package inout
 
 import (
+	"encoding/json"
+
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -164,4 +166,96 @@ func (o *outHandler) Send(messages []string) {
 			}
 		}
 	}
+}
+
+func (oh *outHandler) groupMessages(messages []string, primaryPath, secondaryPath *lib.JsonPath) map[string]map[string][]string {
+	defer recover()
+
+	var primaries map[string]map[string][]string
+
+	if primaryPath.IsStatic() && secondaryPath.IsStatic() {
+		primary, _, err := primaryPath.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		secondary, _, err := secondaryPath.Eval(nil, true)
+		if err != nil {
+			return nil
+		}
+
+		primaries = make(map[string]map[string][]string)
+
+		secondaries := make(map[string][]string)
+		secondaries[secondary] = messages
+
+		primaries[primary] = secondaries
+	} else {
+		var (
+			primary   string
+			secondary string
+		)
+
+		isPrimaryStatic := primaryPath.IsStatic()
+		isSecondaryStatic := secondaryPath.IsStatic()
+
+		if isPrimaryStatic {
+			s, _, err := primaryPath.Eval(nil, true)
+			if err != nil || len(s) == 0 {
+				return nil
+			}
+			primary = s
+		}
+
+		if isSecondaryStatic {
+			s, _, err := secondaryPath.Eval(nil, true)
+			if err != nil {
+				return nil
+			}
+			secondary = s
+		}
+
+		var (
+			ok            bool
+			secondaryList []string
+			primaryMap    map[string][]string
+		)
+
+		primaries = make(map[string]map[string][]string)
+
+		for _, msg := range messages {
+			if msg != "" {
+				var data interface{}
+
+				err := json.Unmarshal([]byte(msg), &data)
+				if err != nil {
+					continue
+				}
+
+				if !isPrimaryStatic {
+					primary, _, err = primaryPath.Eval(data, true)
+					if err != nil || len(primary) == 0 {
+						continue
+					}
+				}
+
+				if !isSecondaryStatic {
+					secondary, _, err = secondaryPath.Eval(data, true)
+					if err != nil {
+						continue
+					}
+				}
+
+				primaryMap, ok = primaries[primary]
+				if !ok || primaryMap == nil {
+					primaryMap = make(map[string][]string)
+					primaries[primary] = primaryMap
+				}
+
+				secondaryList, _ = primaryMap[secondary]
+				primaryMap[secondary] = append(secondaryList, msg)
+			}
+		}
+	}
+	return primaries
 }

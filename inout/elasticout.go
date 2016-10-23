@@ -23,7 +23,6 @@
 package inout
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -306,105 +305,13 @@ func (eo *elasticOut) putMessages(messages []string, indexName, indexType string
 	}
 }
 
-func (eo *elasticOut) groupMessages(messages []string) map[string]map[string][]string {
-	defer recover()
-
-	var indexPrefixes map[string]map[string][]string
-
-	if eo.indexPrefix.IsStatic() && eo.indexType.IsStatic() {
-		indexPrefix, _, err := eo.indexPrefix.Eval(nil, true)
-		if err != nil {
-			return nil
-		}
-
-		indexType, _, err := eo.indexType.Eval(nil, true)
-		if err != nil {
-			return nil
-		}
-
-		indexPrefixes = make(map[string]map[string][]string)
-
-		indexTypes := make(map[string][]string)
-		indexTypes[indexType] = messages
-
-		indexPrefixes[indexPrefix] = indexTypes
-	} else {
-		var (
-			indexPrefix string
-			indexType   string
-		)
-
-		isIndexPrefixestatic := eo.indexPrefix.IsStatic()
-		isIndexTypeStatic := eo.indexType.IsStatic()
-
-		if isIndexPrefixestatic {
-			s, _, err := eo.indexPrefix.Eval(nil, true)
-			if err != nil || len(s) == 0 {
-				return nil
-			}
-			indexPrefix = s
-		}
-
-		if isIndexTypeStatic {
-			s, _, err := eo.indexType.Eval(nil, true)
-			if err != nil {
-				return nil
-			}
-			indexType = s
-		}
-
-		var (
-			ok             bool
-			indexTypeList  []string
-			indexPrefixMap map[string][]string
-		)
-
-		indexPrefixes = make(map[string]map[string][]string)
-
-		for _, msg := range messages {
-			if msg != "" {
-				var data interface{}
-
-				err := json.Unmarshal([]byte(msg), &data)
-				if err != nil {
-					continue
-				}
-
-				if !isIndexPrefixestatic {
-					indexPrefix, _, err = eo.indexPrefix.Eval(data, true)
-					if err != nil || len(indexPrefix) == 0 {
-						continue
-					}
-				}
-
-				if !isIndexTypeStatic {
-					indexType, _, err = eo.indexType.Eval(data, true)
-					if err != nil {
-						continue
-					}
-				}
-
-				indexPrefixMap, ok = indexPrefixes[indexPrefix]
-				if !ok || indexPrefixMap == nil {
-					indexPrefixMap = make(map[string][]string)
-					indexPrefixes[indexPrefix] = indexPrefixMap
-				}
-
-				indexTypeList, _ = indexPrefixMap[indexType]
-				indexPrefixMap[indexType] = append(indexTypeList, msg)
-			}
-		}
-	}
-	return indexPrefixes
-}
-
 func (eo *elasticOut) funcPutMessages(messages []string, filename string) {
 	if len(messages) == 0 {
 		return
 	}
 	defer recover()
 
-	indexPrefixes := eo.groupMessages(messages)
+	indexPrefixes := eo.groupMessages(messages, eo.indexPrefix, eo.indexType)
 	if indexPrefixes == nil {
 		return
 	}

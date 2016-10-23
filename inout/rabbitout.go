@@ -23,8 +23,6 @@
 package inout
 
 import (
-	"encoding/json"
-
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/streadway/amqp"
 )
@@ -149,106 +147,13 @@ func (ro *rabbitOut) putMessages(messages []string, exchange, queue string) {
 	}
 }
 
-func (ro *rabbitOut) groupMessages(messages []string) map[string]map[string][]string {
-	defer recover()
-
-	var exchanges map[string]map[string][]string
-
-	if ro.exchangePath.IsStatic() && ro.queuePath.IsStatic() {
-		exchange, _, err := ro.exchangePath.Eval(nil, true)
-		if err != nil {
-			return nil
-		}
-
-		queue, _, err := ro.queuePath.Eval(nil, true)
-		if err != nil {
-			return nil
-		}
-
-		exchanges = make(map[string]map[string][]string)
-
-		queues := make(map[string][]string)
-		queues[queue] = messages
-
-		exchanges[exchange] = queues
-	} else {
-		var (
-			exchange string
-			queue    string
-		)
-
-		isExchangeStatic := ro.exchangePath.IsStatic()
-		isQueueStatic := ro.queuePath.IsStatic()
-
-		if isExchangeStatic {
-			s, _, err := ro.exchangePath.Eval(nil, true)
-			if err != nil || len(s) == 0 {
-				return nil
-			}
-			exchange = s
-		}
-
-		if isQueueStatic {
-			s, _, err := ro.queuePath.Eval(nil, true)
-			if err != nil {
-				return nil
-			}
-			queue = s
-		}
-
-		var (
-			ok          bool
-			queueList   []string
-			exchangeMap map[string][]string
-		)
-
-		exchanges = make(map[string]map[string][]string)
-
-		for _, msg := range messages {
-			if msg != "" {
-				var data interface{}
-
-				err := json.Unmarshal([]byte(msg), &data)
-				if err != nil {
-					continue
-				}
-
-				if !isExchangeStatic {
-					exchange, _, err = ro.exchangePath.Eval(data, true)
-					if err != nil || len(exchange) == 0 {
-						continue
-					}
-				}
-
-				if !isQueueStatic {
-					queue, _, err = ro.queuePath.Eval(data, true)
-					if err != nil {
-						continue
-					}
-				}
-
-				exchangeMap, ok = exchanges[exchange]
-				if !ok || exchangeMap == nil {
-					exchangeMap = make(map[string][]string)
-					exchanges[exchange] = exchangeMap
-				}
-
-				queueList, _ = exchangeMap[queue]
-				exchangeMap[queue] = append(queueList, msg)
-			}
-		}
-	}
-	return exchanges
-}
-
 func (ro *rabbitOut) funcPutMessages(messages []string, channel string) {
 	if len(messages) == 0 {
 		return
 	}
-
 	defer recover()
 
-	exchanges := ro.groupMessages(messages)
+	exchanges := ro.groupMessages(messages, ro.exchangePath, ro.queuePath)
 	if len(exchanges) == 0 {
 		return
 	}

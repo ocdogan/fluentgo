@@ -24,7 +24,6 @@ package inout
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -219,106 +218,13 @@ func (s3o *s3Out) putMessages(messages []string, bucket, filename string) {
 	}
 }
 
-func (s3o *s3Out) groupMessages(messages []string) map[string]map[string][]string {
-	defer recover()
-
-	var buckets map[string]map[string][]string
-
-	if s3o.bucket.IsStatic() && s3o.prefix.IsStatic() {
-		bucket, _, err := s3o.bucket.Eval(nil, true)
-		if err != nil {
-			return nil
-		}
-
-		prefix, _, err := s3o.prefix.Eval(nil, true)
-		if err != nil {
-			return nil
-		}
-
-		buckets = make(map[string]map[string][]string)
-
-		prefixes := make(map[string][]string)
-		prefixes[prefix] = messages
-
-		buckets[bucket] = prefixes
-	} else {
-		var (
-			bucket string
-			prefix string
-		)
-
-		isBucketStatic := s3o.bucket.IsStatic()
-		isPrefixStatic := s3o.prefix.IsStatic()
-
-		if isBucketStatic {
-			s, _, err := s3o.bucket.Eval(nil, true)
-			if err != nil || len(s) == 0 {
-				return nil
-			}
-			bucket = s
-		}
-
-		if isPrefixStatic {
-			s, _, err := s3o.prefix.Eval(nil, true)
-			if err != nil {
-				return nil
-			}
-			prefix = s
-		}
-
-		var (
-			ok         bool
-			prefixList []string
-			bucketMap  map[string][]string
-		)
-
-		buckets = make(map[string]map[string][]string)
-
-		for _, msg := range messages {
-			if msg != "" {
-				var data interface{}
-
-				err := json.Unmarshal([]byte(msg), &data)
-				if err != nil {
-					continue
-				}
-
-				if !isBucketStatic {
-					bucket, _, err = s3o.bucket.Eval(data, true)
-					if err != nil || len(bucket) == 0 {
-						continue
-					}
-				}
-
-				if !isPrefixStatic {
-					prefix, _, err = s3o.prefix.Eval(data, true)
-					if err != nil {
-						continue
-					}
-				}
-
-				bucketMap, ok = buckets[bucket]
-				if !ok || bucketMap == nil {
-					bucketMap = make(map[string][]string)
-					buckets[bucket] = bucketMap
-				}
-
-				prefixList, _ = bucketMap[prefix]
-				bucketMap[prefix] = append(prefixList, msg)
-			}
-		}
-	}
-	return buckets
-}
-
 func (s3o *s3Out) funcPutMessages(messages []string, filename string) {
 	if len(messages) == 0 {
 		return
 	}
-
 	defer recover()
 
-	buckets := s3o.groupMessages(messages)
+	buckets := s3o.groupMessages(messages, s3o.bucket, s3o.prefix)
 	if buckets == nil {
 		return
 	}
