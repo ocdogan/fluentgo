@@ -113,7 +113,7 @@ func newKinesisOut(manager InOutManager, params map[string]interface{}) OutSende
 
 	ko.iotype = "KINESISOUT"
 
-	ko.runFunc = ko.funcRunAndWait
+	ko.runFunc = ko.waitComplete
 	ko.afterCloseFunc = ko.funcAfterClose
 	ko.getDestinationFunc = ko.funcGetObjectName
 	ko.sendChunkFunc = ko.funcPutMessages
@@ -212,21 +212,4 @@ func (ko *kinesisOut) getClient() *kinesis.Kinesis {
 		return ko.connFunc()
 	}
 	return ko.client
-}
-
-func (ko *kinesisOut) funcRunAndWait() {
-	defer func() {
-		recover()
-		l := ko.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'KINESISOUT'...")
-		}
-	}()
-
-	l := ko.GetLogger()
-	if l != nil {
-		l.Println("Starting 'KINESISOUT'...")
-	}
-
-	<-ko.completed
 }

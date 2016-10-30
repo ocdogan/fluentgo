@@ -117,7 +117,7 @@ func newS3Out(manager InOutManager, params map[string]interface{}) OutSender {
 
 	s3o.iotype = "S3OUT"
 
-	s3o.runFunc = s3o.funcRunAndWait
+	s3o.runFunc = s3o.waitComplete
 	s3o.afterCloseFunc = s3o.funcAfterClose
 	s3o.getDestinationFunc = s3o.funcGetObjectName
 	s3o.sendChunkFunc = s3o.funcPutMessages
@@ -243,21 +243,4 @@ func (s3o *s3Out) getClient() *s3.S3 {
 		s3o.client = s3.New(session.New(), s3o.getAwsConfig())
 	}
 	return s3o.client
-}
-
-func (s3o *s3Out) funcRunAndWait() {
-	defer func() {
-		recover()
-		l := s3o.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'S3OUT'...")
-		}
-	}()
-
-	l := s3o.GetLogger()
-	if l != nil {
-		l.Println("Starting 'S3OUT'...")
-	}
-
-	<-s3o.completed
 }

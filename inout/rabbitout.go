@@ -76,7 +76,7 @@ func newRabbitOut(manager InOutManager, params map[string]interface{}) OutSender
 
 	ro.iotype = "RABBITOUT"
 
-	ro.runFunc = ro.funcWait
+	ro.runFunc = ro.waitComplete
 	ro.connFunc = ro.funcSubscribe
 
 	ro.afterCloseFunc = rio.funcAfterClose
@@ -163,21 +163,4 @@ func (ro *rabbitOut) funcPutMessages(messages []string, channel string) {
 			ro.putMessages(msgs, exchange, queue)
 		}
 	}
-}
-
-func (ro *rabbitOut) funcWait() {
-	defer func() {
-		recover()
-		l := ro.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'RABBITOUT'...")
-		}
-	}()
-
-	l := ro.GetLogger()
-	if l != nil {
-		l.Println("Starting 'RABBITOUT'...")
-	}
-
-	<-ro.completed
 }

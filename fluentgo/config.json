@@ -49,7 +49,7 @@
                     { "name": "poolName", "value": "pubsub" },
                     { "name": "command", "value": "psubscribe" },                    
                     { "name": "compressed", "value": false },
-                    { "name": "server", "value": "logservice-pubsub.luv0j6.0001.euw1.cache.amazonaws.com:6379" },
+                    { "name": "server", "value": "localhost:6379" },
                     { "name": "password", "value": null },
                     { "name": "channel", "value": "logstas*" }
                 ]

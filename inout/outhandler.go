@@ -259,3 +259,20 @@ func (oh *outHandler) groupMessages(messages []string, primaryPath, secondaryPat
 	}
 	return primaries
 }
+
+func (oh *outHandler) waitComplete() {
+	defer func() {
+		recover()
+		l := oh.GetLogger()
+		if l != nil {
+			l.Printf("Stoping '%s'...\n", oh.iotype)
+		}
+	}()
+
+	l := oh.GetLogger()
+	if l != nil {
+		l.Printf("Starting '%s'...\n", oh.iotype)
+	}
+
+	<-oh.completed
+}

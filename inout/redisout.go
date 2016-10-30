@@ -76,7 +76,7 @@ func newRedisOut(manager InOutManager, params map[string]interface{}) OutSender 
 
 	ro.iotype = "REDISOUT"
 
-	ro.runFunc = ro.funcWait
+	ro.runFunc = ro.waitComplete
 	ro.connFunc = ro.funcPing
 
 	ro.afterCloseFunc = rio.funcAfterClose
@@ -201,21 +201,4 @@ func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
 			ro.putMessages(messages, channel)
 		}
 	}
-}
-
-func (ro *redisOut) funcWait() {
-	defer func() {
-		recover()
-		l := ro.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'REDISOUT'...")
-		}
-	}()
-
-	l := ro.GetLogger()
-	if l != nil {
-		l.Println("Starting 'REDISOUT'...")
-	}
-
-	<-ro.completed
 }

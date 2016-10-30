@@ -67,7 +67,7 @@ func newKafkaOut(manager InOutManager, params map[string]interface{}) OutSender 
 
 	ko.iotype = "KAFKAOUT"
 
-	ko.runFunc = ko.funcRunAndWait
+	ko.runFunc = ko.waitComplete
 	ko.afterCloseFunc = ko.funcAfterClose
 	ko.getDestinationFunc = ko.funcGetObjectName
 	ko.sendChunkFunc = ko.funcPutMessages
@@ -164,23 +164,6 @@ func (ko *kafkaOut) funcPutMessages(messages []string, topic string) {
 			ko.putMessages(messages, topic)
 		}
 	}
-}
-
-func (ko *kafkaOut) funcRunAndWait() {
-	defer func() {
-		recover()
-		l := ko.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'KAFKAOUT'...")
-		}
-	}()
-
-	l := ko.GetLogger()
-	if l != nil {
-		l.Println("Starting 'KAFKAOUT'...")
-	}
-
-	<-ko.completed
 }
 
 func (ko *kafkaOut) Connect() error {

@@ -45,7 +45,7 @@ func newStdOut(manager InOutManager, params map[string]interface{}) OutSender {
 
 	stdo.iotype = "STDOUT"
 
-	stdo.runFunc = stdo.funcRunAndWait
+	stdo.runFunc = stdo.waitComplete
 	stdo.afterCloseFunc = stdo.funcAfterClose
 	stdo.getDestinationFunc = stdo.funcGetObjectName
 	stdo.sendChunkFunc = stdo.funcOutMessages
@@ -71,21 +71,4 @@ func (stdo *stdOut) funcOutMessages(messages []string, indexName string) {
 			}
 		}
 	}
-}
-
-func (stdo *stdOut) funcRunAndWait() {
-	defer func() {
-		recover()
-		l := stdo.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'STDOUT'...")
-		}
-	}()
-
-	l := stdo.GetLogger()
-	if l != nil {
-		l.Println("Starting 'STDOUT'...")
-	}
-
-	<-stdo.completed
 }

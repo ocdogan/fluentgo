@@ -174,11 +174,11 @@ func (si *sqsIn) funcReceive() {
 				go func(sin *sqsIn, msg *sqs.Message, wg *sync.WaitGroup) {
 					defer wg.Done()
 
-					err := si.deleteMessage(msg)
+					err := sin.deleteMessage(msg)
 					if err == nil {
 						go sin.queueMessage([]byte(*msg.Body), maxMessageSize)
 					} else {
-						l := si.GetLogger()
+						l := sin.GetLogger()
 						if l != nil {
 							l.Println(err)
 						}

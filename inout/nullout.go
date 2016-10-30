@@ -43,7 +43,7 @@ func newNullOut(manager InOutManager, params map[string]interface{}) OutSender {
 
 	nullo.iotype = "NULLOUT"
 
-	nullo.runFunc = nullo.funcRunAndWait
+	nullo.runFunc = nullo.waitComplete
 	nullo.afterCloseFunc = nullo.funcAfterClose
 	nullo.getDestinationFunc = nullo.funcGetObjectName
 	nullo.sendChunkFunc = nullo.funcPutMessages
@@ -59,21 +59,4 @@ func (nullo *nullOut) funcGetObjectName() string {
 }
 
 func (nullo *nullOut) funcPutMessages(messages []string, indexName string) {
-}
-
-func (nullo *nullOut) funcRunAndWait() {
-	defer func() {
-		recover()
-		l := nullo.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'NULLOUT'...")
-		}
-	}()
-
-	l := nullo.GetLogger()
-	if l != nil {
-		l.Println("Starting 'NULLOUT'...")
-	}
-
-	<-nullo.completed
 }

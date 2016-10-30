@@ -75,7 +75,7 @@ func newSqsOut(manager InOutManager, params map[string]interface{}) OutSender {
 
 	sqso.iotype = "SQSOUT"
 
-	sqso.runFunc = sqso.funcRunAndWait
+	sqso.runFunc = sqso.waitComplete
 	sqso.afterCloseFunc = sqso.funcAfterClose
 	sqso.getDestinationFunc = sqso.funcGetObjectName
 	sqso.sendChunkFunc = sqso.funcPutMessages
@@ -173,21 +173,4 @@ func (sqso *sqsOut) getClient() *sqs.SQS {
 		return sqso.connFunc()
 	}
 	return sqso.client
-}
-
-func (sqso *sqsOut) funcRunAndWait() {
-	defer func() {
-		recover()
-		l := sqso.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'SQSOUT'...")
-		}
-	}()
-
-	l := sqso.GetLogger()
-	if l != nil {
-		l.Println("Starting 'SQSOUT'...")
-	}
-
-	<-sqso.completed
 }

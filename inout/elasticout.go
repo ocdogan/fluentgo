@@ -208,7 +208,7 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 
 	eo.iotype = "ELASTICOUT"
 
-	eo.runFunc = eo.funcWait
+	eo.runFunc = eo.waitComplete
 	eo.afterCloseFunc = eo.funcAfterClose
 	eo.getDestinationFunc = eo.funcDestination
 	eo.sendChunkFunc = eo.funcPutMessages
@@ -323,21 +323,4 @@ func (eo *elasticOut) funcPutMessages(messages []string, filename string) {
 			eo.putMessages(msgs, indexName, indexType)
 		}
 	}
-}
-
-func (eo *elasticOut) funcWait() {
-	defer func() {
-		recover()
-		l := eo.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'ELASTICOUT'...")
-		}
-	}()
-
-	l := eo.GetLogger()
-	if l != nil {
-		l.Println("Starting 'ELASTICOUT'...")
-	}
-
-	<-eo.completed
 }
