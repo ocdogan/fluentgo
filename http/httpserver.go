@@ -110,10 +110,10 @@ func SetRestError(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params, err erro
 	ctx.Response.Header.SetContentType("application/json")
 
 	restErr := &RestError{
-		Method:      string(ctx.Method()),
+		Method:      lib.BytesToString(ctx.Method()),
 		ErrorString: fmt.Sprint(err),
 		ErrorCode:   errCode,
-		Arguments:   RestErrorArgs{Query: string(ctx.URI().QueryString())},
+		Arguments:   RestErrorArgs{Query: lib.BytesToString(ctx.URI().QueryString())},
 	}
 
 	if prms != nil {
@@ -127,7 +127,7 @@ func SetRestError(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params, err erro
 	}
 
 	data, err := json.Marshal(restErr)
-	ctx.Error(string(data), errCode)
+	ctx.Error(lib.BytesToString(data), errCode)
 }
 
 func NotFound(ctx *fasthttp.RequestCtx) {

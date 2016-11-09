@@ -93,10 +93,12 @@ type InOutConfig struct {
 	Type        string             `json:"type,omitempty"`
 	Name        string             `json:"name,omitempty"`
 	Description string             `json:"description,omitempty"`
+	Filter      string             `json:"filter,omitempty"`
 	Params      []inOutParamConfig `json:"params,omitempty"`
 }
 
 type InputsConfig struct {
+	Filter      string        `json:"filter,omitempty"`
 	Queue       InQConfig     `json:"queue,omitempty"`
 	Buffer      BufferConfig  `json:"buffer,omitempty"`
 	OrphanFiles OrphanConfig  `json:"orphanFiles,omitempty"`
@@ -116,6 +118,7 @@ type OutputsConfig struct {
 	TimestampFormat  string        `json:"timestampFormat,omitempty"`
 	Path             string        `json:"dir,omitempty"`
 	Pattern          string        `json:"dataPattern,omitempty"`
+	Filter           string        `json:"filter,omitempty"`
 	FlushOnEverySec  time.Duration `json:"flushOnEverySec"`
 	SleepOnEverySec  time.Duration `json:"sleepOnEverySec"`
 	SleepForMillisec time.Duration `json:"sleepForMillisec"`

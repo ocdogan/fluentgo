@@ -29,14 +29,15 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/config"
 	httpsrv "github.com/ocdogan/fluentgo/http"
 	"github.com/ocdogan/fluentgo/inout"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 	"github.com/ocdogan/fluentgo/profiler"
 )
@@ -138,11 +139,74 @@ func getProfileURL(config *config.FluentConfig) string {
 	return strings.TrimSpace(url)
 }
 
+func getRandomProfileName(profile, extension string) (result string) {
+	if !(profile == "?" || profile == "*") {
+		return profile
+	}
+
+	if extension == "" {
+		extension = ".prof"
+	} else if extension[0] != '.' {
+		extension = "." + extension
+	}
+
+	defer recover()
+
+	dir, process := filepath.Split(os.Args[0])
+
+	var err error
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
+
+	ext := filepath.Ext(process)
+	if ext != "" {
+		process = process[0 : len(process)-len(ext)]
+	}
+
+	filenames, err := filepath.Glob(process + "_*" + extension)
+	if err != nil {
+		return ""
+	}
+
+	index := -1
+
+	if len(filenames) == 0 {
+		return fmt.Sprintf("%s_%06d%s", process, 1, extension)
+	}
+
+	filesMap := make(map[string]string, len(filenames))
+
+	for _, filename := range filenames {
+		pad := filename[len(process) : len(filename)-len(extension)]
+		if pad != "" {
+			filesMap[pad] = filename
+		}
+	}
+
+	for i := 0; i < len(filesMap); i++ {
+		_, ok := filesMap[fmt.Sprintf("%06d", i+1)]
+		if !ok {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		index = len(filesMap) + 2
+	}
+
+	return fmt.Sprintf("%s_%06d%s", process, index, extension)
+}
+
 func getMemProFile(config *config.FluentConfig) string {
 	proFile := *memproFile
 	if proFile == "" {
 		proFile = config.MemProfile
 	}
+
+	proFile = getRandomProfileName(proFile, "mprof")
 
 	if proFile != "" {
 		proFile = time.Now().Format(proFile)
@@ -155,6 +219,8 @@ func getCPUProFile(config *config.FluentConfig) string {
 	if proFile == "" {
 		proFile = config.CPUProfile
 	}
+
+	proFile = getRandomProfileName(proFile, "cprof")
 
 	if proFile != "" {
 		proFile = time.Now().Format(proFile)

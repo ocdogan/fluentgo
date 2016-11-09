@@ -37,18 +37,28 @@ type outQNode struct {
 	chunk []string
 }
 
+type privateQ struct {
+	sync.Mutex
+	idgen         uint32
+	nodeCount     int
+	chunkCount    int
+	maxChunkCount int
+	head          *outQNode
+	tail          *outQNode
+}
+
 type OutQueue struct {
 	sync.Mutex
-	idgen              uint32
-	nodeCount          int
-	count              int
-	maxCount           int
 	chunkSize          int
 	lastPop            time.Time
 	waitPopForMillisec time.Duration
-	head               *outQNode
-	tail               *outQNode
+	mainQ              *privateQ
+	spareQ             *privateQ
 }
+
+const (
+	maxSpareCount = 1000
+)
 
 func NewOutQueue(chunkSize, maxCount int, waitPopForMillisec time.Duration) *OutQueue {
 	chunkSize = lib.MinInt(500, lib.MaxInt(10, lib.MaxInt(0, chunkSize)))
@@ -61,20 +71,73 @@ func NewOutQueue(chunkSize, maxCount int, waitPopForMillisec time.Duration) *Out
 
 	return &OutQueue{
 		chunkSize:          chunkSize,
-		maxCount:           maxCount,
 		waitPopForMillisec: waitPopForMillisec,
 		lastPop:            time.Now(),
+		mainQ: &privateQ{
+			maxChunkCount: maxCount,
+		},
+		spareQ: &privateQ{
+			maxChunkCount: maxCount,
+		},
 	}
 }
 
-func (q *OutQueue) nextID() uint32 {
-	q.idgen++
-	id := q.idgen
+func (pq *privateQ) nextID() uint32 {
+	pq.idgen++
+	id := pq.idgen
 	if id == math.MaxUint32 {
-		q.idgen = 0
+		pq.idgen = 0
 	}
 
 	return id
+}
+
+func (pq *privateQ) popFromQ() *outQNode {
+	if pq.head != nil {
+		n := pq.head
+
+		pq.head = pq.head.next
+		n.next = nil
+
+		if pq.head != nil {
+			pq.head.prev = nil
+		} else {
+			pq.tail = nil
+		}
+
+		pq.nodeCount--
+		if pq.nodeCount < 0 {
+			pq.nodeCount = 0
+		}
+
+		if pq.nodeCount == 0 {
+			pq.head, pq.tail = nil, nil
+		}
+		return n
+	}
+	return nil
+}
+
+func (pq *privateQ) append(n *outQNode, chunkSize int) *outQNode {
+	if n == nil {
+		n = &outQNode{
+			id:    pq.nextID(),
+			prev:  pq.tail,
+			chunk: make([]string, 0, chunkSize),
+		}
+	} else if len(n.chunk) == 0 {
+		n.chunk = make([]string, 0, chunkSize)
+	}
+
+	if pq.tail == nil {
+		pq.head, pq.tail = n, n
+	} else {
+		pq.tail.next, pq.tail = n, n
+	}
+
+	pq.nodeCount++
+
+	return n
 }
 
 func (q *OutQueue) Push(data string) {
@@ -92,29 +155,19 @@ func (q *OutQueue) put(data string) {
 		return
 	}
 
-	n := q.tail
+	mq := q.mainQ
+
+	n := mq.tail
 	if n == nil || len(n.chunk) >= q.chunkSize {
-		n = &outQNode{
-			id:    q.nextID(),
-			prev:  q.tail,
-			chunk: make([]string, 0, q.chunkSize),
-		}
-
-		if q.tail == nil {
-			q.head, q.tail = n, n
-		} else {
-			q.tail.next, q.tail = n, n
-		}
-
-		q.nodeCount++
+		n = mq.append(q.spareQ.popFromQ(), q.chunkSize)
 	}
 
 	n.chunk = append(n.chunk, data)
-	q.count++
+	mq.chunkCount++
 
-	for q.maxCount > 0 &&
-		q.count > 1 &&
-		q.count > q.maxCount {
+	for mq.maxChunkCount > 0 &&
+		mq.chunkCount > 1 &&
+		mq.chunkCount > mq.maxChunkCount {
 		q.popData(true)
 	}
 }
@@ -128,7 +181,8 @@ func (q *OutQueue) CanPush() bool {
 }
 
 func (q *OutQueue) pushReady() bool {
-	return q.tail == nil || (q.count < q.maxCount)
+	mq := q.mainQ
+	return mq.tail == nil || (mq.chunkCount < mq.maxChunkCount)
 }
 
 func (q *OutQueue) CanPop() bool {
@@ -140,8 +194,8 @@ func (q *OutQueue) CanPop() bool {
 }
 
 func (q *OutQueue) popReady() bool {
-	return q.head != nil &&
-		(len(q.head.chunk) >= q.chunkSize ||
+	return q.mainQ.head != nil &&
+		(len(q.mainQ.head.chunk) >= q.chunkSize ||
 			(q.waitPopForMillisec > 0 && time.Now().Sub(q.lastPop) >= q.waitPopForMillisec))
 
 }
@@ -153,40 +207,41 @@ func (q *OutQueue) Pop(force bool) (chunk []string, ok bool) {
 	return q.popData(force)
 }
 
+func (q *OutQueue) pushToSpareQ(n *outQNode) {
+	if n != nil {
+		sq := q.spareQ
+		if sq.nodeCount < maxSpareCount {
+			if sq.tail == nil {
+				sq.head, sq.tail = n, n
+			} else {
+				sq.tail.next, sq.tail = n, n
+			}
+
+			sq.nodeCount++
+		}
+	}
+}
+
 func (q *OutQueue) popData(force bool) (chunk []string, ok bool) {
 	if !(force || q.popReady()) {
 		return nil, false
 	}
 
+	mq := q.mainQ
+	n := mq.popFromQ()
+
 	q.lastPop = time.Now()
-	if q.head != nil {
-		n := q.head
 
-		q.head = q.head.next
-		n.next = nil
-
-		if q.head != nil {
-			q.head.prev = nil
-		} else {
-			q.tail = nil
-		}
-
-		q.nodeCount--
-		if q.nodeCount < 0 {
-			q.nodeCount = 0
-		}
-
-		if q.nodeCount == 0 {
-			q.head, q.tail = nil, nil
-		}
-
+	if n != nil {
 		chunk = n.chunk
 		n.chunk = nil
 
-		q.count -= len(chunk)
-		if q.count < 0 {
-			q.count = 0
+		mq.chunkCount -= len(chunk)
+		if mq.chunkCount < 0 {
+			mq.chunkCount = 0
 		}
+
+		q.pushToSpareQ(n)
 
 		return chunk, true
 	}
@@ -199,7 +254,7 @@ func (q *OutQueue) ChunkSize() int {
 
 func (q *OutQueue) Count() int {
 	q.Lock()
-	count := q.count
+	count := q.mainQ.chunkCount
 	q.Unlock()
 
 	return count
@@ -207,7 +262,7 @@ func (q *OutQueue) Count() int {
 
 func (q *OutQueue) NodeCount() int {
 	q.Lock()
-	ncount := q.nodeCount
+	ncount := q.mainQ.nodeCount
 	q.Unlock()
 
 	return ncount

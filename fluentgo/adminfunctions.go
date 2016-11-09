@@ -30,6 +30,7 @@ import (
 	"github.com/buaazp/fasthttprouter"
 	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/http"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/valyala/fasthttp"
 )
 
@@ -62,7 +63,7 @@ func getConfig(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	}
 
 	ctx.Response.Header.SetContentType("application/json")
-	fmt.Fprint(ctx, string(data))
+	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
 func getInputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
@@ -87,7 +88,7 @@ func getInputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 		return
 	}
 
-	fmt.Fprint(ctx, string(data))
+	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
 func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
@@ -112,7 +113,7 @@ func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 		return
 	}
 
-	fmt.Fprint(ctx, string(data))
+	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
 func stopInput(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {

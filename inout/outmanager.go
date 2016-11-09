@@ -34,8 +34,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/config"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
 
@@ -70,6 +70,16 @@ type OutManager struct {
 	completedChansMux sync.Mutex
 	completedChans    []chan<- bool
 }
+
+type fileProcJob struct {
+	buffer   []byte
+	filename string
+}
+
+const (
+	minJobBufferSize = 1024
+	maxJobBufferSize = 1048576
+)
 
 var (
 	outputMethods = make(map[string]FuncNewOut)
@@ -390,6 +400,10 @@ func (m *OutManager) processFiles(filesProcessed chan<- bool) {
 
 		fileErrors := make(map[string]struct{})
 
+		job := &fileProcJob{
+			buffer: make([]byte, minJobBufferSize),
+		}
+
 		for m.Processing() {
 			if exists, _ := lib.PathExists(m.dataPath); !exists {
 				time.Sleep(5 * time.Second)
@@ -416,7 +430,9 @@ func (m *OutManager) processFiles(filesProcessed chan<- bool) {
 						lastSleepTime = time.Now()
 					}
 
-					m.processFile(fname)
+					job.filename = fname
+					m.processFile(job)
+
 					if ok, _ := lib.FileExists(fname); ok {
 						fileErrors[fname] = struct{}{}
 					}
@@ -447,19 +463,19 @@ func (m *OutManager) pushToQueue(data string) {
 	}
 }
 
-func (m *OutManager) processFile(filename string) {
+func (m *OutManager) processFile(job *fileProcJob) {
 	defer recover()
 
 	m.waitForPush()
 
-	f, err := os.OpenFile(filename, os.O_RDONLY, 0666)
+	f, err := os.OpenFile(job.filename, os.O_RDONLY, 0666)
 	if err != nil || f == nil {
 		f = nil
 		return
 	}
 
 	defer func() {
-		defer m.fileProcessed(filename)
+		defer m.fileProcessed(job.filename)
 		if f != nil {
 			f.Close()
 		}
@@ -516,19 +532,28 @@ func (m *OutManager) processFile(filename string) {
 		}
 
 		hasData = ln > 0
+		data = job.buffer
 
 		// Read message data
 		if hasData {
 			if m.maxMessageSize > 0 && ln > m.maxMessageSize {
+				data = nil
+
 				_, err = f.Seek(int64(ln), 1)
 				if err != nil {
 					break
 				}
 			} else {
 				if data == nil || ln > cap(data) {
-					data = make([]byte, ln)
+					capacity := 2*ln + minJobBufferSize
+					if capacity > maxJobBufferSize {
+						capacity = lib.MaxInt(maxJobBufferSize, ln+minJobBufferSize)
+					}
+
+					job.buffer = make([]byte, capacity)
+					data = job.buffer[0:ln]
 				} else {
-					data = data[0:ln]
+					data = job.buffer[0:ln]
 				}
 
 				n, err = f.Read(data)
@@ -555,7 +580,7 @@ func (m *OutManager) processFile(filename string) {
 
 		// Process message
 		if hasData {
-			m.pushToQueue(string(data))
+			m.pushToQueue(lib.BytesToString(data))
 		}
 
 		if !m.Processing() {
