@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,6 +39,17 @@ import (
 	"time"
 	"unsafe"
 )
+
+func IsTimeoutError(err error) bool {
+	if err != nil {
+		neterr, ok := err.(net.Error)
+		timeout := (ok && neterr.Timeout()) || strings.Contains(err.Error(), "timeout")
+		if timeout {
+			return true
+		}
+	}
+	return false
+}
 
 func BytesToString(b []byte) string {
 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))

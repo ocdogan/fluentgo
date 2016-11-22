@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/ocdogan/fluentgo/lib"
@@ -34,16 +35,18 @@ import (
 )
 
 type redisIO struct {
-	id       lib.UUID
-	db       int
-	command  string
-	server   string
-	password string
-	channel  string
-	poolName string
-	connFunc func(redis.Conn) error
-	conn     redis.Conn
-	logger   log.Logger
+	id               lib.UUID
+	db               int
+	command          string
+	server           string
+	password         string
+	channel          string
+	poolName         string
+	readTimeoutMSec  time.Duration
+	writeTimeoutMSec time.Duration
+	connFunc         func(redis.Conn) error
+	conn             redis.Conn
+	logger           log.Logger
 }
 
 func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
@@ -57,15 +60,17 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 	}
 
 	var (
-		ok       bool
-		db       int
-		f        float64
-		s        string
-		poolName string
-		command  string
-		server   string
-		channel  string
-		password string
+		ok           bool
+		db           int
+		f            float64
+		s            string
+		poolName     string
+		command      string
+		server       string
+		channel      string
+		password     string
+		readTimeout  time.Duration
+		writeTimeout time.Duration
 	)
 
 	s, ok = params["poolName"].(string)
@@ -104,15 +109,27 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 		db = lib.MinInt(15, lib.MaxInt(0, int(f)))
 	}
 
+	f, ok = params["readTimeoutMSec"].(float64)
+	if ok {
+		readTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(int(f))))
+	}
+
+	f, ok = params["writeTimeoutMSec"].(float64)
+	if ok {
+		writeTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(int(f))))
+	}
+
 	rio := &redisIO{
-		id:       *id,
-		db:       db,
-		command:  command,
-		server:   server,
-		poolName: poolName,
-		password: password,
-		channel:  channel,
-		logger:   logger,
+		id:               *id,
+		db:               db,
+		command:          command,
+		server:           server,
+		poolName:         poolName,
+		password:         password,
+		channel:          channel,
+		logger:           logger,
+		readTimeoutMSec:  readTimeout,
+		writeTimeoutMSec: writeTimeout,
 	}
 
 	return rio
@@ -231,7 +248,13 @@ func (rio *redisIO) Connect() {
 		}
 
 		connErr = nil
-		conn = getRedisConnection(rio.poolName, rio.server, rio.password)
+
+		var options []redis.DialOption
+
+		options = append(options, redis.DialReadTimeout(rio.readTimeoutMSec))
+		options = append(options, redis.DialWriteTimeout(rio.writeTimeoutMSec))
+
+		conn = getRedisConnection(rio.poolName, rio.server, rio.password, options...)
 
 		if conn == nil {
 			l := rio.logger

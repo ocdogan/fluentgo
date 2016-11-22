@@ -23,6 +23,7 @@
 package inout
 
 import (
+	"net"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
@@ -32,7 +33,7 @@ var (
 	pools = make(map[string]*redis.Pool)
 )
 
-func getRedisConnection(poolName, server, password string) redis.Conn {
+func getRedisConnection(poolName, server, password string, options ...redis.DialOption) redis.Conn {
 	key := poolName + ":" + server + ":" + password
 
 	pool, ok := pools[key]
@@ -41,7 +42,16 @@ func getRedisConnection(poolName, server, password string) redis.Conn {
 			MaxIdle:     3,
 			IdleTimeout: 240 * time.Second,
 			Dial: func() (redis.Conn, error) {
-				c, err := redis.Dial("tcp", server)
+				connOpt := redis.DialNetDial(func(network, address string) (net.Conn, error) {
+					var d net.Dialer
+					// You can set any TCP socket level option here,
+					// such as KeepAlive options, eighter via Dialer or via returned net.Conn
+					return d.Dial(network, address)
+				})
+
+				options = append(options, connOpt)
+
+				c, err := redis.Dial("tcp", server, options...)
 				if err != nil {
 					return nil, err
 				}

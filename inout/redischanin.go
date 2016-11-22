@@ -32,7 +32,8 @@ import (
 type redisChanIn struct {
 	redisIO
 	inHandler
-	pConn *redis.PubSubConn
+	pConn            *redis.PubSubConn
+	pingAfterTimeout bool
 }
 
 func init() {
@@ -58,9 +59,12 @@ func newRedisChanIn(manager InOutManager, params map[string]interface{}) InProvi
 			rio.command = cmd
 		}
 
+		pat, _ := params["pingAfterTimeout"].(bool)
+
 		ri := &redisChanIn{
-			redisIO:   *rio,
-			inHandler: *ih,
+			redisIO:          *rio,
+			inHandler:        *ih,
+			pingAfterTimeout: pat,
 		}
 
 		ri.iotype = "REDISCHANIN"
@@ -162,6 +166,12 @@ func (ri *redisChanIn) funcReceive() {
 				}
 			case error:
 				if !completed {
+					if lib.IsTimeoutError(m) {
+						if ri.pingAfterTimeout {
+							ri.ping(ri.conn)
+						}
+						continue
+					}
 					l := ri.GetLogger()
 					if l != nil {
 						l.Println(m)

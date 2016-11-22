@@ -31,15 +31,6 @@ import (
 	"github.com/ocdogan/fluentgo/lib"
 )
 
-type RedisConfig struct {
-	Compressed     bool   `json:"compressed"`
-	PSubscribe     bool   `json:"psubscribe"`
-	Server         string `json:"server,omitempty"`
-	Password       string `json:"password,omitempty"`
-	Channel        string `json:"channel,omitempty"`
-	MaxMessageSize int    `json:"maxMessageSize"`
-}
-
 type InQConfig struct {
 	MaxCount int    `json:"maxCount"`
 	MaxSize  uint64 `json:"maxSize"`

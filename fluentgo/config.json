@@ -1,5 +1,6 @@
 {
     "serviceMode": "inout",
+    "memprofile": "",
     "log": {
         "enabled": true,
         "console": true,
@@ -51,7 +52,10 @@
                     { "name": "compressed", "value": false },
                     { "name": "server", "value": "localhost:6379" },
                     { "name": "password", "value": null },
-                    { "name": "channel", "value": "logstas*" }
+                    { "name": "channel", "value": "logstas*" },
+                    { "name": "readTimeoutMSec", "value": 5000 },
+                    { "name": "writeTimeoutMSec", "value": 0 },
+                    { "name": "pingAfterTimeout", "value": true }
                 ]
             },
             {
@@ -63,7 +67,9 @@
                     { "name": "compressed", "value": false },
                     { "name": "server", "value": "localhost:6379" },
                     { "name": "password", "value": null },
-                    { "name": "channel", "value": "mylist" }
+                    { "name": "channel", "value": "mylist" },
+                    { "name": "readTimeoutMSec", "value": 0 },
+                    { "name": "writeTimeoutMSec", "value": 0 }
                 ]
             },
             { 
