@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -64,9 +65,11 @@ func newUDPIn(manager InOutManager, params map[string]interface{}) InProvider {
 		return nil
 	}
 
-	bufferSize := int(math.MaxInt16)
-	if f, ok := params["bufferSize"].(float64); ok {
-		bufferSize = lib.MinInt(int(math.MaxUint16), lib.MaxInt(1024, int(f)))
+	bufferSize, ok := config.ParamAsInt(params, "bufferSize")
+	if !ok {
+		bufferSize = int(math.MaxInt16)
+	} else {
+		bufferSize = lib.MinInt(int(math.MaxUint16), lib.MaxInt(1024, bufferSize))
 	}
 
 	uin := &udpIn{

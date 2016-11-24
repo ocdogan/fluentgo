@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 	"github.com/streadway/amqp"
@@ -67,122 +68,65 @@ func newRabbitIO(logger log.Logger, params map[string]interface{}) *rabbitIO {
 		return nil
 	}
 
-	var (
-		ok           bool
-		port         int
-		f            float64
-		s            string
-		host         string
-		vhost        string
-		username     string
-		password     string
-		queue        string
-		key          string
-		tag          string
-		exchange     string
-		exchangeType string
-		contentType  string
-		timeout      time.Duration
-	)
-
-	s, ok = params["queue"].(string)
-	if ok {
-		queue = strings.TrimSpace(s)
-	}
-	if queue == "" {
+	queue, ok := config.ParamAsString(params, "queue")
+	if !ok || queue == "" {
 		return nil
 	}
 
-	s, ok = params["key"].(string)
-	if ok {
-		key = strings.TrimSpace(s)
-	}
-	if key == "" {
+	key, ok := config.ParamAsString(params, "key")
+	if !ok || key == "" {
 		return nil
 	}
 
-	s, ok = params["tag"].(string)
-	if ok {
-		tag = strings.TrimSpace(s)
-	}
-
-	s, ok = params["exchange"].(string)
-	if ok {
-		exchange = strings.TrimSpace(s)
-	}
-	if exchange == "" {
+	exchange, ok := config.ParamAsString(params, "exchange")
+	if !ok || exchange == "" {
 		return nil
 	}
 
-	s, ok = params["exchangeType"].(string)
-	if ok {
-		exchangeType = strings.TrimSpace(s)
-	}
-	if exchangeType == "" {
+	exchangeType, ok := config.ParamAsString(params, "exchangeType")
+	if !ok || exchangeType == "" {
 		return nil
 	}
 
-	s, ok = params["host"].(string)
-	if ok {
-		host = strings.TrimSpace(s)
-	}
-	if host == "" {
+	host, ok := config.ParamAsString(params, "host")
+	if !ok || host == "" {
 		return nil
 	}
 
-	f, ok = params["port"].(float64)
+	tag, _ := config.ParamAsString(params, "tag")
+
+	port, ok := config.ParamAsInt(params, "port")
 	if !ok {
 		port = 5672
 	} else {
-		port = lib.MaxInt(math.MaxInt16, lib.MinInt(0, int(f)))
+		port = lib.MaxInt(math.MaxInt16, lib.MinInt(0, port))
 	}
 
-	f, ok = params["timeout"].(float64)
-	if ok {
-		timeout = time.Duration(lib.MaxInt(60, lib.MinInt(0, int(f))))
+	timeout, _ := config.ParamAsDuration(params, "timeout")
+	timeout = lib.MaxDuration(60, lib.MinDuration(0, timeout))
+
+	vhost, _ := config.ParamAsString(params, "vhost")
+
+	var password string
+	username, ok := config.ParamAsString(params, "username")
+	if ok && username != "" {
+		password, _ = config.ParamAsString(params, "password")
 	}
 
-	s, ok = params["vhost"].(string)
-	if ok {
-		vhost = strings.TrimSpace(s)
+	contentType, ok := config.ParamAsString(params, "contentType")
+	if ok && contentType != "" {
+		contentType = strings.ToLower(contentType)
 	}
 
-	s, ok = params["username"].(string)
-	if ok {
-		username = strings.TrimSpace(s)
-	}
-
-	s, ok = params["password"].(string)
-	if ok {
-		password = strings.TrimSpace(s)
-	}
-
-	contentType, ok = params["contentType"].(string)
-	if ok {
-		contentType = strings.ToLower(strings.TrimSpace(contentType))
-	}
-
-	var (
-		exchangeDeclare bool
-		queueBind       bool
-		durable         bool // durable
-		autoDelete      bool // delete when unused/complete
-		exclusive       bool // exclusive
-		nowait          bool // no-wait
-		autoAck         bool
-		internal        bool
-		noLocal         bool
-	)
-
-	exchangeDeclare, ok = params["exchangeDeclare"].(bool)
-	queueBind, ok = params["queueBind"].(bool)
-	durable, ok = params["durable"].(bool)
-	autoDelete, ok = params["autoDelete"].(bool)
-	exclusive, ok = params["exclusive"].(bool)
-	nowait, ok = params["nowait"].(bool)
-	internal, ok = params["internal"].(bool)
-	autoAck, ok = params["autoAck"].(bool)
-	noLocal, ok = params["noLocal"].(bool)
+	exchangeDeclare, _ := config.ParamAsBool(params, "exchangeDeclare")
+	queueBind, _ := config.ParamAsBool(params, "queueBind")
+	durable, _ := config.ParamAsBool(params, "durable")
+	autoDelete, _ := config.ParamAsBool(params, "autoDelete")
+	exclusive, _ := config.ParamAsBool(params, "exclusive")
+	nowait, _ := config.ParamAsBool(params, "nowait")
+	internal, _ := config.ParamAsBool(params, "internal")
+	autoAck, _ := config.ParamAsBool(params, "autoAck")
+	noLocal, _ := config.ParamAsBool(params, "noLocal")
 
 	rio := &rabbitIO{
 		host:            host,

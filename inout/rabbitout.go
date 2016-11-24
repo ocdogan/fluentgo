@@ -23,6 +23,7 @@
 package inout
 
 import (
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/streadway/amqp"
 )
@@ -62,8 +63,8 @@ func newRabbitOut(manager InOutManager, params map[string]interface{}) OutSender
 		return nil
 	}
 
-	mandatory, _ := params["mandatory"].(bool)
-	immediate, _ := params["immediate"].(bool)
+	mandatory, _ := config.ParamAsBool(params, "mandatory")
+	immediate, _ := config.ParamAsBool(params, "immediate")
 
 	ro := &rabbitOut{
 		rabbitIO:     *rio,

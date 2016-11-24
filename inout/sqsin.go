@@ -29,6 +29,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/ocdogan/fluentgo/config"
 )
 
 type sqsIn struct {
@@ -54,26 +55,16 @@ func newSqsIn(manager InOutManager, params map[string]interface{}) InProvider {
 		return nil
 	}
 
-	var (
-		f  float64
-		ok bool
-	)
-
-	waitTimeSeconds := int64(0)
-	if f, ok = params["waitTimeSeconds"].(float64); ok {
-		waitTimeSeconds = int64(f)
-	}
+	waitTimeSeconds, ok := config.ParamAsInt64(params, "waitTimeSeconds")
 	if !ok || waitTimeSeconds < 0 {
 		waitTimeSeconds = 0
 	}
 
-	maxNumberOfMessages := int64(10)
-	if f, ok = params["maxNumberOfMessages"].(float64); ok {
-		maxNumberOfMessages = int64(f)
-	} else if !ok {
+	maxNumberOfMessages, ok := config.ParamAsInt64(params, "maxNumberOfMessages")
+	if !ok {
 		maxNumberOfMessages = 10
 	}
-	if !ok || maxNumberOfMessages < 1 {
+	if maxNumberOfMessages < 1 {
 		maxNumberOfMessages = 1
 	}
 

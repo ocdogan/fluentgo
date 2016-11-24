@@ -26,6 +26,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
@@ -58,31 +59,24 @@ func newBaseIO(manager InOutManager, params map[string]interface{}) *baseIO {
 
 	var ok bool
 	if params != nil {
-		enabled, ok = params["enabled"].(bool)
+		enabled, ok = config.ParamAsBool(params, "enabled")
 		if !ok {
 			enabled = true
 		}
 
-		compressed, _ = params["compressed"].(bool)
+		compressed, _ = config.ParamAsBool(params, "compressed")
 
 		var s string
-		if s, ok = params["compressType"].(string); ok {
-			s = strings.TrimSpace(s)
-			if s != "" {
-				s = strings.ToLower(s)
-				if s == "zip" {
-					compressType = lib.CtZip
-				}
+		s, ok = config.ParamAsString(params, "compressType")
+		if ok && s != "" {
+			s = strings.ToLower(s)
+			if s == "zip" {
+				compressType = lib.CtZip
 			}
 		}
 
-		if name, ok = params["@name"].(string); ok {
-			name = strings.TrimSpace(s)
-		}
-
-		if description, ok = params["@description"].(string); ok {
-			description = strings.TrimSpace(s)
-		}
+		name, _ = config.ParamAsString(params, "@name")
+		description, _ = config.ParamAsString(params, "@description")
 	}
 
 	return &baseIO{

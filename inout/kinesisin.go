@@ -23,12 +23,12 @@
 package inout
 
 import (
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -56,33 +56,18 @@ func newKinesisIn(manager InOutManager, params map[string]interface{}) InProvide
 		return nil
 	}
 
-	var (
-		ok            bool
-		f             float64
-		shardIterator string
-		streamName    string
-	)
-
-	streamName, ok = params["streamName"].(string)
-	if ok {
-		streamName = strings.TrimSpace(streamName)
-	}
-	if streamName == "" {
+	streamName, ok := config.ParamAsString(params, "streamName")
+	if !ok || streamName == "" {
 		return nil
 	}
 
-	shardIterator, ok = params["shardIterator"].(string)
-	if ok {
-		shardIterator = strings.TrimSpace(shardIterator)
-	}
-	if shardIterator == "" {
+	shardIterator, ok := config.ParamAsString(params, "shardIterator")
+	if !ok || shardIterator == "" {
 		return nil
 	}
 
-	limit := int64(1)
-	if f, ok = params["limit"].(float64); ok {
-		limit = lib.MaxInt64(int64(f), 1)
-	}
+	limit, _ := config.ParamAsInt64(params, "limit")
+	limit = lib.MaxInt64(limit, 1)
 
 	ki := &kinesisIn{
 		kinesisIO:     *kio,

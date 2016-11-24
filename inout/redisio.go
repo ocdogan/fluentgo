@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
@@ -63,7 +64,6 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 		ok           bool
 		db           int
 		f            float64
-		s            string
 		poolName     string
 		command      string
 		server       string
@@ -73,50 +73,34 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 		writeTimeout time.Duration
 	)
 
-	s, ok = params["poolName"].(string)
-	if ok {
-		poolName = strings.TrimSpace(s)
-	}
-
-	s, ok = params["server"].(string)
-	if ok {
-		server = strings.TrimSpace(s)
-	}
-	if server == "" {
+	server, ok = config.ParamAsString(params, "server")
+	if !ok || server == "" {
 		return nil
 	}
 
-	s, ok = params["channel"].(string)
-	if ok {
-		channel = strings.TrimSpace(s)
-	}
-	if channel == "" {
+	channel, ok = config.ParamAsString(params, "channel")
+	if !ok || channel == "" {
 		return nil
 	}
 
-	s, ok = params["password"].(string)
-	if ok {
-		password = strings.TrimSpace(s)
-	}
+	poolName, _ = config.ParamAsString(params, "poolName")
 
-	s, ok = params["command"].(string)
-	if ok {
-		command = strings.ToUpper(strings.TrimSpace(s))
-	}
+	password, _ = config.ParamAsString(params, "password")
+	command, _ = config.ParamAsString(params, "command")
 
-	f, ok = params["db"].(float64)
+	db, ok = config.ParamAsInt(params, "db")
 	if ok {
 		db = lib.MinInt(15, lib.MaxInt(0, int(f)))
 	}
 
-	f, ok = params["readTimeoutMSec"].(float64)
+	readTimeout, ok = config.ParamAsDuration(params, "readTimeoutMSec")
 	if ok {
-		readTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(int(f))))
+		readTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(readTimeout)))
 	}
 
-	f, ok = params["writeTimeoutMSec"].(float64)
+	writeTimeout, ok = config.ParamAsDuration(params, "writeTimeout")
 	if ok {
-		writeTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(int(f))))
+		writeTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(writeTimeout)))
 	}
 
 	rio := &redisIO{

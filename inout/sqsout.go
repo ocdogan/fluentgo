@@ -27,6 +27,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -53,10 +54,7 @@ func newSqsOut(manager InOutManager, params map[string]interface{}) OutSender {
 		return nil
 	}
 
-	delaySeconds := int64(0)
-	if f, ok := params["delaySeconds"].(float64); ok {
-		delaySeconds = int64(f)
-	}
+	delaySeconds, _ := config.ParamAsInt64(params, "delaySeconds")
 	if delaySeconds < 0 {
 		delaySeconds = 0
 	}

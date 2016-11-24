@@ -26,6 +26,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path"
+	"strings"
+	"time"
 )
 
 var (
@@ -69,4 +71,155 @@ func LoadConfig(configFile string) *FluentConfig {
 	configs[configFile] = config
 
 	return config
+}
+
+func ParamAsBool(params map[string]interface{}, param string) (result bool, ok bool) {
+	if params != nil {
+		result, ok = params[param].(bool)
+	}
+	return
+}
+
+func ParamAsDuration(params map[string]interface{}, param string) (result time.Duration, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = time.Duration(f)
+		}
+	}
+	return
+}
+
+func ParamAsDurationLimited(params map[string]interface{}, param string, min time.Duration, max time.Duration) (result time.Duration, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = time.Duration(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsFloat(params map[string]interface{}, param string) (result float64, ok bool) {
+	if params != nil {
+		result, ok = params[param].(float64)
+	}
+	return
+}
+
+func ParamAsFloatLimited(params map[string]interface{}, param string, min float64, max float64) (result float64, ok bool) {
+	if params != nil {
+		result, ok = params[param].(float64)
+		if ok {
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsInt(params map[string]interface{}, param string) (result int, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = int(f)
+		}
+	}
+	return
+}
+
+func ParamAsIntLimited(params map[string]interface{}, param string, min int, max int) (result int, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = int(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsInt32(params map[string]interface{}, param string) (result int32, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = int32(f)
+		}
+	}
+	return
+}
+
+func ParamAsInt32Limited(params map[string]interface{}, param string, min int32, max int32) (result int32, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = int32(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsInt64(params map[string]interface{}, param string) (result int64, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = int64(f)
+		}
+	}
+	return
+}
+
+func ParamAsInt64Limited(params map[string]interface{}, param string, min int64, max int64) (result int64, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = int64(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsString(params map[string]interface{}, param string) (result string, ok bool) {
+	if params != nil {
+		result, ok = params[param].(string)
+		if ok {
+			result = strings.TrimSpace(result)
+		}
+	}
+	return
 }

@@ -51,87 +51,54 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 		return nil
 	}
 
-	var (
-		s  string
-		ok bool
-	)
-
-	s, ok = params["url"].(string)
-	if !ok {
-		return nil
-	}
-	url := strings.TrimSpace(s)
-	if url == "" {
+	url, ok := config.ParamAsString(params, "url")
+	if !ok || url == "" {
 		return nil
 	}
 
 	var opts []elastic.ClientOptionFunc
 	opts = append(opts, elastic.SetURL(url))
 
-	s, ok = params["userName"].(string)
-	if ok {
-		user := strings.TrimSpace(s)
-		if user != "" {
-			s, ok = params["password"].(string)
-			if ok {
-				pwd := strings.TrimSpace(s)
-				if pwd != "" {
-					opts = append(opts, elastic.SetBasicAuth(user, pwd))
-				}
-			}
+	user, ok := config.ParamAsString(params, "userName")
+	if ok && user != "" {
+		pwd, ok := config.ParamAsString(params, "password")
+		if ok && pwd != "" {
+			opts = append(opts, elastic.SetBasicAuth(user, pwd))
 		}
 	}
 
-	var (
-		b  bool
-		i  int
-		f  float64
-		d  time.Duration
-		lg log.Logger
-	)
-
-	if b, ok = params["compression"].(bool); !ok {
-		b = false
-	}
-	opts = append(opts, elastic.SetGzip(b))
-
-	s, ok = params["index.prefix"].(string)
+	compression, ok := config.ParamAsBool(params, "compression")
 	if !ok {
-		s = "logstash-"
+		compression = false
+	}
+	opts = append(opts, elastic.SetGzip(compression))
+
+	prefix, ok := config.ParamAsString(params, "index.prefix")
+	if !ok || prefix == "" {
+		prefix = "logstash-"
 	} else {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			s = "logstash-"
-		} else {
-			s = strings.ToLower(s)
-			if s[len(s)-1] != '-' {
-				s += "-"
-			}
+		prefix = strings.ToLower(prefix)
+		if prefix[len(prefix)-1] != '-' {
+			prefix += "-"
 		}
 	}
-	indexPrefix := lib.NewJsonPath(s)
+	indexPrefix := lib.NewJsonPath(prefix)
 
-	s, ok = params["index.type"].(string)
-	if !ok {
-		s = "elasticout"
+	idxtype, ok := config.ParamAsString(params, "index.type")
+	if !ok || idxtype == "" {
+		idxtype = "elasticout"
 	} else {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			s = "elasticout"
-		} else {
-			s = strings.ToLower(s)
-		}
+		idxtype = strings.ToLower(idxtype)
 	}
-	indexType := lib.NewJsonPath(s)
+	indexType := lib.NewJsonPath(idxtype)
 
-	i = 0
-	if f, ok = params["maxRetries"].(float64); ok {
-		i = int(f)
+	maxRetries, ok := config.ParamAsInt(params, "maxRetries")
+	if !ok || maxRetries < 1 {
+		maxRetries = 1
 	}
-	if !ok || i < 1 {
-		i = 1
-	}
-	opts = append(opts, elastic.SetMaxRetries(lib.MinInt(50, i)))
+	opts = append(opts, elastic.SetMaxRetries(lib.MinInt(50, maxRetries)))
+
+	var lg log.Logger
 
 	lg = newLoggerForParams(params, "error")
 	opts = append(opts, elastic.SetErrorLog(lg))
@@ -142,56 +109,38 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 	lg = newLoggerForParams(params, "trace")
 	opts = append(opts, elastic.SetTraceLog(lg))
 
-	b, ok = params["healthcheck.enabled"].(bool)
-	opts = append(opts, elastic.SetHealthcheck(ok && b))
+	hcenabled, ok := config.ParamAsBool(params, "healthcheck.enabled")
+	opts = append(opts, elastic.SetHealthcheck(ok && hcenabled))
 
-	if ok && b {
-		i = 0
-		if f, ok = params["healthcheck.timeout"].(float64); ok {
-			i = int(f)
-		}
-		d = time.Duration(lib.MinInt(60, lib.MaxInt(1, i))) * time.Second
-		opts = append(opts, elastic.SetHealthcheckTimeout(d))
+	if ok && hcenabled {
+		hctimeout, _ := config.ParamAsDuration(params, "healthcheck.timeout")
+		hctimeout = lib.MaxDuration(60, lib.MaxDuration(1, hctimeout)) * time.Second
+		opts = append(opts, elastic.SetHealthcheckTimeout(hctimeout))
 
-		i = 0
-		if f, ok = params["healthcheck.interval"].(float64); ok {
-			i = int(f)
-		}
-		d = time.Duration(lib.MinInt(300, lib.MaxInt(5, i))) * time.Second
-		opts = append(opts, elastic.SetHealthcheckInterval(d))
+		hcinterval, _ := config.ParamAsDuration(params, "healthcheck.interval")
+		hcinterval = lib.MaxDuration(300, lib.MaxDuration(5, hcinterval)) * time.Second
+		opts = append(opts, elastic.SetHealthcheckInterval(hcinterval))
 
-		i = 0
-		if f, ok = params["healthcheck.timeoutStartup"].(float64); ok {
-			i = int(f)
-		}
-		d = time.Duration(lib.MinInt(300, lib.MaxInt(5, i))) * time.Second
-		opts = append(opts, elastic.SetHealthcheckTimeoutStartup(d))
+		hctimeoutStartup, _ := config.ParamAsDuration(params, "healthcheck.timeoutStartup")
+		hctimeoutStartup = lib.MaxDuration(300, lib.MaxDuration(5, hctimeoutStartup)) * time.Second
+		opts = append(opts, elastic.SetHealthcheckTimeoutStartup(hctimeoutStartup))
 	}
 
-	b, ok = params["sniffing.enabled"].(bool)
-	opts = append(opts, elastic.SetSniff(ok && b))
+	snenabled, ok := config.ParamAsBool(params, "sniffing.enabled")
+	opts = append(opts, elastic.SetSniff(ok && snenabled))
 
-	if ok && b {
-		i = 0
-		if f, ok = params["sniffing.timeout"].(float64); ok {
-			i = int(f)
-		}
-		d = time.Duration(lib.MinInt(60, lib.MaxInt(1, i))) * time.Second
-		opts = append(opts, elastic.SetSnifferTimeout(d))
+	if ok && snenabled {
+		sntimeout, _ := config.ParamAsDuration(params, "sniffing.timeout")
+		sntimeout = lib.MaxDuration(60, lib.MaxDuration(1, sntimeout)) * time.Second
+		opts = append(opts, elastic.SetSnifferTimeout(sntimeout))
 
-		i = 0
-		if f, ok = params["sniffing.interval"].(float64); ok {
-			i = int(f)
-		}
-		d = time.Duration(lib.MinInt(300, lib.MaxInt(5, i))) * time.Second
-		opts = append(opts, elastic.SetSnifferInterval(d))
+		sninterval, _ := config.ParamAsDuration(params, "sniffing.interval")
+		sninterval = lib.MaxDuration(300, lib.MaxDuration(5, sninterval)) * time.Second
+		opts = append(opts, elastic.SetSnifferInterval(sninterval))
 
-		i = 0
-		if f, ok = params["sniffing.timeoutStartup"].(float64); ok {
-			i = int(f)
-		}
-		d = time.Duration(lib.MinInt(300, lib.MaxInt(5, i))) * time.Second
-		opts = append(opts, elastic.SetSnifferTimeoutStartup(d))
+		sntimeoutStartup, _ := config.ParamAsDuration(params, "sniffing.timeoutStartup")
+		sntimeoutStartup = lib.MaxDuration(300, lib.MaxDuration(5, sntimeoutStartup)) * time.Second
+		opts = append(opts, elastic.SetSnifferTimeoutStartup(sntimeoutStartup))
 	}
 
 	client, err := elastic.NewClient(opts...)
@@ -223,15 +172,8 @@ func newLoggerForParams(params map[string]interface{}, paramType string) log.Log
 
 	paramType = fmt.Sprintf("logging.%s.", paramType)
 
-	var (
-		i     int
-		f     float64
-		s     string
-		b, ok bool
-	)
-
-	b, ok = params[paramType+"enabled"].(bool)
-	if !ok || !b {
+	enabled, ok := config.ParamAsBool(params, paramType+"enabled")
+	if !ok || !enabled {
 		return nil
 	}
 
@@ -239,22 +181,12 @@ func newLoggerForParams(params map[string]interface{}, paramType string) log.Log
 		Enabled: true,
 	}
 
-	s, ok = params[paramType+"path"].(string)
-	if ok {
-		lc.Path = strings.TrimSpace(s)
-	}
+	lc.Path, ok = config.ParamAsString(params, paramType+"path")
+	lc.Type, ok = config.ParamAsString(params, paramType+"type")
 
-	s, ok = params[paramType+"type"].(string)
-	if ok {
-		lc.Type = strings.TrimSpace(s)
-	}
-
-	i = 0
-	if f, ok = params[paramType+"rollingSize"].(float64); ok {
-		i = int(f)
-	}
-	if i > 0 {
-		lc.RollingSize = i
+	rollingSize, ok := config.ParamAsInt(params, paramType+"rollingSize")
+	if ok && rollingSize > 0 {
+		lc.RollingSize = rollingSize
 	}
 
 	return log.NewLogger(lc)

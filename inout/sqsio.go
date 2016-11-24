@@ -28,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/ocdogan/fluentgo/config"
 )
 
 type sqsIO struct {
@@ -66,17 +67,11 @@ func newSqsIO(manager InOutManager, params map[string]interface{}) *sqsIO {
 		}
 	}
 
-	var (
-		queueURL string
-	)
-
-	queueURL, ok = params["queueURL"].(string)
-	if ok {
-		queueURL = strings.TrimSpace(queueURL)
-	}
-	if queueURL == "" {
+	queueURL, ok := config.ParamAsString(params, "queueURL")
+	if !ok || queueURL == "" {
 		return nil
 	}
+
 	sio := &sqsIO{
 		awsIO:      *awsio,
 		queueURL:   queueURL,

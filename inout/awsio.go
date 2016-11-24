@@ -27,6 +27,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
@@ -51,50 +52,37 @@ func newAwsIO(manager InOutManager, params map[string]interface{}) *awsIO {
 		region          string
 	)
 
-	region, ok = params["region"].(string)
-	if ok {
-		region = strings.TrimSpace(region)
-	}
-	if region == "" {
+	region, ok = config.ParamAsString(params, "region")
+	if !ok || region == "" {
 		return nil
 	}
 
-	accessKeyID, ok = params["accessKeyID"].(string)
+	accessKeyID, ok = config.ParamAsString(params, "accessKeyID")
 	if ok {
 		accessKeyID = strings.TrimSpace(accessKeyID)
 		if accessKeyID != "" {
-			secretAccessKey, ok = params["secretAccessKey"].(string)
+			secretAccessKey, ok = config.ParamAsString(params, "secretAccessKey")
 			if ok {
 				secretAccessKey = strings.TrimSpace(secretAccessKey)
 			}
 		}
 	}
 
-	token, ok = params["sessionToken"].(string)
-	if ok {
-		token = strings.TrimSpace(token)
-	}
+	token, _ = config.ParamAsString(params, "sessionToken")
 
-	var (
-		f          float64
-		disableSSL bool
-	)
-
-	if disableSSL, ok = params["disableSSL"].(bool); !ok {
+	disableSSL, ok := config.ParamAsBool(params, "disableSSL")
+	if !ok {
 		disableSSL = false
 	}
 
-	maxRetries := 0
-	if f, ok = params["maxRetries"].(float64); ok {
-		maxRetries = int(f)
-	}
+	maxRetries, ok := config.ParamAsInt(params, "maxRetries")
 	if !ok || maxRetries < 1 {
 		maxRetries = 1
 	}
 
-	logLevel := 0
-	if f, ok = params["logLevel"].(float64); ok {
-		logLevel = lib.MaxInt(int(f), 0)
+	logLevel, ok := config.ParamAsInt(params, "logLevel")
+	if ok {
+		logLevel = lib.MaxInt(logLevel, 0)
 	}
 
 	awsio := &awsIO{

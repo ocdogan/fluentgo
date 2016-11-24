@@ -27,10 +27,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strings"
 	"sync/atomic"
 
 	"github.com/buaazp/fasthttprouter"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 	"github.com/valyala/fasthttp"
@@ -56,6 +56,7 @@ func NewHttpServer(routing *HttpRouter, logger log.Logger, params map[string]int
 	}
 
 	var (
+		ok        bool
 		addr      string
 		certFile  string
 		keyFile   string
@@ -63,22 +64,20 @@ func NewHttpServer(routing *HttpRouter, logger log.Logger, params map[string]int
 		verifySsl bool
 	)
 
-	if s, ok := params["addr"].(string); ok {
-		addr = strings.TrimSpace(s)
-	}
-	if addr == "" {
+	addr, ok = config.ParamAsString(params, "addr")
+	if !ok || addr == "" {
 		addr = ":8080"
 	}
 
-	if s, ok := params["certFile"].(string); ok {
-		certFile = lib.PrepareFile(s)
+	if certFile, ok := config.ParamAsString(params, "certFile"); ok {
+		certFile = lib.PrepareFile(certFile)
 		if certFile != "" {
-			if s, ok := params["keyFile"].(string); ok {
-				keyFile = lib.PrepareFile(s)
+			if keyFile, ok := config.ParamAsString(params, "keyFile"); ok {
+				keyFile = lib.PrepareFile(keyFile)
 				if keyFile != "" {
-					verifySsl, _ = params["verifySsl"].(bool)
-					if s, ok := params["caFile"].(string); ok {
-						caFile = lib.PrepareFile(s)
+					verifySsl, _ = config.ParamAsBool(params, "verifySsl")
+					if caFile, ok := config.ParamAsString(params, "caFile"); ok {
+						caFile = lib.PrepareFile(caFile)
 					}
 				}
 			}

@@ -25,6 +25,7 @@ package inout
 import (
 	"encoding/json"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -47,21 +48,12 @@ func newOutHandler(manager InOutManager, params map[string]interface{}) *outHand
 	concurrency := 1
 
 	if params != nil {
-		var (
-			f  float64
-			ok bool
-		)
-
-		if f, ok = params["chunkLength"].(float64); ok {
-			chunkLength = int(f)
-		}
+		chunkLength, ok := config.ParamAsInt(params, "chunkLength")
 		if !ok || chunkLength < 1 {
 			chunkLength = 1
 		}
 
-		if f, ok = params["concurrency"].(float64); ok {
-			concurrency = int(f)
-		}
+		concurrency, ok := config.ParamAsInt(params, "concurrency")
 		if !ok || concurrency < 0 {
 			concurrency = 0
 		}

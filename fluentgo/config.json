@@ -26,7 +26,8 @@
             "timestampFormat": "2006-01-02T15:04:05.999-07:00",
             "flush": {
                 "count": 1000,
-                "size": 1024000
+                "size": 1024000,
+                "onEverySec": 30
             },
             "diskWatchDog": {
                 "enabled": true,

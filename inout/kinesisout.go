@@ -27,6 +27,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -45,49 +46,36 @@ func init() {
 }
 
 func newKinesisOut(manager InOutManager, params map[string]interface{}) OutSender {
-	var (
-		ok               bool
-		s                string
-		hashKeys         string
-		explicitHashKeys []string
-		streamName       *lib.JsonPath
-		partitionKey     *lib.JsonPath
-	)
-
-	if s, ok = params["partitionKey"].(string); ok {
-		s = strings.TrimSpace(s)
-	}
-	if s == "" {
+	pkey, ok := config.ParamAsString(params, "partitionKey")
+	if !ok || pkey == "" {
 		return nil
 	}
 
-	partitionKey = lib.NewJsonPath(s)
+	partitionKey := lib.NewJsonPath(pkey)
 	if partitionKey == nil {
 		return nil
 	}
 
-	if s, ok = params["streamName"].(string); ok {
-		s = strings.TrimSpace(s)
-	}
-	if s == "" {
+	sname, ok := config.ParamAsString(params, "streamName")
+	if !ok || sname == "" {
 		return nil
 	}
 
-	streamName = lib.NewJsonPath(s)
+	streamName := lib.NewJsonPath(sname)
 	if streamName == nil {
 		return nil
 	}
 
-	if hashKeys, ok = params["explicitHashKeys"].(string); ok {
-		hashKeys = strings.TrimSpace(hashKeys)
-		if hashKeys != "" {
-			keys := strings.Split(hashKeys, "|")
-			for _, key := range keys {
+	var explicitHashKeys []string
+
+	hashKeys, ok := config.ParamAsString(params, "explicitHashKeys")
+	if ok && hashKeys != "" {
+		keys := strings.Split(hashKeys, "|")
+		for _, key := range keys {
+			if key != "" {
+				key = strings.TrimSpace(key)
 				if key != "" {
-					key = strings.TrimSpace(key)
-					if key != "" {
-						explicitHashKeys = append(explicitHashKeys, key)
-					}
+					explicitHashKeys = append(explicitHashKeys, key)
 				}
 			}
 		}

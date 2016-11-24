@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 	"github.com/optiopay/kafka"
@@ -44,17 +45,14 @@ type kafkaIO struct {
 func newKafkaIO(manager InOutManager, id lib.UUID, params map[string]interface{}) *kafkaIO {
 	var servers []string
 
-	pServers, ok := params["servers"].(string)
-	if ok {
-		pServers = strings.TrimSpace(pServers)
-		if pServers != "" {
-			aServers := strings.Split(pServers, ";")
-			if len(aServers) > 0 {
-				for _, s := range aServers {
-					s = strings.TrimSpace(s)
-					if s != "" {
-						servers = append(servers, s)
-					}
+	pServers, ok := config.ParamAsString(params, "servers")
+	if ok && pServers != "" {
+		aServers := strings.Split(pServers, ";")
+		if len(aServers) > 0 {
+			for _, s := range aServers {
+				s = strings.TrimSpace(s)
+				if s != "" {
+					servers = append(servers, s)
 				}
 			}
 		}
@@ -63,66 +61,69 @@ func newKafkaIO(manager InOutManager, id lib.UUID, params map[string]interface{}
 		return nil
 	}
 
-	topic, ok := params["topic"].(string)
-	if ok {
-		topic = strings.TrimSpace(topic)
-	}
-	if topic == "" {
+	topic, ok := config.ParamAsString(params, "topic")
+	if !ok || topic == "" {
 		return nil
 	}
 
-	partition := int32(0)
-	if f, ok := params["partition"].(float64); ok {
-		partition = lib.MinInt32(100000, lib.MaxInt32(0, int32(f)))
-	}
+	partition, ok := config.ParamAsInt32(params, "partition")
+	partition = lib.MinInt32(100000, lib.MaxInt32(0, partition))
 
 	offset := kafka.StartOffsetNewest
-	if s, ok := params["offset"].(string); ok {
-		s = strings.TrimSpace(s)
-		if s != "" {
-			s = strings.ToLower(s)
-			if s == "oldest" {
-				offset = kafka.StartOffsetOldest
-			}
+
+	s, ok := config.ParamAsString(params, "offset")
+	if ok && s != "" {
+		s = strings.ToLower(s)
+		if s == "oldest" {
+			offset = kafka.StartOffsetOldest
 		}
 	}
 
 	brokerConf := kafka.NewBrokerConf(id.String())
 
-	if f, ok := params["dialTimeoutMSec"].(float64); ok {
-		brokerConf.DialTimeout = time.Duration(lib.MinInt(60000, lib.MaxInt(500, int(f)))) * time.Millisecond
+	allowTopicCreation, ok := config.ParamAsBool(params, "allowTopicCreation")
+	if ok {
+		brokerConf.AllowTopicCreation = allowTopicCreation
 	}
 
-	if f, ok := params["dialRetryWaitMSec"].(float64); ok {
-		brokerConf.DialRetryWait = time.Duration(lib.MinInt(15000, lib.MaxInt(10, int(f)))) * time.Millisecond
+	dialTimeout, ok := config.ParamAsDuration(params, "dialTimeoutMSec")
+	if ok {
+		brokerConf.DialTimeout = lib.MinDuration(60000, lib.MaxDuration(500, dialTimeout)) * time.Millisecond
 	}
 
-	if f, ok := params["leaderRetryWaitMSec"].(float64); ok {
-		brokerConf.LeaderRetryWait = time.Duration(lib.MinInt(15000, lib.MaxInt(10, int(f)))) * time.Millisecond
+	dialRetryWait, ok := config.ParamAsDuration(params, "dialRetryWaitMSec")
+	if ok {
+		brokerConf.DialRetryWait = lib.MinDuration(15000, lib.MaxDuration(10, dialRetryWait)) * time.Millisecond
 	}
 
-	if f, ok := params["retryErrWaitMSec"].(float64); ok {
-		brokerConf.RetryErrWait = time.Duration(lib.MinInt(15000, lib.MaxInt(10, int(f)))) * time.Millisecond
+	dialRetryLimit, ok := config.ParamAsInt(params, "dialRetryLimit")
+	if ok {
+		brokerConf.DialRetryLimit = lib.MinInt(20, lib.MaxInt(1, dialRetryLimit))
 	}
 
-	if f, ok := params["retryErrLimit"].(float64); ok {
-		brokerConf.RetryErrLimit = lib.MinInt(20, lib.MaxInt(1, int(f)))
+	leaderRetryWait, ok := config.ParamAsDuration(params, "leaderRetryWaitMSec")
+	if ok {
+		brokerConf.LeaderRetryWait = lib.MinDuration(15000, lib.MaxDuration(10, leaderRetryWait)) * time.Millisecond
 	}
 
-	if f, ok := params["readTimeout"].(float64); ok {
-		brokerConf.ReadTimeout = time.Duration(lib.MinInt(60000, lib.MaxInt(1000, int(f)))) * time.Millisecond
+	leaderRetryLimit, ok := config.ParamAsInt(params, "leaderRetryLimit")
+	if ok {
+		brokerConf.LeaderRetryLimit = lib.MinInt(20, lib.MaxInt(1, leaderRetryLimit))
 	}
 
-	if f, ok := params["dialRetryLimit"].(float64); ok {
-		brokerConf.DialRetryLimit = lib.MinInt(20, lib.MaxInt(1, int(f)))
+	retryErrWait, ok := config.ParamAsDuration(params, "retryErrWaitMSec")
+	if ok {
+		brokerConf.RetryErrWait = lib.MinDuration(15000, lib.MaxDuration(10, retryErrWait)) * time.Millisecond
 	}
 
-	if f, ok := params["leaderRetryLimit"].(float64); ok {
-		brokerConf.LeaderRetryLimit = lib.MinInt(20, lib.MaxInt(1, int(f)))
+	retryErrLimit, ok := config.ParamAsInt(params, "retryErrLimit")
+	if ok {
+		brokerConf.RetryErrLimit = lib.MinInt(20, lib.MaxInt(1, retryErrLimit))
 	}
 
-	if f, ok := params["retryErrLimit"].(float64); ok {
-		brokerConf.RetryErrLimit = lib.MinInt(20, lib.MaxInt(1, int(f)))
+	readTimeout, ok := config.ParamAsDuration(params, "readTimeout")
+	if ok {
+		brokerConf.ReadTimeout = lib.MinDuration(60000, lib.MaxDuration(1000, readTimeout)) * time.Millisecond
 	}
 
 	kio := &kafkaIO{

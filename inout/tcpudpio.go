@@ -24,7 +24,8 @@ package inout
 
 import (
 	"net"
-	"strings"
+
+	"github.com/ocdogan/fluentgo/config"
 )
 
 type tcpUDPIO struct {
@@ -32,11 +33,8 @@ type tcpUDPIO struct {
 }
 
 func newTCPUDPIO(manager InOutManager, params map[string]interface{}) *tcpUDPIO {
-	var host string
-	if s, ok := params["host"].(string); ok {
-		host = strings.TrimSpace(s)
-	}
-	if host == "" {
+	host, ok := config.ParamAsString(params, "host")
+	if !ok || host == "" {
 		return nil
 	}
 

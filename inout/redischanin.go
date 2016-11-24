@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -59,7 +60,7 @@ func newRedisChanIn(manager InOutManager, params map[string]interface{}) InProvi
 			rio.command = cmd
 		}
 
-		pat, _ := params["pingAfterTimeout"].(bool)
+		pat, _ := config.ParamAsBool(params, "pingAfterTimeout")
 
 		ri := &redisChanIn{
 			redisIO:          *rio,

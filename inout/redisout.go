@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -69,9 +70,9 @@ func newRedisOut(manager InOutManager, params map[string]interface{}) OutSender 
 		channelPath: channelPath,
 	}
 
-	f, ok := params["trimSize"].(float64)
+	trimSize, ok := config.ParamAsInt(params, "trimSize")
 	if ok {
-		ro.trimSize = lib.MaxInt(0, int(f))
+		ro.trimSize = lib.MaxInt(0, trimSize)
 	}
 
 	ro.iotype = "REDISOUT"

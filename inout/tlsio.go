@@ -25,6 +25,7 @@ package inout
 import (
 	"crypto/tls"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -47,18 +48,18 @@ func newTLSIO(manager InOutManager, params map[string]interface{}) *tlsIO {
 		keyFile   string
 	)
 
-	certFile, ok = params["certFile"].(string)
-	if ok {
+	certFile, ok = config.ParamAsString(params, "certFile")
+	if ok && certFile != "" {
 		certFile = lib.PrepareFile(certFile)
 		if certFile != "" {
-			keyFile, ok = params["keyFile"].(string)
-			if ok {
+			keyFile, ok = config.ParamAsString(params, "keyFile")
+			if ok && keyFile != "" {
 				keyFile = lib.PrepareFile(keyFile)
 				if keyFile != "" {
-					verifySsl, _ = params["verifySsl"].(bool)
+					verifySsl, _ = config.ParamAsBool(params, "verifySsl")
 
-					caFile, ok = params["caFile"].(string)
-					if ok {
+					caFile, ok = config.ParamAsString(params, "caFile")
+					if ok && caFile != "" {
 						caFile = lib.PrepareFile(caFile)
 					}
 				}

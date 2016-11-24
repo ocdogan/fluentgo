@@ -25,13 +25,13 @@ package inout
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -56,43 +56,22 @@ func init() {
 }
 
 func newS3Out(manager InOutManager, params map[string]interface{}) OutSender {
-	var (
-		s        string
-		acl      string
-		bucket   *lib.JsonPath
-		prefix   *lib.JsonPath
-		rootAttr string
-		ok       bool
-	)
-
-	s, ok = params["bucket"].(string)
-	if ok {
-		s = strings.TrimSpace(s)
-	}
-	if s == "" {
+	bck, ok := config.ParamAsString(params, "bucket")
+	if !ok && bck == "" {
 		return nil
 	}
-	bucket = lib.NewJsonPath(s)
+	bucket := lib.NewJsonPath(bck)
 
-	acl, ok = params["acl"].(string)
-	if ok {
-		acl = strings.TrimSpace(acl)
-	}
-	if acl == "" {
+	acl, ok := config.ParamAsString(params, "acl")
+	if !ok || acl == "" {
 		acl = s3.BucketCannedACLPublicRead
 	}
 
-	s, ok = params["prefix"].(string)
-	if ok {
-		s = strings.TrimSpace(s)
-	}
-	prefix = lib.NewJsonPath(s)
+	prfx, _ := config.ParamAsString(params, "prefix")
+	prefix := lib.NewJsonPath(prfx)
 
-	rootAttr, ok = params["root"].(string)
-	if ok {
-		rootAttr = strings.TrimSpace(rootAttr)
-	}
-	if rootAttr == "" {
+	rootAttr, ok := config.ParamAsString(params, "root")
+	if !ok || rootAttr == "" {
 		rootAttr = "messages"
 	}
 

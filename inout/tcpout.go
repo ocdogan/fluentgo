@@ -29,6 +29,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
 )
 
@@ -55,14 +56,9 @@ func newTCPOut(manager InOutManager, params map[string]interface{}) OutSender {
 		return nil
 	}
 
-	var (
-		ok             bool
-		f              float64
-		connTimeoutSec int
-	)
-
-	if f, ok = params["connTimeoutSec"].(float64); ok {
-		connTimeoutSec = lib.MinInt(30, lib.MaxInt(0, int(f)))
+	connTimeoutSec, ok := config.ParamAsInt(params, "connTimeoutSec")
+	if ok {
+		connTimeoutSec = lib.MinInt(30, lib.MaxInt(0, connTimeoutSec))
 	}
 
 	tout := &tcpOut{
