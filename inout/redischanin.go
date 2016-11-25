@@ -57,8 +57,8 @@ func newRedisChanIn(manager InOutManager, params map[string]interface{}) InProvi
 			} else {
 				cmd = lib.Subscribe
 			}
-			rio.command = cmd
 		}
+		rio.command = cmd
 
 		pat, _ := config.ParamAsBool(params, "pingAfterTimeout")
 
