@@ -60,47 +60,35 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 		return nil
 	}
 
-	var (
-		ok           bool
-		db           int
-		f            float64
-		poolName     string
-		command      string
-		server       string
-		channel      string
-		password     string
-		readTimeout  time.Duration
-		writeTimeout time.Duration
-	)
-
-	server, ok = config.ParamAsString(params, "server")
+	server, ok := config.ParamAsString(params, "server")
 	if !ok || server == "" {
 		return nil
 	}
 
-	channel, ok = config.ParamAsString(params, "channel")
+	channel, ok := config.ParamAsString(params, "channel")
 	if !ok || channel == "" {
 		return nil
 	}
 
-	poolName, _ = config.ParamAsString(params, "poolName")
+	poolName, _ := config.ParamAsString(params, "poolName")
 
-	password, _ = config.ParamAsString(params, "password")
-	command, _ = config.ParamAsString(params, "command")
+	password, _ := config.ParamAsString(params, "password")
 
-	db, ok = config.ParamAsInt(params, "db")
+	command, ok := config.ParamAsString(params, "command")
 	if ok {
-		db = lib.MinInt(15, lib.MaxInt(0, int(f)))
+		command = strings.ToUpper(command)
 	}
 
-	readTimeout, ok = config.ParamAsDuration(params, "readTimeoutMSec")
+	db, ok := config.ParamAsIntLimited(params, "db", 0, 15)
+
+	readTimeout, ok := config.ParamAsDurationLimited(params, "readTimeoutMSec", 0, lib.DayAsSec)
 	if ok {
-		readTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(readTimeout)))
+		readTimeout *= time.Millisecond
 	}
 
-	writeTimeout, ok = config.ParamAsDuration(params, "writeTimeout")
+	writeTimeout, ok := config.ParamAsDurationLimited(params, "writeTimeoutMSec", 0, lib.DayAsSec)
 	if ok {
-		writeTimeout = time.Duration(time.Millisecond * lib.MaxDuration(0, time.Duration(writeTimeout)))
+		writeTimeout *= time.Millisecond
 	}
 
 	rio := &redisIO{

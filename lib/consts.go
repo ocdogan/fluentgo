@@ -49,6 +49,9 @@ const (
 	MinLogSize = 2 * 1024
 	MaxLogSize = 10 * 1024 * 1024
 
+	DayAsSec  = 60 * 60 * 24
+	DayAsMSec = DayAsSec * 1000
+
 	InvalidMessageSize = 1024 * 1024
 	ISO8601Time        = "2006-01-02T15:04:05.999-07:00"
 
