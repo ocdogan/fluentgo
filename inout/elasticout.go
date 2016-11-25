@@ -92,11 +92,8 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 	}
 	indexType := lib.NewJsonPath(idxtype)
 
-	maxRetries, ok := config.ParamAsInt(params, "maxRetries")
-	if !ok || maxRetries < 1 {
-		maxRetries = 1
-	}
-	opts = append(opts, elastic.SetMaxRetries(lib.MinInt(50, maxRetries)))
+	maxRetries, ok := config.ParamAsIntWithLimit(params, "maxRetries", 1, 50)
+	opts = append(opts, elastic.SetMaxRetries(maxRetries))
 
 	var lg log.Logger
 
@@ -113,16 +110,16 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 	opts = append(opts, elastic.SetHealthcheck(ok && hcenabled))
 
 	if ok && hcenabled {
-		hctimeout, _ := config.ParamAsDuration(params, "healthcheck.timeout")
-		hctimeout = lib.MaxDuration(60, lib.MaxDuration(1, hctimeout)) * time.Second
+		hctimeout, _ := config.ParamAsDurationWithLimit(params, "healthcheck.timeout", 1, 60)
+		hctimeout *= time.Second
 		opts = append(opts, elastic.SetHealthcheckTimeout(hctimeout))
 
-		hcinterval, _ := config.ParamAsDuration(params, "healthcheck.interval")
-		hcinterval = lib.MaxDuration(300, lib.MaxDuration(5, hcinterval)) * time.Second
+		hcinterval, _ := config.ParamAsDurationWithLimit(params, "healthcheck.interval", 5, 300)
+		hcinterval *= time.Second
 		opts = append(opts, elastic.SetHealthcheckInterval(hcinterval))
 
-		hctimeoutStartup, _ := config.ParamAsDuration(params, "healthcheck.timeoutStartup")
-		hctimeoutStartup = lib.MaxDuration(300, lib.MaxDuration(5, hctimeoutStartup)) * time.Second
+		hctimeoutStartup, _ := config.ParamAsDurationWithLimit(params, "healthcheck.timeoutStartup", 5, 300)
+		hctimeoutStartup *= time.Second
 		opts = append(opts, elastic.SetHealthcheckTimeoutStartup(hctimeoutStartup))
 	}
 
@@ -130,16 +127,16 @@ func newElasticOut(manager InOutManager, params map[string]interface{}) OutSende
 	opts = append(opts, elastic.SetSniff(ok && snenabled))
 
 	if ok && snenabled {
-		sntimeout, _ := config.ParamAsDuration(params, "sniffing.timeout")
-		sntimeout = lib.MaxDuration(60, lib.MaxDuration(1, sntimeout)) * time.Second
+		sntimeout, _ := config.ParamAsDurationWithLimit(params, "sniffing.timeout", 1, 60)
+		sntimeout *= time.Second
 		opts = append(opts, elastic.SetSnifferTimeout(sntimeout))
 
-		sninterval, _ := config.ParamAsDuration(params, "sniffing.interval")
-		sninterval = lib.MaxDuration(300, lib.MaxDuration(5, sninterval)) * time.Second
+		sninterval, _ := config.ParamAsDurationWithLimit(params, "sniffing.interval", 5, 300)
+		sninterval *= time.Second
 		opts = append(opts, elastic.SetSnifferInterval(sninterval))
 
-		sntimeoutStartup, _ := config.ParamAsDuration(params, "sniffing.timeoutStartup")
-		sntimeoutStartup = lib.MaxDuration(300, lib.MaxDuration(5, sntimeoutStartup)) * time.Second
+		sntimeoutStartup, _ := config.ParamAsDurationWithLimit(params, "sniffing.timeoutStartup", 5, 300)
+		sntimeoutStartup *= time.Second
 		opts = append(opts, elastic.SetSnifferTimeoutStartup(sntimeoutStartup))
 	}
 

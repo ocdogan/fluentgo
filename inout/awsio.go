@@ -28,7 +28,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/ocdogan/fluentgo/config"
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
 
@@ -75,15 +74,9 @@ func newAwsIO(manager InOutManager, params map[string]interface{}) *awsIO {
 		disableSSL = false
 	}
 
-	maxRetries, ok := config.ParamAsInt(params, "maxRetries")
-	if !ok || maxRetries < 1 {
-		maxRetries = 1
-	}
+	maxRetries, ok := config.ParamAsIntWithLimit(params, "maxRetries", 1, 10000)
 
-	logLevel, ok := config.ParamAsInt(params, "logLevel")
-	if ok {
-		logLevel = lib.MaxInt(logLevel, 0)
-	}
+	logLevel, ok := config.ParamAsUintWithLimit(params, "logLevel", uint(aws.LogOff), uint(aws.LogDebug|(1<<8)))
 
 	awsio := &awsIO{
 		accessKeyID:     accessKeyID,
@@ -92,7 +85,7 @@ func newAwsIO(manager InOutManager, params map[string]interface{}) *awsIO {
 		region:          region,
 		disableSSL:      disableSSL,
 		maxRetries:      maxRetries,
-		logLevel:        uint(logLevel),
+		logLevel:        logLevel,
 	}
 
 	return awsio

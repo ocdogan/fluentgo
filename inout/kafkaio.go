@@ -86,44 +86,44 @@ func newKafkaIO(manager InOutManager, id lib.UUID, params map[string]interface{}
 		brokerConf.AllowTopicCreation = allowTopicCreation
 	}
 
-	dialTimeout, ok := config.ParamAsDuration(params, "dialTimeoutMSec")
+	dialTimeout, ok := config.ParamAsDurationWithLimit(params, "dialTimeoutMSec", 500, 60000)
 	if ok {
-		brokerConf.DialTimeout = lib.MinDuration(60000, lib.MaxDuration(500, dialTimeout)) * time.Millisecond
+		brokerConf.DialTimeout = dialTimeout * time.Millisecond
 	}
 
-	dialRetryWait, ok := config.ParamAsDuration(params, "dialRetryWaitMSec")
+	dialRetryWait, ok := config.ParamAsDurationWithLimit(params, "dialRetryWaitMSec", 10, 15000)
 	if ok {
-		brokerConf.DialRetryWait = lib.MinDuration(15000, lib.MaxDuration(10, dialRetryWait)) * time.Millisecond
+		brokerConf.DialRetryWait = dialRetryWait * time.Millisecond
 	}
 
-	dialRetryLimit, ok := config.ParamAsInt(params, "dialRetryLimit")
+	dialRetryLimit, ok := config.ParamAsIntWithLimit(params, "dialRetryLimit", 1, 20)
 	if ok {
-		brokerConf.DialRetryLimit = lib.MinInt(20, lib.MaxInt(1, dialRetryLimit))
+		brokerConf.DialRetryLimit = dialRetryLimit
 	}
 
-	leaderRetryWait, ok := config.ParamAsDuration(params, "leaderRetryWaitMSec")
+	leaderRetryWait, ok := config.ParamAsDurationWithLimit(params, "leaderRetryWaitMSec", 10, 15000)
 	if ok {
-		brokerConf.LeaderRetryWait = lib.MinDuration(15000, lib.MaxDuration(10, leaderRetryWait)) * time.Millisecond
+		brokerConf.LeaderRetryWait = leaderRetryWait * time.Millisecond
 	}
 
-	leaderRetryLimit, ok := config.ParamAsInt(params, "leaderRetryLimit")
+	leaderRetryLimit, ok := config.ParamAsIntWithLimit(params, "leaderRetryLimit", 1, 20)
 	if ok {
-		brokerConf.LeaderRetryLimit = lib.MinInt(20, lib.MaxInt(1, leaderRetryLimit))
+		brokerConf.LeaderRetryLimit = leaderRetryLimit
 	}
 
-	retryErrWait, ok := config.ParamAsDuration(params, "retryErrWaitMSec")
+	retryErrWait, ok := config.ParamAsDurationWithLimit(params, "retryErrWaitMSec", 10, 15000)
 	if ok {
-		brokerConf.RetryErrWait = lib.MinDuration(15000, lib.MaxDuration(10, retryErrWait)) * time.Millisecond
+		brokerConf.RetryErrWait = retryErrWait * time.Millisecond
 	}
 
-	retryErrLimit, ok := config.ParamAsInt(params, "retryErrLimit")
+	retryErrLimit, ok := config.ParamAsIntWithLimit(params, "retryErrLimit", 1, 20)
 	if ok {
-		brokerConf.RetryErrLimit = lib.MinInt(20, lib.MaxInt(1, retryErrLimit))
+		brokerConf.RetryErrLimit = retryErrLimit
 	}
 
-	readTimeout, ok := config.ParamAsDuration(params, "readTimeout")
+	readTimeout, ok := config.ParamAsDurationWithLimit(params, "readTimeout", 1000, 60000)
 	if ok {
-		brokerConf.ReadTimeout = lib.MinDuration(60000, lib.MaxDuration(1000, readTimeout)) * time.Millisecond
+		brokerConf.ReadTimeout = readTimeout * time.Millisecond
 	}
 
 	kio := &kafkaIO{

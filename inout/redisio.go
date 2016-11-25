@@ -79,14 +79,14 @@ func newRedisIO(logger log.Logger, params map[string]interface{}) *redisIO {
 		command = strings.ToUpper(command)
 	}
 
-	db, ok := config.ParamAsIntLimited(params, "db", 0, 15)
+	db, ok := config.ParamAsIntWithLimit(params, "db", 0, 15)
 
-	readTimeout, ok := config.ParamAsDurationLimited(params, "readTimeoutMSec", 0, lib.DayAsSec)
+	readTimeout, ok := config.ParamAsDurationWithLimit(params, "readTimeoutMSec", 0, lib.DayAsSec)
 	if ok {
 		readTimeout *= time.Millisecond
 	}
 
-	writeTimeout, ok := config.ParamAsDurationLimited(params, "writeTimeoutMSec", 0, lib.DayAsSec)
+	writeTimeout, ok := config.ParamAsDurationWithLimit(params, "writeTimeoutMSec", 0, lib.DayAsSec)
 	if ok {
 		writeTimeout *= time.Millisecond
 	}

@@ -44,19 +44,14 @@ func newOutHandler(manager InOutManager, params map[string]interface{}) *outHand
 		return nil
 	}
 
-	chunkLength := 1
-	concurrency := 1
+	chunkLength, ok := config.ParamAsIntWithLimit(params, "chunkLength", 1, 10000)
+	if !ok {
+		chunkLength = 1
+	}
 
-	if params != nil {
-		chunkLength, ok := config.ParamAsInt(params, "chunkLength")
-		if !ok || chunkLength < 1 {
-			chunkLength = 1
-		}
-
-		concurrency, ok := config.ParamAsInt(params, "concurrency")
-		if !ok || concurrency < 0 {
-			concurrency = 0
-		}
+	concurrency, ok := config.ParamAsIntWithLimit(params, "concurrency", 1, 1000)
+	if !ok {
+		concurrency = 1
 	}
 
 	return &outHandler{

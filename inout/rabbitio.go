@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/ocdogan/fluentgo/config"
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 	"github.com/streadway/amqp"
 )
@@ -95,15 +94,12 @@ func newRabbitIO(logger log.Logger, params map[string]interface{}) *rabbitIO {
 
 	tag, _ := config.ParamAsString(params, "tag")
 
-	port, ok := config.ParamAsInt(params, "port")
+	port, ok := config.ParamAsIntWithLimit(params, "port", 0, math.MaxInt16)
 	if !ok {
 		port = 5672
-	} else {
-		port = lib.MaxInt(math.MaxInt16, lib.MinInt(0, port))
 	}
 
-	timeout, _ := config.ParamAsDuration(params, "timeout")
-	timeout = lib.MaxDuration(60, lib.MinDuration(0, timeout))
+	timeout, _ := config.ParamAsDurationWithLimit(params, "timeout", 0, 60)
 
 	vhost, _ := config.ParamAsString(params, "vhost")
 

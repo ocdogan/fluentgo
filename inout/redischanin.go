@@ -191,7 +191,8 @@ func (ri *redisChanIn) funcReceive() {
 			case redis.Subscription:
 				l := ri.GetLogger()
 				if l != nil {
-					l.Printf("Subscribed to '%s' over '%s'\n", m.Channel, strings.ToUpper(m.Kind))
+					l.Printf("Subscribed to channel(s) '%s' using '%s' method to endpoint '%s'\n", m.Channel,
+						strings.ToUpper(m.Kind), ri.server)
 				}
 			}
 		}

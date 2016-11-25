@@ -56,10 +56,7 @@ func newTCPOut(manager InOutManager, params map[string]interface{}) OutSender {
 		return nil
 	}
 
-	connTimeoutSec, ok := config.ParamAsInt(params, "connTimeoutSec")
-	if ok {
-		connTimeoutSec = lib.MinInt(30, lib.MaxInt(0, connTimeoutSec))
-	}
+	connTimeoutSec, _ := config.ParamAsIntWithLimit(params, "connTimeoutSec", 0, 60)
 
 	tout := &tcpOut{
 		outHandler:     *oh,

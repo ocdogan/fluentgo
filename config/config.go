@@ -91,7 +91,7 @@ func ParamAsDuration(params map[string]interface{}, param string) (result time.D
 	return
 }
 
-func ParamAsDurationLimited(params map[string]interface{}, param string, min time.Duration, max time.Duration) (result time.Duration, ok bool) {
+func ParamAsDurationWithLimit(params map[string]interface{}, param string, min time.Duration, max time.Duration) (result time.Duration, ok bool) {
 	if params != nil {
 		var f float64
 		f, ok = params[param].(float64)
@@ -115,7 +115,7 @@ func ParamAsFloat(params map[string]interface{}, param string) (result float64, 
 	return
 }
 
-func ParamAsFloatLimited(params map[string]interface{}, param string, min float64, max float64) (result float64, ok bool) {
+func ParamAsFloatWithLimit(params map[string]interface{}, param string, min float64, max float64) (result float64, ok bool) {
 	if params != nil {
 		result, ok = params[param].(float64)
 		if ok {
@@ -141,7 +141,7 @@ func ParamAsInt(params map[string]interface{}, param string) (result int, ok boo
 	return
 }
 
-func ParamAsIntLimited(params map[string]interface{}, param string, min int, max int) (result int, ok bool) {
+func ParamAsIntWithLimit(params map[string]interface{}, param string, min int, max int) (result int, ok bool) {
 	if params != nil {
 		var f float64
 		f, ok = params[param].(float64)
@@ -169,7 +169,7 @@ func ParamAsInt32(params map[string]interface{}, param string) (result int32, ok
 	return
 }
 
-func ParamAsInt32Limited(params map[string]interface{}, param string, min int32, max int32) (result int32, ok bool) {
+func ParamAsInt32WithLimit(params map[string]interface{}, param string, min int32, max int32) (result int32, ok bool) {
 	if params != nil {
 		var f float64
 		f, ok = params[param].(float64)
@@ -197,12 +197,96 @@ func ParamAsInt64(params map[string]interface{}, param string) (result int64, ok
 	return
 }
 
-func ParamAsInt64Limited(params map[string]interface{}, param string, min int64, max int64) (result int64, ok bool) {
+func ParamAsInt64WithLimit(params map[string]interface{}, param string, min int64, max int64) (result int64, ok bool) {
 	if params != nil {
 		var f float64
 		f, ok = params[param].(float64)
 		if ok {
 			result = int64(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsUint(params map[string]interface{}, param string) (result uint, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = uint(f)
+		}
+	}
+	return
+}
+
+func ParamAsUintWithLimit(params map[string]interface{}, param string, min uint, max uint) (result uint, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = uint(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsUint32(params map[string]interface{}, param string) (result uint32, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = uint32(f)
+		}
+	}
+	return
+}
+
+func ParamAsUint32WithLimit(params map[string]interface{}, param string, min uint32, max uint32) (result uint32, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = uint32(f)
+			if result < min {
+				result = min
+			}
+			if result > max && max > min {
+				result = max
+			}
+		}
+	}
+	return
+}
+
+func ParamAsUint64(params map[string]interface{}, param string) (result uint64, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = uint64(f)
+		}
+	}
+	return
+}
+
+func ParamAsUint64WithLimit(params map[string]interface{}, param string, min uint64, max uint64) (result uint64, ok bool) {
+	if params != nil {
+		var f float64
+		f, ok = params[param].(float64)
+		if ok {
+			result = uint64(f)
 			if result < min {
 				result = min
 			}

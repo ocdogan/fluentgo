@@ -65,11 +65,9 @@ func newUDPIn(manager InOutManager, params map[string]interface{}) InProvider {
 		return nil
 	}
 
-	bufferSize, ok := config.ParamAsInt(params, "bufferSize")
+	bufferSize, ok := config.ParamAsIntWithLimit(params, "bufferSize", 1024, math.MaxInt16)
 	if !ok {
 		bufferSize = int(math.MaxInt16)
-	} else {
-		bufferSize = lib.MinInt(int(math.MaxUint16), lib.MaxInt(1024, bufferSize))
 	}
 
 	uin := &udpIn{

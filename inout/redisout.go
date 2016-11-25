@@ -26,6 +26,8 @@ import (
 	"encoding/json"
 	"strings"
 
+	"math"
+
 	"github.com/garyburd/redigo/redis"
 	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/lib"
@@ -70,9 +72,9 @@ func newRedisOut(manager InOutManager, params map[string]interface{}) OutSender 
 		channelPath: channelPath,
 	}
 
-	trimSize, ok := config.ParamAsInt(params, "trimSize")
+	trimSize, ok := config.ParamAsIntWithLimit(params, "trimSize", 0, math.MaxInt32)
 	if ok {
-		ro.trimSize = lib.MaxInt(0, trimSize)
+		ro.trimSize = trimSize
 	}
 
 	ro.iotype = "REDISOUT"
