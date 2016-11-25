@@ -174,11 +174,16 @@ func (m *OutManager) FindOutput(id string) IOClient {
 	}
 
 	uuid, err := lib.ParseUUID(id)
-	if err != nil {
+	if err == nil {
 		return nil
 	}
 
-	return m.outputs[*uuid]
+	client, ok := m.outputs[*uuid]
+	if ok {
+		return client
+	}
+
+	return nil
 }
 
 func (m *OutManager) GetInputs() []InOutInfo {
