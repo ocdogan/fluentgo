@@ -51,8 +51,26 @@ func NewAdminRouter() *http.HttpRouter {
 	return &http.HttpRouter{Router: *router}
 }
 
-func welcome(ctx *fasthttp.RequestCtx, _ fasthttprouter.Params) {
-	fmt.Fprint(ctx, "{\"message\":\"Welcome to fluentgo administration module!\"}")
+func welcome(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+	obj := map[string]interface{}{
+		"message": "Welcome to fluentgo administration module!",
+		"commands": map[string]string{
+			"/config/":          "Displays current config",
+			"/inputs/":          "Displays current input producers and their statsus",
+			"/outputs/":         "Displays current output consumers and their statsus",
+			"/inputs/stop/:id":  "Stops the input producer given with the ID parameter",
+			"/outputs/stop/:id": "Stops the output consumer given with the ID parameter",
+		},
+	}
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		http.SetRestError(ctx, prms, err, 503)
+		return
+	}
+
+	ctx.Response.Header.SetContentType("application/json")
+	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
 func getConfig(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
