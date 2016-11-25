@@ -46,7 +46,9 @@ func NewAdminRouter() *http.HttpRouter {
 	router.GET("/inputs/", getInputs)
 	router.GET("/outputs/", getOutputs)
 	router.GET("/inputs/stop/:id", stopInput)
+	router.GET("/inputs/type/:type", getInputsWithType)
 	router.GET("/outputs/stop/:id", stopOutput)
+	router.GET("/outputs/type/:type", getOutputsWithType)
 
 	return &http.HttpRouter{Router: *router}
 }
@@ -55,11 +57,13 @@ func welcome(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	obj := map[string]interface{}{
 		"message": "Welcome to fluentgo administration module!",
 		"commands": map[string]string{
-			"/config/":          "Displays current config",
-			"/inputs/":          "Displays current input producers and their statsus",
-			"/outputs/":         "Displays current output consumers and their statsus",
-			"/inputs/stop/:id":  "Stops the input producer given with the ID parameter",
-			"/outputs/stop/:id": "Stops the output consumer given with the ID parameter",
+			"/config/":            "Displays current config",
+			"/inputs/":            "Displays current input producers and their statsus",
+			"/outputs/":           "Displays current output consumers and their statsus",
+			"/inputs/stop/:id":    "Stops the input producer given with the given ID parameter",
+			"/inputs/type/:type":  "Displays current input producers with the given type parameter",
+			"/outputs/stop/:id":   "Stops the output consumer given with the given ID parameter",
+			"/outputs/type/:type": "Displays current output consumers with the given type parameter",
 		},
 	}
 
@@ -109,6 +113,40 @@ func getInputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
+func getInputsWithType(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+	ctx.Response.Header.SetContentType("application/json")
+	if ioman == nil {
+		fmt.Fprint(ctx, "{}")
+		return
+	}
+
+	typ := prms.ByName("type")
+	if typ != "" {
+		typ = strings.TrimSpace(typ)
+	}
+	if typ == "" {
+		http.SetRestError(ctx, prms, fmt.Errorf("Input type required."), 503)
+		return
+	}
+
+	ins := ioman.GetInputsWithType(typ)
+	if ins == nil {
+		fmt.Fprint(ctx, "{}")
+		return
+	}
+
+	obj := make(map[string]interface{})
+	obj["inputs"] = ins
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		http.SetRestError(ctx, prms, err, 503)
+		return
+	}
+
+	fmt.Fprint(ctx, lib.BytesToString(data))
+}
+
 func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	ctx.Response.Header.SetContentType("application/json")
 	if ioman == nil {
@@ -117,6 +155,40 @@ func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	}
 
 	outs := ioman.GetOutputs()
+	if outs == nil {
+		fmt.Fprint(ctx, "{}")
+		return
+	}
+
+	obj := make(map[string]interface{})
+	obj["outputs"] = outs
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		http.SetRestError(ctx, prms, err, 503)
+		return
+	}
+
+	fmt.Fprint(ctx, lib.BytesToString(data))
+}
+
+func getOutputsWithType(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+	ctx.Response.Header.SetContentType("application/json")
+	if ioman == nil {
+		fmt.Fprint(ctx, "{}")
+		return
+	}
+
+	typ := prms.ByName("type")
+	if typ != "" {
+		typ = strings.TrimSpace(typ)
+	}
+	if typ == "" {
+		http.SetRestError(ctx, prms, fmt.Errorf("Input type required."), 503)
+		return
+	}
+
+	outs := ioman.GetOutputsWithType(typ)
 	if outs == nil {
 		fmt.Fprint(ctx, "{}")
 		return

@@ -163,6 +163,36 @@ func (m *OutManager) GetOutputs() []InOutInfo {
 	return nil
 }
 
+func (m *OutManager) GetOutputsWithType(typ string) []InOutInfo {
+	if m != nil && len(m.outputs) > 0 {
+		typ = strings.TrimSpace(typ)
+		if len(typ) > 0 {
+			typ = strings.ToUpper(typ)
+
+			var (
+				otype   string
+				outputs []InOutInfo
+			)
+
+			for _, out := range m.outputs {
+				otype = strings.ToUpper(out.GetIOType())
+				if typ == otype {
+					outputs = append(outputs, InOutInfo{
+						ID:          out.ID().String(),
+						Name:        out.Name(),
+						Description: out.Description(),
+						IOType:      otype,
+						Enabled:     out.Enabled(),
+						Processing:  out.Processing(),
+					})
+				}
+			}
+			return outputs
+		}
+	}
+	return nil
+}
+
 func (m *OutManager) FindInput(id string) IOClient {
 	return nil
 }
@@ -174,7 +204,7 @@ func (m *OutManager) FindOutput(id string) IOClient {
 	}
 
 	uuid, err := lib.ParseUUID(id)
-	if err == nil {
+	if err != nil {
 		return nil
 	}
 

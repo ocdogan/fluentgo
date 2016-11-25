@@ -4,8 +4,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/config"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
 
@@ -116,9 +116,23 @@ func (iao *InAndOuts) GetInputs() []InOutInfo {
 	return nil
 }
 
+func (iao *InAndOuts) GetInputsWithType(typ string) []InOutInfo {
+	if iao != nil && iao.iman != nil {
+		return iao.iman.GetInputs()
+	}
+	return nil
+}
+
 func (iao *InAndOuts) GetOutputs() []InOutInfo {
 	if iao != nil && iao.oman != nil {
 		return iao.oman.GetOutputs()
+	}
+	return nil
+}
+
+func (iao *InAndOuts) GetOutputsWithType(typ string) []InOutInfo {
+	if iao != nil && iao.oman != nil {
+		return iao.oman.GetOutputsWithType(typ)
 	}
 	return nil
 }

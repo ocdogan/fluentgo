@@ -35,8 +35,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/config"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
 
@@ -183,6 +183,36 @@ func (m *InManager) GetInputs() []InOutInfo {
 			})
 		}
 		return inputs
+	}
+	return nil
+}
+
+func (m *InManager) GetInputsWithType(typ string) []InOutInfo {
+	if m != nil && len(m.inputs) > 0 {
+		typ = strings.TrimSpace(typ)
+		if len(typ) > 0 {
+			typ = strings.ToUpper(typ)
+
+			var (
+				itype  string
+				inputs []InOutInfo
+			)
+
+			for _, in := range m.inputs {
+				itype = strings.ToUpper(in.GetIOType())
+				if typ == itype {
+					inputs = append(inputs, InOutInfo{
+						ID:          in.ID().String(),
+						Name:        in.Name(),
+						Description: in.Description(),
+						IOType:      itype,
+						Enabled:     in.Enabled(),
+						Processing:  in.Processing(),
+					})
+				}
+			}
+			return inputs
+		}
 	}
 	return nil
 }
