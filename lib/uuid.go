@@ -57,6 +57,18 @@ func (uuid UUID) String() string {
 	return strings.ToUpper(string(result))
 }
 
+func (uuid UUID) StringWithoutSep() string {
+	result := make([]byte, 32)
+
+	hex.Encode(result[0:8], uuid[0:4])
+	hex.Encode(result[8:12], uuid[4:6])
+	hex.Encode(result[12:16], uuid[6:8])
+	hex.Encode(result[16:20], uuid[8:10])
+	hex.Encode(result[20:], uuid[10:])
+
+	return strings.ToUpper(string(result))
+}
+
 type seqID struct {
 	sync.Mutex
 	id uint64
@@ -171,15 +183,23 @@ func ParseUUID(uuid string) (*UUID, error) {
 		var (
 			err      error
 			pair2    []int
-			offsets2 = [][]int{{0, 4}, {4, 6}, {6, 8}, {8, 10}}
+			offsets2 = [][]int{{0, 4}, {4, 6}, {6, 8}, {8, 10}, {10, 16}}
 		)
 
 		result := new(UUID)
 
+		var (
+			spart string
+			upart []byte
+		)
+
 		for i, pair1 := range offsets1 {
 			pair2 = offsets2[i]
 
-			_, err = hex.Decode([]byte(uuid[pair1[0]:pair1[1]]), result[pair2[0]:pair2[1]])
+			spart = uuid[pair1[0]:pair1[1]]
+			upart = result[pair2[0]:pair2[1]]
+
+			_, err = hex.Decode(upart, []byte(spart))
 			if err != nil {
 				return nil, err
 			}
