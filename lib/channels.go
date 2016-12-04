@@ -27,6 +27,15 @@ import (
 	"sync/atomic"
 )
 
+type ChanActionStatus int
+
+const (
+	ChanNotOK ChanActionStatus = iota
+	ChanOK
+	ChanError
+	ChanClosed
+)
+
 type Chan struct {
 	val      *reflect.Value
 	kind     reflect.Kind
@@ -223,356 +232,186 @@ func (c *Chan) AssumeReceived() {
 	return
 }
 
-func (c *Chan) Receive() (v reflect.Value, ok bool) {
+func (c *Chan) Receive() (v reflect.Value, stat ChanActionStatus) {
 	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return reflect.Value{}, false
+		return reflect.Value{}, ChanClosed
 	}
 
+	atomic.AddInt64(&c.regCount, 1)
 	defer func() {
 		e := recover()
 		if e != nil {
-			ok = false
+			stat = ChanError
 		}
 		atomic.AddInt64(&c.regCount, -1)
 	}()
-	atomic.AddInt64(&c.regCount, 1)
 
+	var ok bool
 	v, ok = c.val.TryRecv()
+	if !ok {
+		stat = ChanNotOK
+	} else {
+		stat = ChanOK
+	}
 	return
 }
 
-func (c *Chan) ReceiveString() (val string, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return "", false
-	}
+func (c *Chan) ReceiveString() (val string, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = v.String()
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveByte() (val byte, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return byte(1), false
-	}
+func (c *Chan) ReceiveByte() (val byte, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = v.Interface().(byte)
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveByteArray() (val []byte, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return nil, false
-	}
+func (c *Chan) ReceiveByteArray() (val []byte, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = v.Bytes()
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveBool() (val bool, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return false, false
-	}
+func (c *Chan) ReceiveBool() (val bool, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = v.Bool()
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveInt() (val int, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return 1, false
-	}
+func (c *Chan) ReceiveInt() (val int, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = int(v.Int())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveInt8() (val int8, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return int8(1), false
-	}
+func (c *Chan) ReceiveInt8() (val int8, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = int8(v.Int())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveInt16() (val int16, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return int16(1), false
-	}
+func (c *Chan) ReceiveInt16() (val int16, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = int16(v.Int())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveInt32() (val int32, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return int32(1), false
-	}
+func (c *Chan) ReceiveInt32() (val int32, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = int32(v.Int())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveInt64() (val int64, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return int64(1), false
-	}
+func (c *Chan) ReceiveInt64() (val int64, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = int64(v.Int())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveUint() (val uint, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return uint(1), false
-	}
+func (c *Chan) ReceiveUint() (val uint, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = uint(v.Uint())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveUint8() (val uint8, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return uint8(1), false
-	}
+func (c *Chan) ReceiveUint8() (val uint8, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = uint8(v.Uint())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveUint16() (val uint16, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return uint16(1), false
-	}
+func (c *Chan) ReceiveUint16() (val uint16, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = uint16(v.Uint())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveUint32() (val uint32, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return uint32(1), false
-	}
+func (c *Chan) ReceiveUint32() (val uint32, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = uint32(v.Uint())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveUint64() (val uint64, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return uint64(1), false
-	}
+func (c *Chan) ReceiveUint64() (val uint64, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = uint64(v.Uint())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveFloat32() (val float32, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return float32(1), false
-	}
+func (c *Chan) ReceiveFloat32() (val float32, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = float32(v.Float())
-		ok = true
 	}
 	return
 }
 
-func (c *Chan) ReceiveFloat64() (val float64, ok bool) {
-	if c == nil || atomic.LoadInt32(&c.closed) != 0 {
-		return float64(1), false
-	}
+func (c *Chan) ReceiveFloat64() (val float64, stat ChanActionStatus) {
+	var v reflect.Value
+	v, stat = c.Receive()
 
-	defer func() {
-		e := recover()
-		if e != nil {
-			ok = false
-		}
-		atomic.AddInt64(&c.regCount, -1)
-	}()
-	atomic.AddInt64(&c.regCount, 1)
-
-	if v, ok1 := c.val.TryRecv(); ok1 {
+	if stat == ChanOK {
 		val = v.Float()
-		ok = true
 	}
 	return
 }
