@@ -114,7 +114,7 @@ func (ko *kafkaOut) putMessages(messages []string, topic string) {
 
 			kmsg := &proto.Message{Value: data}
 			if _, err := producer.Produce(topic, ko.partition, kmsg); err != nil && l != nil {
-				l.Printf("Cannot produce KAFKAOUT message to %s:%d: %s", ko.topic, ko.partition, err)
+				l.Printf("Cannot send KAFKAOUT message to %s:%d: %s", ko.topic, ko.partition, err)
 			}
 		}
 	}

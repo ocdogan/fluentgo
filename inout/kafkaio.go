@@ -143,7 +143,7 @@ func (kio *kafkaIO) dial() error {
 		broker, err := kafka.Dial(kio.servers, *kio.brokerConf)
 		if err != nil {
 			if kio.lg != nil {
-				kio.lg.Printf("Failed to create KAFKAIN consumer: %s\n", err)
+				kio.lg.Printf("Failed to create KAFKA connection: %s\n", err)
 			}
 			return err
 		}
