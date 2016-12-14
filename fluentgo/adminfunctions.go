@@ -53,7 +53,7 @@ func NewAdminRouter() *http.HttpRouter {
 	return &http.HttpRouter{Router: *router}
 }
 
-func welcome(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func welcome(ctx *fasthttp.RequestCtx) {
 	obj := map[string]interface{}{
 		"message": "Welcome to fluentgo administration module!",
 		"commands": map[string]string{
@@ -69,7 +69,7 @@ func welcome(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 
 	data, err := json.Marshal(obj)
 	if err != nil {
-		http.SetRestError(ctx, prms, err, 503)
+		http.SetRestError(ctx, err, 503)
 		return
 	}
 
@@ -77,10 +77,10 @@ func welcome(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
-func getConfig(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func getConfig(ctx *fasthttp.RequestCtx) {
 	data, err := json.Marshal(config.LoadConfig(config.GetCurrentConfig()))
 	if err != nil {
-		http.SetRestError(ctx, prms, err, 503)
+		http.SetRestError(ctx, err, 503)
 		return
 	}
 
@@ -88,7 +88,7 @@ func getConfig(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
-func getInputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func getInputs(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetContentType("application/json")
 	if ioman == nil {
 		fmt.Fprint(ctx, "{}")
@@ -106,26 +106,32 @@ func getInputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 
 	data, err := json.Marshal(obj)
 	if err != nil {
-		http.SetRestError(ctx, prms, err, 503)
+		http.SetRestError(ctx, err, 503)
 		return
 	}
 
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
-func getInputsWithType(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func getInputsWithType(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetContentType("application/json")
 	if ioman == nil {
 		fmt.Fprint(ctx, "{}")
 		return
 	}
 
-	typ := prms.ByName("type")
-	if typ != "" {
-		typ = strings.TrimSpace(typ)
+	var typ string
+
+	uvType := ctx.UserValue("type")
+	if uvType != nil {
+		typ = fmt.Sprintf("%s", uvType)
+		if typ != "" {
+			typ = strings.TrimSpace(typ)
+		}
 	}
+
 	if typ == "" {
-		http.SetRestError(ctx, prms, fmt.Errorf("Input type required."), 503)
+		http.SetRestError(ctx, fmt.Errorf("Input type required."), 503)
 		return
 	}
 
@@ -140,14 +146,14 @@ func getInputsWithType(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 
 	data, err := json.Marshal(obj)
 	if err != nil {
-		http.SetRestError(ctx, prms, err, 503)
+		http.SetRestError(ctx, err, 503)
 		return
 	}
 
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
-func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func getOutputs(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetContentType("application/json")
 	if ioman == nil {
 		fmt.Fprint(ctx, "{}")
@@ -165,26 +171,32 @@ func getOutputs(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 
 	data, err := json.Marshal(obj)
 	if err != nil {
-		http.SetRestError(ctx, prms, err, 503)
+		http.SetRestError(ctx, err, 503)
 		return
 	}
 
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
-func getOutputsWithType(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func getOutputsWithType(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetContentType("application/json")
 	if ioman == nil {
 		fmt.Fprint(ctx, "{}")
 		return
 	}
 
-	typ := prms.ByName("type")
-	if typ != "" {
-		typ = strings.TrimSpace(typ)
+	var typ string
+
+	uvType := ctx.UserValue("type")
+	if uvType != nil {
+		typ = fmt.Sprintf("%s", uvType)
+		if typ != "" {
+			typ = strings.TrimSpace(typ)
+		}
 	}
+
 	if typ == "" {
-		http.SetRestError(ctx, prms, fmt.Errorf("Input type required."), 503)
+		http.SetRestError(ctx, fmt.Errorf("Input type required."), 503)
 		return
 	}
 
@@ -199,32 +211,38 @@ func getOutputsWithType(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 
 	data, err := json.Marshal(obj)
 	if err != nil {
-		http.SetRestError(ctx, prms, err, 503)
+		http.SetRestError(ctx, err, 503)
 		return
 	}
 
 	fmt.Fprint(ctx, lib.BytesToString(data))
 }
 
-func stopInput(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func stopInput(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetContentType("application/json")
-	if ioman == nil || len(prms) == 0 {
-		http.SetRestError(ctx, prms, fmt.Errorf("Cannot handle the request."), 503)
+	if ioman == nil {
+		http.SetRestError(ctx, fmt.Errorf("Cannot handle the request."), 503)
 		return
 	}
 
-	id := prms.ByName("id")
-	if id != "" {
-		id = strings.TrimSpace(id)
+	var id string
+
+	uvId := ctx.UserValue("id")
+	if uvId != nil {
+		id = fmt.Sprintf("%s", uvId)
+		if id != "" {
+			id = strings.TrimSpace(id)
+		}
 	}
+
 	if id == "" {
-		http.SetRestError(ctx, prms, fmt.Errorf("Input ID required."), 503)
+		http.SetRestError(ctx, fmt.Errorf("Input ID required."), 503)
 		return
 	}
 
 	ioc := ioman.FindInput(id)
 	if ioc == nil {
-		http.SetRestError(ctx, prms, fmt.Errorf("Cannot find input with id: %s.", id), 503)
+		http.SetRestError(ctx, fmt.Errorf("Cannot find input with id: %s.", id), 503)
 		return
 	}
 
@@ -232,25 +250,31 @@ func stopInput(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
 	fmt.Fprint(ctx, "{\"result\":\"ok\"}")
 }
 
-func stopOutput(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params) {
+func stopOutput(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.SetContentType("application/json")
-	if ioman == nil || len(prms) == 0 {
-		http.SetRestError(ctx, prms, fmt.Errorf("Cannot handle the request."), 503)
+	if ioman == nil {
+		http.SetRestError(ctx, fmt.Errorf("Cannot handle the request."), 503)
 		return
 	}
 
-	id := prms.ByName("id")
-	if id != "" {
-		id = strings.TrimSpace(id)
+	var id string
+
+	uvId := ctx.UserValue("id")
+	if uvId != nil {
+		id = fmt.Sprintf("%s", uvId)
+		if id != "" {
+			id = strings.TrimSpace(id)
+		}
 	}
+
 	if id == "" {
-		http.SetRestError(ctx, prms, fmt.Errorf("Input ID required."), 503)
+		http.SetRestError(ctx, fmt.Errorf("Input ID required."), 503)
 		return
 	}
 
 	ioc := ioman.FindOutput(id)
 	if ioc == nil {
-		http.SetRestError(ctx, prms, fmt.Errorf("Cannot find input with id: %s.", id), 503)
+		http.SetRestError(ctx, fmt.Errorf("Cannot find input with id: %s.", id), 503)
 		return
 	}
 

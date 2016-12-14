@@ -105,7 +105,7 @@ func NewHttpServer(routing *HttpRouter, logger log.Logger, params map[string]int
 	return server, nil
 }
 
-func SetRestError(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params, err error, errCode int) {
+func SetRestError(ctx *fasthttp.RequestCtx, err error, errCode int) {
 	ctx.Response.Header.SetContentType("application/json")
 
 	restErr := &RestError{
@@ -115,37 +115,37 @@ func SetRestError(ctx *fasthttp.RequestCtx, prms fasthttprouter.Params, err erro
 		Arguments:   RestErrorArgs{Query: lib.BytesToString(ctx.URI().QueryString())},
 	}
 
-	if prms != nil {
-		for _, prm := range prms {
-			restErr.Arguments.Keys = append(restErr.Arguments.Keys,
-				RestErrorArg{
-					Key:   prm.Key,
-					Value: prm.Value,
-				})
-		}
-	}
+	ctx.VisitUserValues(func(key []byte, value interface{}) {
+		restErr.Arguments.Keys = append(restErr.Arguments.Keys,
+			RestErrorArg{
+				Key:   string(key),
+				Value: fmt.Sprintf("%s", value),
+			})
+	})
 
 	data, err := json.Marshal(restErr)
 	ctx.Error(lib.BytesToString(data), errCode)
 }
 
 func NotFound(ctx *fasthttp.RequestCtx) {
-	SetRestError(ctx, nil, fmt.Errorf("Not found"), fasthttp.StatusNotFound)
+	SetRestError(ctx, fmt.Errorf("Not found"), fasthttp.StatusNotFound)
 }
 
 func PanicHandler(ctx *fasthttp.RequestCtx, rcv interface{}) {
-	SetRestError(ctx, nil, fmt.Errorf("%s", rcv), 503)
+	SetRestError(ctx, fmt.Errorf("%s", rcv), 503)
 }
 
 func MethodNotAllowed(ctx *fasthttp.RequestCtx) {
-	SetRestError(ctx, nil, fmt.Errorf("Not allowed"), fasthttp.StatusMethodNotAllowed)
+	SetRestError(ctx, fmt.Errorf("Not allowed"), fasthttp.StatusMethodNotAllowed)
 }
 
+/*
 func (h *HttpServer) Handle(method, path string, handle fasthttprouter.Handle) {
 	if h != nil {
 		h.routing.Handle(method, path, handle)
 	}
 }
+*/
 
 func (h *HttpServer) Start(quitSignal <-chan bool) error {
 	if !atomic.CompareAndSwapUint32(&h.state, 0, 1) {
