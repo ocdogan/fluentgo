@@ -79,6 +79,7 @@ type InManager struct {
 	completedChansMux sync.Mutex
 	completedChans    []chan<- bool
 	completed         chan bool
+	preparing         int32
 }
 
 var (
@@ -456,7 +457,16 @@ func (m *InManager) nextBufferFile() string {
 	return ""
 }
 
+func (m *InManager) cycleBuffer() {
+	m.prepareBuffer(0)
+}
+
 func (m *InManager) prepareBuffer(dataLen int) {
+	if !atomic.CompareAndSwapInt32(&m.preparing, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&m.preparing, 0)
+
 	bf := m.bufFile
 	dataLen = lib.MaxInt(0, dataLen)
 
@@ -478,6 +488,7 @@ func (m *InManager) prepareBuffer(dataLen int) {
 
 	var file *os.File
 	filename := m.nextBufferFile()
+
 	if filename != "" {
 		var err error
 		file, err = os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
@@ -683,6 +694,32 @@ func (m *InManager) processInputs() {
 		}
 	}
 
+	if m.flushOnEverySec > 0 {
+		ticker := time.NewTicker(m.flushOnEverySec)
+		if ticker != nil {
+			defer ticker.Stop()
+
+			go func(manager *InManager, ticker *time.Ticker) {
+				var cycling int32
+				flushSleep := lib.MaxDuration(manager.flushOnEverySec-time.Second, 1)
+
+				for range ticker.C {
+					if !manager.Processing() {
+						break
+					}
+
+					if atomic.CompareAndSwapInt32(&cycling, 0, 1) {
+						defer atomic.StoreInt32(&cycling, 0)
+						manager.cycleBuffer()
+						if flushSleep > 0 {
+							time.Sleep(flushSleep)
+						}
+					}
+				}
+			}(m, ticker)
+		}
+	}
+
 	for !completed {
 		select {
 		case <-completeSignal:
@@ -701,4 +738,5 @@ func (m *InManager) processInputs() {
 			}
 		}
 	}
+
 }
