@@ -16,3 +16,29 @@ Redis and FluentD, worked it gave a start to the project.
 Now, besides its many input and output handlers, it has many tuning
 configurations, which makes it a suitable solution as a fast, reliable
 production ready log collection system.
+
+Possible inputs:
+* Redis Pub/Sub
+* Redis List
+* Amazon SQS
+* Amazon Kinesis
+* RabbitMQ
+* Apache Kafka
+* TCP
+* UDP
+
+Possible outputs:
+* Console Out
+* Null, for testing
+* Amazon S3
+* Amazon SQS
+* Amazon Kinesis
+* ElasticSearch
+* Redis Pub/Sub
+* Redis List
+* RabbitMQ
+* Apache Kafka
+* Mongo
+* TCP
+* UDP
+
