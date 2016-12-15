@@ -463,7 +463,7 @@ func (m *InManager) prepareBuffer(dataLen int) {
 	changeFile := bf == nil ||
 		(m.flushSize > 0 && bf.size+dataLen > m.flushSize) ||
 		(m.flushCount > 0 && bf.count+1 > m.flushCount) ||
-		(m.lastFlushTime.Sub(time.Now()) >= m.flushOnEverySec)
+		(time.Now().Sub(m.lastFlushTime) >= m.flushOnEverySec)
 
 	if !changeFile {
 		return
