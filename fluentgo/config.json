@@ -16,7 +16,7 @@
         "queue": {
             "maxSize": 10240000,
             "maxCount": 2000,
-            "onEverySec": 30
+            "onEverySec": 5
         },
         "buffer": {
             "path": "/fluentgo/buffer",
@@ -27,7 +27,7 @@
             "flush": {
                 "count": 1000,
                 "size": 1024000,
-                "onEverySec": 30
+                "onEverySec": 5
             },
             "diskWatchDog": {
                 "enabled": true,
@@ -147,6 +147,16 @@
                     { "name": "retryErrWaitMSec", "value": 500 },
                     { "name": "retryErrLimit", "value": 10 },
                     { "name": "topic", "value": "logstash" }
+                ]
+            },
+            { 
+                "type": "mongo",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "servers", "value": "localhost" },
+                    { "name": "db", "value": "logdb" },
+                    { "name": "collection", "value": "logcol" },
+                    { "name": "dialTimeoutMSec", "value": 0 }
                 ]
             },
             {

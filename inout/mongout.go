@@ -44,7 +44,13 @@ type mongOut struct {
 	session        *mgo.Session
 }
 
-func newMongOut(manager InOutManager, id lib.UUID, params map[string]interface{}) *mongOut {
+func init() {
+	RegisterOut("mongo", newMongOut)
+	RegisterOut("mongout", newMongOut)
+	RegisterOut("mongoout", newMongOut)
+}
+
+func newMongOut(manager InOutManager, params map[string]interface{}) OutSender {
 	oh := newOutHandler(manager, params)
 	if oh == nil {
 		return nil
