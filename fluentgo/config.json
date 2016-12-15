@@ -149,16 +149,6 @@
                     { "name": "topic", "value": "logstash" }
                 ]
             },
-            { 
-                "type": "mongo",
-                "params": [
-                    { "name": "enabled", "value": false },
-                    { "name": "servers", "value": "localhost" },
-                    { "name": "db", "value": "logdb" },
-                    { "name": "collection", "value": "logcol" },
-                    { "name": "dialTimeoutMSec", "value": 0 }
-                ]
-            },
             {
                 "type": "tcp",
                 "params":[
@@ -352,6 +342,16 @@
                     { "name": "retryErrWaitMSec", "value": 500 },
                     { "name": "retryErrLimit", "value": 10 },
                     { "name": "topic", "value": "logstash" }
+                ]
+            },
+            { 
+                "type": "mongo",
+                "params": [
+                    { "name": "enabled", "value": false },
+                    { "name": "servers", "value": "localhost" },
+                    { "name": "db", "value": "logdb" },
+                    { "name": "collection", "value": "logcol" },
+                    { "name": "dialTimeoutMSec", "value": 0 }
                 ]
             },
             { 
