@@ -170,7 +170,8 @@ func (fo *fileOut) nextLogFile() string {
 	}
 
 	t := time.Now()
-	prefix := fo.prefix + fmt.Sprintf("%d%02d%02dT%02dx", t.Year(), t.Month(), t.Day(), t.Hour())
+	prefix := fo.prefix + fmt.Sprintf("%d%02d%02dT%02d%02d%02dx", t.Year(), t.Month(),
+		t.Day(), t.Hour(), t.Minute(), t.Second())
 
 	var (
 		err     error
