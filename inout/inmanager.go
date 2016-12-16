@@ -385,12 +385,12 @@ func (m *InManager) appendTimestamp(data []byte) []byte {
 }
 
 func (m *InManager) processQueue() {
-	if !atomic.CompareAndSwapInt32(&m.poppingQueue, m.poppingQueue, int32(1)) {
+	if !atomic.CompareAndSwapInt32(&m.poppingQueue, 0, 1) {
 		return
 	}
 
 	defer func() {
-		defer atomic.StoreInt32(&m.poppingQueue, int32(0))
+		defer atomic.StoreInt32(&m.poppingQueue, 0)
 		recover()
 	}()
 	m.lastProcessTime = time.Now()
@@ -631,18 +631,19 @@ func (m *InManager) writeToBuffer(data []byte) {
 		return
 	}
 
+	// Record start
+	f.Write(lib.RecStartBytes())
+
+	// Record lebgth
 	stamp := make([]byte, 4)
-
-	binary.BigEndian.PutUint32(stamp, 0)
-	f.Write(stamp)
-
 	binary.BigEndian.PutUint32(stamp, uint32(ln))
 	f.Write(stamp)
 
+	// Record
 	f.Write(data)
 
-	binary.BigEndian.PutUint32(stamp, 0)
-	f.Write(stamp)
+	// Record stop
+	f.Write(lib.RecStopBytes())
 
 	fi.size += ln + 12
 	fi.count++

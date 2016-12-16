@@ -88,7 +88,6 @@ func (pq *privateQ) nextID() uint32 {
 	if id == math.MaxUint32 {
 		pq.idgen = 0
 	}
-
 	return id
 }
 
@@ -197,7 +196,6 @@ func (q *OutQueue) popReady() bool {
 	return q.mainQ.head != nil &&
 		(len(q.mainQ.head.chunk) >= q.chunkSize ||
 			(q.waitPopForMillisec > 0 && time.Now().Sub(q.lastPop) >= q.waitPopForMillisec))
-
 }
 
 func (q *OutQueue) Pop(force bool) (chunk []string, ok bool) {

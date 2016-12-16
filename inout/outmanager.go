@@ -537,6 +537,7 @@ func (m *OutManager) processFile(job *fileProcJob) {
 	f.Seek(0, 0)
 
 	var (
+		msg         string
 		data        []byte
 		ln          int
 		hasData     bool
@@ -544,18 +545,18 @@ func (m *OutManager) processFile(job *fileProcJob) {
 	)
 
 	for m.Processing() {
-		// Read START stamp
+		// Read record START stamp
 		n, err = f.Read(stamp)
 		if n == 0 || err != nil {
 			break
 		}
 
 		start = binary.BigEndian.Uint32(stamp)
-		if start != 0 {
+		if start != lib.RecStart {
 			break
 		}
 
-		// Read data length
+		// Read record length
 		n, err = f.Read(stamp)
 		if n == 0 || err != nil {
 			break
@@ -602,20 +603,21 @@ func (m *OutManager) processFile(job *fileProcJob) {
 			hasData = len(data) > 0
 		}
 
-		// Read STOP stamp
+		// Read record STOP stamp
 		n, err = f.Read(stamp)
 		if n == 0 || err != nil {
 			break
 		}
 
 		stop = binary.BigEndian.Uint32(stamp)
-		if stop != 0 {
+		if stop != lib.RecStop {
 			break
 		}
 
 		// Process message
 		if hasData {
-			m.pushToQueue(lib.BytesToString(data))
+			msg = lib.BytesToString(data)
+			m.pushToQueue(msg)
 		}
 
 		if !m.Processing() {
@@ -661,9 +663,9 @@ func (m *OutManager) processQueue(queueProcessed chan<- bool) {
 				return
 			}
 
-			chunk, ok := m.outQ.Pop(true)
-			if ok && len(chunk) > 0 {
-				m.tryToSend(chunk)
+			messages, ok := m.outQ.Pop(true)
+			if ok && len(messages) > 0 {
+				m.tryToSend(messages)
 			}
 		}
 	}

@@ -28,6 +28,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -42,10 +43,15 @@ import (
 )
 
 var (
-	newline = []byte("\n")
+	newline       = []byte("\n")
+	recStartBytes = make([]byte, 4)
+	recStopBytes  = make([]byte, 4)
 )
 
 func init() {
+	binary.BigEndian.PutUint32(recStartBytes, RecStart)
+	binary.BigEndian.PutUint32(recStopBytes, RecStop)
+
 	if runtime.GOOS == "windows" {
 		newline = []byte("\r\n")
 	}
@@ -53,6 +59,14 @@ func init() {
 
 func NewLine() []byte {
 	return newline
+}
+
+func RecStartBytes() []byte {
+	return recStartBytes
+}
+
+func RecStopBytes() []byte {
+	return recStopBytes
 }
 
 func IsTimeoutError(err error) bool {

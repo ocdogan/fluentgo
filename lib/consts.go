@@ -39,6 +39,9 @@ const (
 	BlPop           = "BLPOP"
 	PSubscribechars = "*?[]"
 
+	RecStart uint32 = 12345
+	RecStop  uint32 = 54321
+
 	MinBufferSize  = 8 * 1024
 	MaxBufferSize  = 10 * 1024 * 1024
 	MinBufferCount = 10
