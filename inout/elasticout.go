@@ -211,7 +211,7 @@ func (eo *elasticOut) getIndexName(prefix string) string {
 	return fmt.Sprintf("%d.%02d.%02d", t.Year(), t.Month(), t.Day())
 }
 
-func (eo *elasticOut) putMessages(messages []string, indexName, indexType string) {
+func (eo *elasticOut) putMessages(messages []ByteArray, indexName, indexType string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -221,7 +221,7 @@ func (eo *elasticOut) putMessages(messages []string, indexName, indexType string
 	bulkRequest := eo.client.Bulk()
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			doSend = true
 
 			req := elastic.NewBulkIndexRequest().Index(indexName).Type(indexType).Doc(msg)
@@ -234,7 +234,7 @@ func (eo *elasticOut) putMessages(messages []string, indexName, indexType string
 	}
 }
 
-func (eo *elasticOut) funcPutMessages(messages []string, filename string) {
+func (eo *elasticOut) funcPutMessages(messages []ByteArray, filename string) {
 	if len(messages) == 0 {
 		return
 	}

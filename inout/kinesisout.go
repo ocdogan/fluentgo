@@ -120,7 +120,7 @@ func (ko *kinesisOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (ko *kinesisOut) putMessages(messages []string, partitionKey, streamName string) {
+func (ko *kinesisOut) putMessages(messages []ByteArray, partitionKey, streamName string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -141,7 +141,7 @@ func (ko *kinesisOut) putMessages(messages []string, partitionKey, streamName st
 	keyLen := int64(len(ko.explicitHashKeys))
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			data = []byte(msg)
 			if ko.compressed {
 				data = lib.Compress(data, ko.compressType)
@@ -176,7 +176,7 @@ func (ko *kinesisOut) putMessages(messages []string, partitionKey, streamName st
 	}
 }
 
-func (ko *kinesisOut) funcPutMessages(messages []string, filename string) {
+func (ko *kinesisOut) funcPutMessages(messages []ByteArray, filename string) {
 	if len(messages) == 0 {
 		return
 	}

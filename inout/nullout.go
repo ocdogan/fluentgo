@@ -58,5 +58,5 @@ func (nullo *nullOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (nullo *nullOut) funcPutMessages(messages []string, indexName string) {
+func (nullo *nullOut) funcPutMessages(messages []ByteArray, indexName string) {
 }

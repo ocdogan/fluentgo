@@ -22,53 +22,39 @@
 
 package inout
 
-import "fmt"
+type ByteArray []byte
 
-type stdOut struct {
-	outHandler
-}
+func (ba ByteArray) Clone() ByteArray {
+	if ba != nil {
+		bytes := []byte(ba)
 
-func init() {
-	RegisterOut("std", newStdOut)
-	RegisterOut("stdout", newStdOut)
-}
-
-func newStdOut(manager InOutManager, params map[string]interface{}) OutSender {
-	oh := newOutHandler(manager, params)
-	if oh == nil {
-		return nil
-	}
-
-	stdo := &stdOut{
-		outHandler: *oh,
-	}
-
-	stdo.iotype = "STDOUT"
-
-	stdo.runFunc = stdo.waitComplete
-	stdo.afterCloseFunc = stdo.funcAfterClose
-	stdo.getDestinationFunc = stdo.funcGetObjectName
-	stdo.sendChunkFunc = stdo.funcOutMessages
-
-	return stdo
-}
-
-func (stdo *stdOut) funcAfterClose() {
-	// Nothing to close
-}
-
-func (stdo *stdOut) funcGetObjectName() string {
-	return "stdout"
-}
-
-func (stdo *stdOut) funcOutMessages(messages []ByteArray, indexName string) {
-	if len(messages) > 0 {
-		defer recover()
-
-		for _, msg := range messages {
-			if len(msg) > 0 {
-				fmt.Println(string(msg))
-			}
+		result := make([]byte, len(bytes))
+		if len(bytes) > 0 {
+			copy(result, bytes)
 		}
+		return ByteArray(result)
 	}
+	return nil
+}
+
+func ToByteArray(bytes []byte) ByteArray {
+	if bytes != nil {
+		result := make([]byte, len(bytes))
+		if len(bytes) > 0 {
+			copy(result, bytes)
+		}
+		return ByteArray(result)
+	}
+	return nil
+}
+
+func CloneByteArrays(ba []ByteArray) []ByteArray {
+	if ba != nil {
+		result := make([]ByteArray, len(ba))
+		for i, b := range ba {
+			result[i] = b.Clone()
+		}
+		return result
+	}
+	return nil
 }

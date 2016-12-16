@@ -92,7 +92,7 @@ func (sqso *sqsOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (sqso *sqsOut) putMessages(messages []string, queueURL string) {
+func (sqso *sqsOut) putMessages(messages []ByteArray, queueURL string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -104,9 +104,9 @@ func (sqso *sqsOut) putMessages(messages []string, queueURL string) {
 	}
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			params := &sqs.SendMessageInput{
-				MessageBody:  aws.String(msg),
+				MessageBody:  aws.String(string(msg)),
 				QueueUrl:     aws.String(queueURL),
 				DelaySeconds: aws.Int64(sqso.delaySeconds),
 			}
@@ -120,7 +120,7 @@ func (sqso *sqsOut) putMessages(messages []string, queueURL string) {
 	}
 }
 
-func (sqso *sqsOut) funcPutMessages(messages []string, indexName string) {
+func (sqso *sqsOut) funcPutMessages(messages []ByteArray, indexName string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -136,13 +136,13 @@ func (sqso *sqsOut) funcPutMessages(messages []string, indexName string) {
 	} else {
 		var (
 			queueURL  string
-			queueList []string
+			queueList []ByteArray
 		)
 
-		queues := make(map[string][]string)
+		queues := make(map[string][]ByteArray)
 
 		for _, msg := range messages {
-			if msg != "" {
+			if len(msg) > 0 {
 				var data interface{}
 
 				err := json.Unmarshal([]byte(msg), &data)

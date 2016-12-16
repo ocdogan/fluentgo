@@ -119,7 +119,7 @@ func (mo *mongOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (mo *mongOut) putMessages(messages []string, collection string) {
+func (mo *mongOut) putMessages(messages []ByteArray, collection string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -134,7 +134,7 @@ func (mo *mongOut) putMessages(messages []string, collection string) {
 	bulk := mo.session.DB(mo.db).C(collection).Bulk()
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			doSend = true
 			bulk.Insert(msg)
 		}
@@ -151,7 +151,7 @@ func (mo *mongOut) putMessages(messages []string, collection string) {
 	}
 }
 
-func (mo *mongOut) funcPutMessages(messages []string, collection string) {
+func (mo *mongOut) funcPutMessages(messages []ByteArray, collection string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -167,13 +167,13 @@ func (mo *mongOut) funcPutMessages(messages []string, collection string) {
 	} else {
 		var (
 			collection     string
-			collectionList []string
+			collectionList []ByteArray
 		)
 
-		collections := make(map[string][]string)
+		collections := make(map[string][]ByteArray)
 
 		for _, msg := range messages {
-			if msg != "" {
+			if len(msg) > 0 {
 				var data interface{}
 
 				err := json.Unmarshal([]byte(msg), &data)

@@ -92,7 +92,7 @@ func (ro *rabbitOut) funcChannel() string {
 	return "null"
 }
 
-func (ro *rabbitOut) putMessages(messages []string, exchange, queue string) {
+func (ro *rabbitOut) putMessages(messages []ByteArray, exchange, queue string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -114,7 +114,7 @@ func (ro *rabbitOut) putMessages(messages []string, exchange, queue string) {
 			break
 		}
 
-		if msg != "" {
+		if len(msg) > 0 {
 			err = func() error {
 				var sendErr error
 				defer func() {
@@ -148,7 +148,7 @@ func (ro *rabbitOut) putMessages(messages []string, exchange, queue string) {
 	}
 }
 
-func (ro *rabbitOut) funcPutMessages(messages []string, channel string) {
+func (ro *rabbitOut) funcPutMessages(messages []ByteArray, channel string) {
 	if len(messages) == 0 {
 		return
 	}

@@ -34,7 +34,7 @@ type outQNode struct {
 	id    uint32
 	prev  *outQNode
 	next  *outQNode
-	chunk []string
+	chunk []ByteArray
 }
 
 type privateQ struct {
@@ -122,10 +122,10 @@ func (pq *privateQ) append(n *outQNode, chunkSize int) *outQNode {
 		n = &outQNode{
 			id:    pq.nextID(),
 			prev:  pq.tail,
-			chunk: make([]string, 0, chunkSize),
+			chunk: make([]ByteArray, 0, chunkSize),
 		}
 	} else if len(n.chunk) == 0 {
-		n.chunk = make([]string, 0, chunkSize)
+		n.chunk = make([]ByteArray, 0, chunkSize)
 	}
 
 	if pq.tail == nil {
@@ -161,7 +161,7 @@ func (q *OutQueue) put(data string) {
 		n = mq.append(q.spareQ.popFromQ(), q.chunkSize)
 	}
 
-	n.chunk = append(n.chunk, data)
+	n.chunk = append(n.chunk, []byte(data))
 	mq.chunkCount++
 
 	for mq.maxChunkCount > 0 &&
@@ -198,7 +198,7 @@ func (q *OutQueue) popReady() bool {
 			(q.waitPopForMillisec > 0 && time.Now().Sub(q.lastPop) >= q.waitPopForMillisec))
 }
 
-func (q *OutQueue) Pop(force bool) (chunk []string, ok bool) {
+func (q *OutQueue) Pop(force bool) (chunk []ByteArray, ok bool) {
 	q.Lock()
 	defer q.Unlock()
 
@@ -220,7 +220,7 @@ func (q *OutQueue) pushToSpareQ(n *outQNode) {
 	}
 }
 
-func (q *OutQueue) popData(force bool) (chunk []string, ok bool) {
+func (q *OutQueue) popData(force bool) (chunk []ByteArray, ok bool) {
 	if !(force || q.popReady()) {
 		return nil, false
 	}
@@ -241,6 +241,13 @@ func (q *OutQueue) popData(force bool) (chunk []string, ok bool) {
 
 		q.pushToSpareQ(n)
 
+		if len(chunk) > 0 {
+			data := chunk[0]
+			if len(data) > 0 {
+
+			}
+			data = chunk[len(chunk)-1]
+		}
 		return chunk, true
 	}
 	return nil, false

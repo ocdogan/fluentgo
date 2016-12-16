@@ -109,7 +109,7 @@ func (ro *redisOut) funcChannel() string {
 	return "null"
 }
 
-func (ro *redisOut) putMessages(messages []string, channel string) {
+func (ro *redisOut) putMessages(messages []ByteArray, channel string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -122,6 +122,7 @@ func (ro *redisOut) putMessages(messages []string, channel string) {
 
 	var (
 		err  error
+		rmsg string
 		conn redis.Conn
 	)
 
@@ -130,7 +131,7 @@ func (ro *redisOut) putMessages(messages []string, channel string) {
 			break
 		}
 
-		if msg != "" {
+		if len(msg) > 0 {
 			err = func() error {
 				var sendErr error
 				defer func() {
@@ -142,7 +143,9 @@ func (ro *redisOut) putMessages(messages []string, channel string) {
 				conn = ro.conn
 				if conn != nil {
 					if ro.compressed {
-						msg = lib.BytesToString(lib.Compress([]byte(msg), ro.compressType))
+						rmsg = lib.BytesToString(lib.Compress([]byte(msg), ro.compressType))
+					} else {
+						rmsg = lib.BytesToString([]byte(msg))
 					}
 
 					sendErr = conn.Send(ro.command, channel, msg)
@@ -160,7 +163,7 @@ func (ro *redisOut) putMessages(messages []string, channel string) {
 	}
 }
 
-func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
+func (ro *redisOut) funcSendMessagesChunk(messages []ByteArray, channel string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -176,13 +179,13 @@ func (ro *redisOut) funcSendMessagesChunk(messages []string, channel string) {
 	} else {
 		var (
 			channel     string
-			channelList []string
+			channelList []ByteArray
 		)
 
-		channels := make(map[string][]string)
+		channels := make(map[string][]ByteArray)
 
 		for _, msg := range messages {
-			if msg != "" {
+			if len(msg) > 0 {
 				var data interface{}
 
 				err := json.Unmarshal([]byte(msg), &data)

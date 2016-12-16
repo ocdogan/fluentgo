@@ -166,7 +166,7 @@ func (tout *tcpOut) funcWait() {
 	<-tout.completed
 }
 
-func (tout *tcpOut) funcSendMessagesChunk(messages []string, channel string) {
+func (tout *tcpOut) funcSendMessagesChunk(messages []ByteArray, channel string) {
 	if len(messages) > 0 {
 		m := tout.GetManager()
 		if m == nil {
@@ -187,7 +187,7 @@ func (tout *tcpOut) funcSendMessagesChunk(messages []string, channel string) {
 				break
 			}
 
-			if msg != "" {
+			if len(msg) > 0 {
 				err = func() error {
 					var sendErr error
 					defer func() {

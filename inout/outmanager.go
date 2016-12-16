@@ -41,7 +41,7 @@ import (
 
 type OutSender interface {
 	IOClient
-	Send(messages []string)
+	Send(messages []ByteArray)
 }
 
 type FuncNewOut func(manage InOutManager, params map[string]interface{}) OutSender
@@ -671,7 +671,7 @@ func (m *OutManager) processQueue(queueProcessed chan<- bool) {
 	}
 }
 
-func (m *OutManager) tryToSend(messages []string) {
+func (m *OutManager) tryToSend(messages []ByteArray) {
 	defer recover()
 
 	if m.Processing() && len(messages) > 0 {
@@ -689,7 +689,7 @@ func (m *OutManager) tryToSend(messages []string) {
 	}
 }
 
-func (m *OutManager) send(to OutSender, messages []string, wg *lib.WorkGroup) {
+func (m *OutManager) send(to OutSender, messages []ByteArray, wg *lib.WorkGroup) {
 	defer wg.Done()
 	if to != nil && m.Processing() {
 		to.Send(messages)

@@ -34,8 +34,8 @@ type outHandler struct {
 	chunkLength        int
 	concurrency        int
 	getDestinationFunc func() string
-	canSendFunc        func(messages []string) bool
-	sendChunkFunc      func(messages []string, destination string)
+	canSendFunc        func(messages []ByteArray) bool
+	sendChunkFunc      func(messages []ByteArray, destination string)
 }
 
 func newOutHandler(manager InOutManager, params map[string]interface{}) *outHandler {
@@ -68,27 +68,27 @@ func (o *outHandler) GetDestination() string {
 	return ""
 }
 
-func (o *outHandler) CanSend(messages []string) bool {
+func (o *outHandler) CanSend(messages []ByteArray) bool {
 	if o.canSendFunc != nil {
 		return len(messages) > 0 && o.canSendFunc(messages)
 	}
 	return len(messages) > 0
 }
 
-func (o *outHandler) sendChunkAsync(messages []string, destination string, wg *lib.WorkGroup) {
+func (o *outHandler) sendChunkAsync(messages []ByteArray, destination string, wg *lib.WorkGroup) {
 	defer wg.Done()
 	if o.sendChunkFunc != nil {
 		o.sendChunkFunc(messages, destination)
 	}
 }
 
-func (o *outHandler) sendChunk(messages []string, destination string) {
+func (o *outHandler) sendChunk(messages []ByteArray, destination string) {
 	if o.sendChunkFunc != nil {
 		o.sendChunkFunc(messages, destination)
 	}
 }
 
-func (o *outHandler) Send(messages []string) {
+func (o *outHandler) Send(messages []ByteArray) {
 	if !o.CanSend(messages) {
 		return
 	}
@@ -121,7 +121,7 @@ func (o *outHandler) Send(messages []string) {
 
 				chunkLen = chunkEnd - chunkStart
 				if chunkLen > 0 {
-					chunk := make([]string, chunkLen)
+					chunk := make([]ByteArray, chunkLen)
 					copy(chunk, messages[chunkStart:chunkEnd])
 
 					wg.Add(1)
@@ -145,7 +145,7 @@ func (o *outHandler) Send(messages []string) {
 
 				chunkLen = chunkEnd - chunkStart
 				if chunkLen > 0 {
-					chunk := make([]string, chunkLen)
+					chunk := make([]ByteArray, chunkLen)
 					copy(chunk, messages[chunkStart:chunkEnd])
 
 					o.sendChunk(chunk, destination)
@@ -155,10 +155,10 @@ func (o *outHandler) Send(messages []string) {
 	}
 }
 
-func (oh *outHandler) groupMessages(messages []string, primaryPath, secondaryPath *lib.JsonPath) map[string]map[string][]string {
+func (oh *outHandler) groupMessages(messages []ByteArray, primaryPath, secondaryPath *lib.JsonPath) map[string]map[string][]ByteArray {
 	defer recover()
 
-	var primaries map[string]map[string][]string
+	var primaries map[string]map[string][]ByteArray
 
 	if primaryPath.IsStatic() && secondaryPath.IsStatic() {
 		primary, _, err := primaryPath.Eval(nil, true)
@@ -171,9 +171,9 @@ func (oh *outHandler) groupMessages(messages []string, primaryPath, secondaryPat
 			return nil
 		}
 
-		primaries = make(map[string]map[string][]string)
+		primaries = make(map[string]map[string][]ByteArray)
 
-		secondaries := make(map[string][]string)
+		secondaries := make(map[string][]ByteArray)
 		secondaries[secondary] = messages
 
 		primaries[primary] = secondaries
@@ -204,14 +204,14 @@ func (oh *outHandler) groupMessages(messages []string, primaryPath, secondaryPat
 
 		var (
 			ok            bool
-			secondaryList []string
-			primaryMap    map[string][]string
+			secondaryList []ByteArray
+			primaryMap    map[string][]ByteArray
 		)
 
-		primaries = make(map[string]map[string][]string)
+		primaries = make(map[string]map[string][]ByteArray)
 
 		for _, msg := range messages {
-			if msg != "" {
+			if len(msg) > 0 {
 				var data interface{}
 
 				err := json.Unmarshal([]byte(msg), &data)
@@ -235,7 +235,7 @@ func (oh *outHandler) groupMessages(messages []string, primaryPath, secondaryPat
 
 				primaryMap, ok = primaries[primary]
 				if !ok || primaryMap == nil {
-					primaryMap = make(map[string][]string)
+					primaryMap = make(map[string][]ByteArray)
 					primaries[primary] = primaryMap
 				}
 

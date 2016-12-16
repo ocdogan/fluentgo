@@ -91,7 +91,7 @@ func (ko *kafkaOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (ko *kafkaOut) putMessages(messages []string, topic string) {
+func (ko *kafkaOut) putMessages(messages []ByteArray, topic string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -106,7 +106,7 @@ func (ko *kafkaOut) putMessages(messages []string, topic string) {
 	producer := *ko.producer
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			data := []byte(msg)
 			if ko.compressed {
 				data = lib.Compress(data, ko.compressType)
@@ -120,7 +120,7 @@ func (ko *kafkaOut) putMessages(messages []string, topic string) {
 	}
 }
 
-func (ko *kafkaOut) funcPutMessages(messages []string, topic string) {
+func (ko *kafkaOut) funcPutMessages(messages []ByteArray, topic string) {
 	if len(messages) == 0 {
 		return
 	}
@@ -136,13 +136,13 @@ func (ko *kafkaOut) funcPutMessages(messages []string, topic string) {
 	} else {
 		var (
 			topic     string
-			topicList []string
+			topicList []ByteArray
 		)
 
-		topics := make(map[string][]string)
+		topics := make(map[string][]ByteArray)
 
 		for _, msg := range messages {
-			if msg != "" {
+			if len(msg) > 0 {
 				var data interface{}
 
 				err := json.Unmarshal([]byte(msg), &data)

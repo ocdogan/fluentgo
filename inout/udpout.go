@@ -140,7 +140,7 @@ func (tout *udpOut) funcWait() {
 	<-tout.completed
 }
 
-func (tout *udpOut) funcSendMessagesChunk(messages []string, channel string) {
+func (tout *udpOut) funcSendMessagesChunk(messages []ByteArray, channel string) {
 	if len(messages) > 0 {
 		m := tout.GetManager()
 		if m == nil {
@@ -161,7 +161,7 @@ func (tout *udpOut) funcSendMessagesChunk(messages []string, channel string) {
 				break
 			}
 
-			if msg != "" {
+			if len(msg) > 0 {
 				err = func() error {
 					var sendErr error
 					defer func() {

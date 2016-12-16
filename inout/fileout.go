@@ -259,7 +259,7 @@ func (fo *fileOut) funcGetObjectName() string {
 	return "fileout"
 }
 
-func (fo *fileOut) writeToLog(msg string) {
+func (fo *fileOut) writeToLog(msg ByteArray) {
 	if len(msg) > 0 {
 		defer recover()
 
@@ -280,15 +280,10 @@ func (fo *fileOut) writeToLog(msg string) {
 
 			if hasRet {
 				var jsonMsg map[string]interface{}
+
 				err := json.Unmarshal(data, &jsonMsg)
-
-				if err == nil {
+				if err != nil {
 					data, _ = json.Marshal(jsonMsg)
-				} else {
-					msg = strings.Replace(msg, "\r", "", -1)
-					msg = strings.Replace(msg, "\n", "", -1)
-
-					data = []byte(msg)
 				}
 
 				ln = len(data)
@@ -322,14 +317,14 @@ func (fo *fileOut) writeToLog(msg string) {
 	}
 }
 
-func (fo *fileOut) funcPutMessages(messages []string, channel string) {
+func (fo *fileOut) funcPutMessages(messages []ByteArray, channel string) {
 	if len(messages) == 0 {
 		return
 	}
 	defer recover()
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			fo.writeToLog(msg)
 		}
 	}

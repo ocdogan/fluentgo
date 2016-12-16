@@ -143,7 +143,7 @@ func (s3o *s3Out) getFilename(prefix string) string {
 		t.Hour(), t.Minute(), t.Second(), index)
 }
 
-func (s3o *s3Out) putMessages(messages []string, bucket, filename string) {
+func (s3o *s3Out) putMessages(messages []ByteArray, bucket, filename string) {
 	defer recover()
 
 	client := s3o.getClient()
@@ -155,7 +155,7 @@ func (s3o *s3Out) putMessages(messages []string, bucket, filename string) {
 	var buffer *bytes.Buffer
 
 	for _, msg := range messages {
-		if msg != "" {
+		if len(msg) > 0 {
 			if count == 0 {
 				t := time.Now()
 				buffer = bytes.NewBufferString(
@@ -166,7 +166,7 @@ func (s3o *s3Out) putMessages(messages []string, bucket, filename string) {
 			}
 
 			count++
-			buffer.WriteString(msg)
+			buffer.Write([]byte(msg))
 		}
 	}
 
@@ -197,7 +197,7 @@ func (s3o *s3Out) putMessages(messages []string, bucket, filename string) {
 	}
 }
 
-func (s3o *s3Out) funcPutMessages(messages []string, filename string) {
+func (s3o *s3Out) funcPutMessages(messages []ByteArray, filename string) {
 	if len(messages) == 0 {
 		return
 	}
