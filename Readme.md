@@ -41,4 +41,4 @@ Possible outputs:
 * Mongo
 * TCP
 * UDP
-
+* File

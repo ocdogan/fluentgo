@@ -35,10 +35,25 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 	"unsafe"
 )
+
+var (
+	newline = []byte("\n")
+)
+
+func init() {
+	if runtime.GOOS == "windows" {
+		newline = []byte("\r\n")
+	}
+}
+
+func NewLine() []byte {
+	return newline
+}
 
 func IsTimeoutError(err error) bool {
 	if err != nil {

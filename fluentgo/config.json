@@ -200,6 +200,20 @@
                 ]
             },
             { 
+                "type": "file",
+                "params": [
+                    { "name": "enabled", "value": true },
+                    { "name": "path", "value": "" },
+                    { "name": "prefix", "value": "sdp" },
+                    { "name": "extension", "value": "txt" },
+                    { "name": "multiLog", "value": true },
+                    { "name": "roll.count", "value": 100 },
+                    { "name": "roll.size", "value": 10240 },
+                    { "name": "roll.onEverySec", "value": 5 },
+                    { "name": "compressed", "value": false }
+                ]
+            },
+            { 
                 "type": "s3",
                 "params": [
                     { "name": "enabled", "value": false },
