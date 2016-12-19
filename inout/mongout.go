@@ -82,6 +82,7 @@ func newMongOut(manager InOutManager, params map[string]interface{}) OutSender {
 	}
 
 	mo := &mongOut{
+		outHandler:     *oh,
 		servers:        servers,
 		db:             db,
 		dialTimeout:    dialTimeout,
