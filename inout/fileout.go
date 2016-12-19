@@ -53,6 +53,11 @@ type fileRollOut struct {
 	lastRollTime time.Time
 }
 
+type indexer struct {
+	index     int32
+	indexTime time.Time
+}
+
 type fileOut struct {
 	sync.Mutex
 	outHandler
@@ -63,13 +68,43 @@ type fileOut struct {
 	rolling   fileRollOut
 	ofile     *outFile
 	lg        log.Logger
-	indexer   int64
+	index     *indexer
 	preparing int32
 }
 
 func init() {
 	RegisterOut("file", newFileOut)
 	RegisterOut("fileout", newFileOut)
+}
+
+func newIndexer() *indexer {
+	now := time.Now()
+	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, time.Local)
+
+	return &indexer{
+		indexTime: now,
+	}
+}
+
+func (idx *indexer) next() (id int32, prefix string) {
+	now := time.Now()
+	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), 0, 0, time.Local)
+
+	prefix = fmt.Sprintf("%d%02d%02dT%02d%02dx", now.Year(), now.Month(),
+		now.Day(), now.Hour(), now.Minute())
+
+	if now != idx.indexTime {
+		id = 1
+		atomic.StoreInt32(&idx.index, 1)
+		idx.indexTime = now
+	} else {
+		id = atomic.AddInt32(&idx.index, 1)
+		if id >= math.MaxInt32-1 {
+			id = 1
+			atomic.StoreInt32(&idx.index, 1)
+		}
+	}
+	return
 }
 
 func newFileOut(manager InOutManager, params map[string]interface{}) OutSender {
@@ -143,6 +178,7 @@ func newFileOut(manager InOutManager, params map[string]interface{}) OutSender {
 		extension:  extension,
 		multiLog:   multiLog,
 		lg:         manager.GetLogger(),
+		index:      newIndexer(),
 		rolling: fileRollOut{
 			count:        rollCount,
 			size:         rollSize,
@@ -163,15 +199,7 @@ func newFileOut(manager InOutManager, params map[string]interface{}) OutSender {
 }
 
 func (fo *fileOut) nextLogFile() string {
-	start := atomic.AddInt64(&fo.indexer, int64(1))
-	if start == math.MaxInt64 {
-		start = 0
-		atomic.StoreInt64(&fo.indexer, 0)
-	}
-
-	t := time.Now()
-	prefix := fo.prefix + fmt.Sprintf("%d%02d%02dT%02d%02d%02dx", t.Year(), t.Month(),
-		t.Day(), t.Hour(), t.Minute(), t.Second())
+	start, prefix := fo.index.next()
 
 	var (
 		err     error
@@ -182,10 +210,12 @@ func (fo *fileOut) nextLogFile() string {
 
 	fileName := fo.outputDir + prefix
 
-	for i := start; i < math.MaxInt64; i++ {
-		atomic.StoreInt64(&fo.indexer, i)
-
-		rest = fmt.Sprintf("%06d", i) + fo.extension
+	for i := start; i < math.MaxInt32; i++ {
+		if fo.multiLog {
+			rest = fmt.Sprintf("%04d", i) + fo.extension
+		} else {
+			rest = fmt.Sprintf("%06d", i) + fo.extension
+		}
 
 		newName, _ = filepath.Abs(fileName + rest)
 
