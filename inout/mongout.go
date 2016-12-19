@@ -137,7 +137,13 @@ func (mo *mongOut) putMessages(messages []ByteArray, collection string) {
 	for _, msg := range messages {
 		if len(msg) > 0 {
 			doSend = true
-			bulk.Insert(msg)
+
+			var jsonMsg map[string]interface{}
+			err := json.Unmarshal([]byte(msg), &jsonMsg)
+
+			if err == nil {
+				bulk.Insert(msg)
+			}
 		}
 	}
 
