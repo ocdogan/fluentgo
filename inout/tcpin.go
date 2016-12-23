@@ -172,19 +172,8 @@ func (tin *tcpIn) accept() {
 }
 
 func (tin *tcpIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := tin.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'TCPIN'...")
-		}
-	}()
-
-	l := tin.GetLogger()
-	if l != nil {
-		l.Println("Starting 'TCPIN'...")
-	}
+	defer tin.InformStop()
+	tin.InformStart()
 
 	err := tin.loadCert()
 	if err != nil {

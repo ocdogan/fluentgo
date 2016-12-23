@@ -48,9 +48,9 @@ func (iao *InAndOuts) Process() {
 
 	defer func() {
 		atomic.StoreUint32(&iao.state, 0)
-		iao.logger.Println("Stopping service...")
+		iao.logger.Println("* Stopping service...")
 	}()
-	iao.logger.Println("Starting service...")
+	iao.logger.Println("* Starting service...")
 
 	imActive := iao.iman != nil
 	omActive := iao.oman != nil

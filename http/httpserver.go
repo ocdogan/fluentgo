@@ -162,7 +162,7 @@ func (h *HttpServer) Start(quitSignal <-chan bool) error {
 	)
 
 	if h.logger != nil {
-		h.logger.Printf("Starting admin module at: '%s'\n", h.addr)
+		h.logger.Printf("* Starting admin module at: '%s'\n", h.addr)
 	}
 
 	if h.certConfig == nil {
@@ -184,7 +184,7 @@ func (h *HttpServer) Start(quitSignal <-chan bool) error {
 		defer func() {
 			defer func() {
 				if h.logger != nil {
-					h.logger.Println("Stopping admin module...")
+					h.logger.Println("* Stopping admin module...")
 				}
 			}()
 		}()

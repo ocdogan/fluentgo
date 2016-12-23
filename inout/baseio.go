@@ -23,6 +23,8 @@
 package inout
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 	"sync/atomic"
 
@@ -39,6 +41,7 @@ type baseIO struct {
 	iotype       string
 	processing   int32
 	compressed   bool
+	params       map[string]interface{}
 	compressType lib.CompressionType
 	logger       log.Logger
 	manager      InOutManager
@@ -86,6 +89,7 @@ func newBaseIO(manager InOutManager, params map[string]interface{}) *baseIO {
 		enabled:      enabled,
 		compressed:   compressed,
 		compressType: compressType,
+		params:       params,
 		manager:      manager,
 		logger:       manager.GetLogger(),
 	}
@@ -148,5 +152,42 @@ func (bio *baseIO) SetProcessing(ok bool) {
 		atomic.StoreInt32(&bio.processing, 1)
 	} else {
 		atomic.StoreInt32(&bio.processing, 0)
+	}
+}
+
+func (bio *baseIO) GetParameters() map[string]interface{} {
+	return bio.params
+}
+
+func (bio *baseIO) InformStart() {
+	recover()
+	l := bio.GetLogger()
+	if l != nil {
+		l.Printf("* Starting '%s'...\n", bio.iotype)
+	}
+}
+
+func (bio *baseIO) InformStop() {
+	recover()
+	l := bio.GetLogger()
+	if l != nil {
+		l.Printf("* Stoping '%s'...\n", bio.iotype)
+	}
+}
+
+func (bio *baseIO) InformParameters() {
+	recover()
+
+	params := bio.GetParameters()
+	if params != nil {
+		bytes, err := json.Marshal(params)
+		if err == nil {
+			l := bio.GetLogger()
+			if l == nil {
+				fmt.Printf("* %s parameters: %v\n", bio.iotype, string(bytes))
+			} else {
+				l.Printf("* %s parameters: %v\n", bio.iotype, string(bytes))
+			}
+		}
 	}
 }

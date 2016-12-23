@@ -280,13 +280,13 @@ func (oh *outHandler) waitComplete() {
 		recover()
 		l := oh.GetLogger()
 		if l != nil {
-			l.Printf("Stoping '%s'...\n", oh.iotype)
+			l.Printf("* Stoping '%s'...\n", oh.iotype)
 		}
 	}()
 
 	l := oh.GetLogger()
 	if l != nil {
-		l.Printf("Starting '%s'...\n", oh.iotype)
+		l.Printf("* Starting '%s'...\n", oh.iotype)
 	}
 
 	<-oh.completed

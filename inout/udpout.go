@@ -53,44 +53,44 @@ func newUDPOut(manager InOutManager, params map[string]interface{}) OutSender {
 		return nil
 	}
 
-	tout := &udpOut{
+	uout := &udpOut{
 		outHandler: *oh,
 		tcpUDPIO:   *tuio,
 	}
 
-	tout.iotype = "UDPOUT"
+	uout.iotype = "UDPOUT"
 
-	tout.runFunc = tout.funcWait
-	tout.afterCloseFunc = tout.funcAfterClose
+	uout.runFunc = uout.funcWait
+	uout.afterCloseFunc = uout.funcAfterClose
 
-	tout.getDestinationFunc = tout.funcChannel
-	tout.sendChunkFunc = tout.funcSendMessagesChunk
+	uout.getDestinationFunc = uout.funcChannel
+	uout.sendChunkFunc = uout.funcSendMessagesChunk
 
-	return tout
+	return uout
 }
 
-func (tout *udpOut) funcChannel() string {
+func (uout *udpOut) funcChannel() string {
 	return "null"
 }
 
-func (tout *udpOut) funcAfterClose() {
-	conn := tout.conn
+func (uout *udpOut) funcAfterClose() {
+	conn := uout.conn
 	if conn != nil {
-		tout.conn = nil
-		tout.tryToCloseConn(conn)
+		uout.conn = nil
+		uout.tryToCloseConn(conn)
 	}
 }
 
-func (tout *udpOut) Connect() {
+func (uout *udpOut) Connect() {
 	defer func() {
 		if err := recover(); err != nil {
-			if tout.logger != nil {
-				tout.logger.Panic(err)
+			if uout.logger != nil {
+				uout.logger.Panic(err)
 			}
 		}
 	}()
 
-	conn := tout.conn
+	conn := uout.conn
 
 	hasConn := conn != nil
 	if hasConn {
@@ -101,7 +101,7 @@ func (tout *udpOut) Connect() {
 	var connErr error
 	if connErr != nil || !hasConn {
 		if hasConn {
-			tout.tryToCloseConn(conn)
+			uout.tryToCloseConn(conn)
 		}
 
 		conn = nil
@@ -109,40 +109,30 @@ func (tout *udpOut) Connect() {
 
 		var addr *net.UDPAddr
 
-		addr, connErr = net.ResolveUDPAddr("udp", tout.host)
+		addr, connErr = net.ResolveUDPAddr("udp", uout.host)
 		if connErr == nil {
 			conn, connErr = net.DialUDP("udp", nil, addr)
 		}
 
-		tout.conn = conn
+		uout.conn = conn
 		if connErr != nil {
-			tout.tryToCloseConn(conn)
+			uout.tryToCloseConn(conn)
 		}
 	}
 }
 
-func (tout *udpOut) funcWait() {
-	defer func() {
-		recover()
-		l := tout.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'UDPOUT'...")
-		}
-	}()
+func (uout *udpOut) funcWait() {
+	defer uout.InformStop()
+	uout.InformStart()
 
-	l := tout.GetLogger()
-	if l != nil {
-		l.Println("Starting 'UDPOUT'...")
-	}
+	uout.Connect()
 
-	tout.Connect()
-
-	<-tout.completed
+	<-uout.completed
 }
 
-func (tout *udpOut) funcSendMessagesChunk(messages []ByteArray, channel string) {
+func (uout *udpOut) funcSendMessagesChunk(messages []ByteArray, channel string) {
 	if len(messages) > 0 {
-		m := tout.GetManager()
+		m := uout.GetManager()
 		if m == nil {
 			return
 		}
@@ -157,7 +147,7 @@ func (tout *udpOut) funcSendMessagesChunk(messages []ByteArray, channel string) 
 		stamp := make([]byte, 4)
 
 		for _, msg := range messages {
-			if !(err == nil && tout.Processing() && m.Processing()) {
+			if !(err == nil && uout.Processing() && m.Processing()) {
 				break
 			}
 
@@ -168,13 +158,13 @@ func (tout *udpOut) funcSendMessagesChunk(messages []ByteArray, channel string) 
 						sendErr, _ = recover().(error)
 					}()
 
-					tout.Connect()
+					uout.Connect()
 
-					conn := tout.conn
+					conn := uout.conn
 					if conn != nil {
 						body = []byte(msg)
-						if tout.compressed {
-							body = lib.Compress(body, tout.compressType)
+						if uout.compressed {
+							body = lib.Compress(body, uout.compressType)
 						}
 
 						b := bytes.NewBuffer([]byte(lib.TCPUDPMsgStart))

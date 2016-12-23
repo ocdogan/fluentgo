@@ -84,19 +84,8 @@ func newKinesisIn(manager InOutManager, params map[string]interface{}) InProvide
 }
 
 func (ki *kinesisIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := ki.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'KINESISIN'...")
-		}
-	}()
-
-	l := ki.GetLogger()
-	if l != nil {
-		l.Println("Starting 'KINESISIN'...")
-	}
+	defer ki.InformStop()
+	ki.InformStart()
 
 	completed := false
 
@@ -108,6 +97,8 @@ func (ki *kinesisIn) funcReceive() {
 	}
 
 	loop := 0
+	l := ki.GetLogger()
+
 	for !completed {
 		select {
 		case <-ki.completed:

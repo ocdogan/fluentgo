@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/config"
 	"github.com/ocdogan/fluentgo/disk"
+	"github.com/ocdogan/fluentgo/lib"
 	"github.com/ocdogan/fluentgo/log"
 )
 
@@ -82,7 +82,7 @@ func (b *bufferWatchDog) run() {
 		atomic.StoreInt32(&b.processing, 0)
 
 		if b.logger != nil {
-			b.logger.Println("Stopping 'BUFFERWATCHDOG' service...")
+			b.logger.Println("* Stopping 'BUFFERWATCHDOG' service...")
 		}
 
 		if !completed && completeSignal != nil {
@@ -94,7 +94,7 @@ func (b *bufferWatchDog) run() {
 	}()
 
 	if b.logger != nil {
-		b.logger.Println("Starting 'BUFFERWATCHDOG' service...")
+		b.logger.Println("* Starting 'BUFFERWATCHDOG' service...")
 	}
 
 	if b.immediate {

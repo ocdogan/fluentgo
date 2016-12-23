@@ -101,19 +101,8 @@ func (si *sqsIn) deleteMessage(msg *sqs.Message) error {
 }
 
 func (si *sqsIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := si.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'SQSIN'...")
-		}
-	}()
-
-	l := si.GetLogger()
-	if l != nil {
-		l.Println("Starting 'SQSIN'...")
-	}
+	defer si.InformStop()
+	si.InformStart()
 
 	completed := false
 
@@ -126,6 +115,8 @@ func (si *sqsIn) funcReceive() {
 	}
 
 	loop := 0
+	l := si.GetLogger()
+
 	for !completed {
 		select {
 		case <-si.completed:

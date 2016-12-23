@@ -75,25 +75,16 @@ func (ri *redisListIn) funcPing(conn redis.Conn) error {
 }
 
 func (ri *redisListIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := ri.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'REDISLISTIN'...")
-		}
-	}()
-
-	l := ri.GetLogger()
-	if l != nil {
-		l.Println("Starting 'REDISLISTIN'...")
-	}
+	defer ri.InformStop()
+	ri.InformStart()
 
 	completed := false
 
 	maxMessageSize := ri.getMaxMessageSize()
 
 	loop := 0
+	l := ri.GetLogger()
+
 	for !completed {
 		select {
 		case <-ri.completed:

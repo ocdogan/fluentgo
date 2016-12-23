@@ -108,19 +108,8 @@ func (ri *rabbitIn) validContentType(contentType string) bool {
 }
 
 func (ri *rabbitIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := ri.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'RABBITIN'...")
-		}
-	}()
-
-	l := ri.GetLogger()
-	if l != nil {
-		l.Println("Starting 'RABBITIN'...")
-	}
+	defer ri.InformStop()
+	ri.InformStart()
 
 	completed := false
 

@@ -54,9 +54,9 @@ var (
 func main() {
 	defer func() {
 		recover()
-		fmt.Println("Stopping application...")
+		fmt.Println("* Stopping application...")
 	}()
-	fmt.Println("Starting application...")
+	fmt.Println("* Starting application...")
 
 	flag.Parse()
 
@@ -77,7 +77,7 @@ func waitForQuit() (quitSignal <-chan bool) {
 
 	go func(quitSignal chan<- bool) {
 		defer func() {
-			fmt.Println("Termination signalled...")
+			fmt.Println("* Termination signalled...")
 			close(quitSignal)
 		}()
 
@@ -94,7 +94,7 @@ func waitForQuit() (quitSignal <-chan bool) {
 func start(config *config.FluentConfig, logger log.Logger, quitSignal <-chan bool) {
 	mode, smode, ok := getServiceMode(config)
 
-	fmt.Printf("Service mode: %s\n", smode)
+	fmt.Printf("* Service mode: %s\n", smode)
 	if !ok {
 		msg := fmt.Sprintf("Invalid service mode, setting service mode to 'inout'.")
 		logger.Println(msg)

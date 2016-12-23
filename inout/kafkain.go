@@ -74,19 +74,8 @@ func (kin *kafkaIn) funcAfterClose() {
 }
 
 func (kin *kafkaIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := kin.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'KAFKAIN'...")
-		}
-	}()
-
-	l := kin.GetLogger()
-	if l != nil {
-		l.Println("Starting 'KAFKAIN'...")
-	}
+	defer kin.InformStop()
+	kin.InformStart()
 
 	consumeCompleted := make(chan bool)
 	go kin.consume(consumeCompleted)

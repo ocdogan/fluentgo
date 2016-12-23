@@ -371,7 +371,7 @@ func (m *OutManager) feedOutputs() {
 		atomic.StoreInt32(&m.processing, 0)
 
 		if m.logger != nil {
-			m.logger.Println("Stopping 'OUT' manager...")
+			m.logger.Println("* Stopping 'OUT' manager...")
 		}
 
 		m.closeOutputs()
@@ -387,7 +387,7 @@ func (m *OutManager) feedOutputs() {
 	}()
 
 	if m.logger != nil {
-		m.logger.Println("Starting 'OUT' manager...")
+		m.logger.Println("* Starting 'OUT' manager...")
 	}
 
 	if m.outputs != nil {

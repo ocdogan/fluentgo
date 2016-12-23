@@ -663,7 +663,7 @@ func (m *InManager) processInputs() {
 		atomic.StoreInt32(&m.processing, 0)
 
 		if m.logger != nil {
-			m.logger.Println("Stopping 'IN' manager...")
+			m.logger.Println("* Stopping 'IN' manager...")
 		}
 
 		if m.inputs != nil {
@@ -684,7 +684,7 @@ func (m *InManager) processInputs() {
 	}()
 
 	if m.logger != nil {
-		m.logger.Println("Starting 'IN' manager...")
+		m.logger.Println("* Starting 'IN' manager...")
 	}
 
 	if len(m.inputs) > 0 {

@@ -119,19 +119,8 @@ func (ri *redisChanIn) funcInitPubSub(conn redis.Conn) error {
 }
 
 func (ri *redisChanIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := ri.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'REDISCHANIN'...")
-		}
-	}()
-
-	l := ri.GetLogger()
-	if l != nil {
-		l.Println("Starting 'REDISCHANIN'...")
-	}
+	defer ri.InformStop()
+	ri.InformStart()
 
 	completed := false
 

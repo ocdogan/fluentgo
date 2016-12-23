@@ -95,6 +95,8 @@ func (ioh *ioHandler) Run() {
 			}
 		}()
 
+		ioh.InformParameters()
+
 		if ioh.runFunc != nil {
 			ioh.runFunc()
 		}

@@ -35,4 +35,8 @@ type IOClient interface {
 	SetName(name string)
 	Description() string
 	SetDescription(description string)
+	GetParameters() map[string]interface{}
+	InformStart()
+	InformStop()
+	InformParameters()
 }

@@ -188,19 +188,8 @@ func (uin *udpIn) onNewMessage(b []byte) {
 }
 
 func (uin *udpIn) funcReceive() {
-	defer func() {
-		recover()
-
-		l := uin.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'UDPIN'...")
-		}
-	}()
-
-	l := uin.GetLogger()
-	if l != nil {
-		l.Println("Starting 'UDPIN'...")
-	}
+	defer uin.InformStop()
+	uin.InformStart()
 
 	err := uin.loadCert()
 	if err != nil {

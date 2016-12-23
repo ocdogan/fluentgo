@@ -143,18 +143,8 @@ func (tout *tcpOut) loadClientCert() (secure bool, config *tls.Config, err error
 }
 
 func (tout *tcpOut) funcWait() {
-	defer func() {
-		recover()
-		l := tout.GetLogger()
-		if l != nil {
-			l.Println("Stoping 'TCPOUT'...")
-		}
-	}()
-
-	l := tout.GetLogger()
-	if l != nil {
-		l.Println("Starting 'TCPOUT'...")
-	}
+	defer tout.InformStop()
+	tout.InformStart()
 
 	err := tout.loadCert()
 	if err != nil {
