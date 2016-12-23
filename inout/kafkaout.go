@@ -127,16 +127,22 @@ func (ko *kafkaOut) funcPutMessages(messages []ByteArray, topic string) {
 	defer recover()
 
 	if ko.topicPath.IsStatic() {
-		topic, _, err := ko.topicPath.Eval(nil, true)
+		epath, err := ko.topicPath.Eval(nil, true)
 		if err != nil {
 			return
 		}
 
-		ko.putMessages(messages, topic)
+		if epath != nil {
+			topic, ok := epath.(string)
+			if ok {
+				ko.putMessages(messages, topic)
+			}
+		}
 	} else {
 		var (
 			topic     string
 			topicList []ByteArray
+			epath     interface{}
 		)
 
 		topics := make(map[string][]ByteArray)
@@ -150,13 +156,18 @@ func (ko *kafkaOut) funcPutMessages(messages []ByteArray, topic string) {
 					continue
 				}
 
-				topic, _, err = ko.topicPath.Eval(data, true)
+				epath, err = ko.topicPath.Eval(data, true)
 				if err != nil {
 					continue
 				}
 
-				topicList, _ = topics[topic]
-				topics[topic] = append(topicList, msg)
+				if epath != nil {
+					topic, ok := epath.(string)
+					if ok {
+						topicList, _ = topics[topic]
+						topics[topic] = append(topicList, msg)
+					}
+				}
 			}
 		}
 

@@ -127,14 +127,20 @@ func (sqso *sqsOut) funcPutMessages(messages []ByteArray, indexName string) {
 	defer recover()
 
 	if sqso.queuePath.IsStatic() {
-		queueURL, _, err := sqso.queuePath.Eval(nil, true)
+		epath, err := sqso.queuePath.Eval(nil, true)
 		if err != nil {
 			return
 		}
 
-		sqso.putMessages(messages, queueURL)
+		if epath != nil {
+			queueURL, ok := epath.(string)
+			if ok {
+				sqso.putMessages(messages, queueURL)
+			}
+		}
 	} else {
 		var (
+			epath     interface{}
 			queueURL  string
 			queueList []ByteArray
 		)
@@ -150,13 +156,18 @@ func (sqso *sqsOut) funcPutMessages(messages []ByteArray, indexName string) {
 					continue
 				}
 
-				queueURL, _, err = sqso.queuePath.Eval(data, true)
+				epath, err = sqso.queuePath.Eval(data, true)
 				if err != nil {
 					continue
 				}
 
-				queueList, _ = queues[queueURL]
-				queues[queueURL] = append(queueList, msg)
+				if epath != nil {
+					queueURL, ok := epath.(string)
+					if ok {
+						queueList, _ = queues[queueURL]
+						queues[queueURL] = append(queueList, msg)
+					}
+				}
 			}
 		}
 

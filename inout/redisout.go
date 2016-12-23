@@ -170,16 +170,22 @@ func (ro *redisOut) funcSendMessagesChunk(messages []ByteArray, channel string) 
 	defer recover()
 
 	if ro.channelPath.IsStatic() {
-		channel, _, err := ro.channelPath.Eval(nil, true)
+		epath, err := ro.channelPath.Eval(nil, true)
 		if err != nil {
 			return
 		}
 
-		ro.putMessages(messages, channel)
+		if epath != nil {
+			channel, ok := epath.(string)
+			if ok {
+				ro.putMessages(messages, channel)
+			}
+		}
 	} else {
 		var (
 			channel     string
 			channelList []ByteArray
+			epath       interface{}
 		)
 
 		channels := make(map[string][]ByteArray)
@@ -193,13 +199,18 @@ func (ro *redisOut) funcSendMessagesChunk(messages []ByteArray, channel string) 
 					continue
 				}
 
-				channel, _, err = ro.channelPath.Eval(data, true)
+				epath, err = ro.channelPath.Eval(data, true)
 				if err != nil {
 					continue
 				}
 
-				channelList, _ = channels[channel]
-				channels[channel] = append(channelList, msg)
+				if epath != nil {
+					channel, ok := epath.(string)
+					if ok {
+						channelList, _ = channels[channel]
+						channels[channel] = append(channelList, msg)
+					}
+				}
 			}
 		}
 

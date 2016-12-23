@@ -120,86 +120,107 @@ func (mo *mongOut) funcGetObjectName() string {
 	return "null"
 }
 
-func (mo *mongOut) putMessages(messages []ByteArray, collection string) {
+func (mo *mongOut) funcPutMessages(messages []ByteArray, _ string) {
 	if len(messages) == 0 {
 		return
 	}
 	defer recover()
 
-	err := mo.Connect()
-	if err != nil || mo.session == nil {
-		return
-	}
+	var (
+		collection     string
+		collectionList []interface{}
+		collections    = make(map[string][]interface{})
+		useDefaultCol  = mo.collectionPath.IsStatic()
+	)
 
-	doSend := false
-	bulk := mo.session.DB(mo.db).C(collection).Bulk()
-
-	for _, msg := range messages {
-		if len(msg) > 0 {
-			doSend = true
-
-			var jsonMsg map[string]interface{}
-			err := json.Unmarshal([]byte(msg), &jsonMsg)
-
-			if err == nil {
-				bulk.Insert(msg)
-			}
-		}
-	}
-
-	if doSend {
-		_, err := bulk.Run()
-		if err != nil {
-			l := mo.GetLogger()
-			if l != nil {
-				l.Printf("Cannot send MONGOUT message to %s:%s: %s", mo.db, collection, err)
-			}
-		}
-	}
-}
-
-func (mo *mongOut) funcPutMessages(messages []ByteArray, collection string) {
-	if len(messages) == 0 {
-		return
-	}
-	defer recover()
-
-	if mo.collectionPath.IsStatic() {
-		collection, _, err := mo.collectionPath.Eval(nil, true)
-		if err != nil {
+	if useDefaultCol {
+		epath, err := mo.collectionPath.Eval(nil, true)
+		if err != nil || epath == nil {
 			return
 		}
 
-		mo.putMessages(messages, collection)
-	} else {
-		var (
-			collection     string
-			collectionList []ByteArray
-		)
-
-		collections := make(map[string][]ByteArray)
-
-		for _, msg := range messages {
-			if len(msg) > 0 {
-				var data interface{}
-
-				err := json.Unmarshal([]byte(msg), &data)
-				if err != nil {
-					continue
-				}
-
-				collection, _, err = mo.collectionPath.Eval(data, true)
-				if err != nil {
-					continue
-				}
-
-				collectionList, _ = collections[collection]
-				collections[collection] = append(collectionList, msg)
-			}
+		col, ok := epath.(string)
+		if !ok || len(col) == 0 {
+			return
 		}
 
+		collection = col
+	}
+
+	for _, msg := range messages {
+		if len(msg) > 0 {
+			var jsonMsg map[string]interface{}
+
+			err := json.Unmarshal([]byte(msg), &jsonMsg)
+			if err != nil || jsonMsg == nil {
+				continue
+			}
+
+			if !useDefaultCol {
+				collection = ""
+
+				epath, err := mo.collectionPath.Eval(jsonMsg, true)
+				if err != nil || epath == nil {
+					return
+				}
+
+				col, ok := epath.(string)
+				if !ok || len(col) == 0 {
+					continue
+				}
+				collection = col
+			}
+
+			if len(collection) > 0 {
+				collectionList, _ = collections[collection]
+				collections[collection] = append(collectionList, jsonMsg)
+			}
+		}
+	}
+
+	if len(collections) > 0 {
+		err := mo.Connect()
+		if err != nil {
+			l := mo.GetLogger()
+			if l != nil {
+				l.Printf("Unable to connect to server '%s' for MONGOUT message to %s:%s: %s", mo.servers, mo.db, collection, err)
+			}
+			return
+		}
+
+		var (
+			mgoCol *mgo.Collection
+			mgoDb  = mo.session.DB(mo.db)
+		)
+
 		for collection, collectionList = range collections {
-			mo.putMessages(messages, collection)
+			if len(collectionList) > 0 && len(collection) > 0 {
+				func() {
+					defer recover()
+
+					if mgoCol == nil || mgoCol.Name != collection {
+						mgoCol = mgoDb.C(collection)
+					}
+
+					var mgoErr error
+					if len(collectionList) == 1 {
+						mgoErr = mgoCol.Insert(collectionList...)
+					} else {
+						bulk := mgoCol.Bulk()
+						bulk.Unordered()
+
+						bulk.Insert(collectionList...)
+						_, mgoErr = bulk.Run()
+					}
+
+					if mgoErr != nil {
+						l := mo.GetLogger()
+						if l != nil {
+							l.Printf("Cannot send MONGOUT message to %s:%s: %s", mo.db, collection, mgoErr)
+						}
+					}
+				}()
+			}
 		}
 	}
 }

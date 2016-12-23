@@ -161,13 +161,23 @@ func (oh *outHandler) groupMessages(messages []ByteArray, primaryPath, secondary
 	var primaries map[string]map[string][]ByteArray
 
 	if primaryPath.IsStatic() && secondaryPath.IsStatic() {
-		primary, _, err := primaryPath.Eval(nil, true)
-		if err != nil {
+		epath, err := primaryPath.Eval(nil, true)
+		if err != nil || epath == nil {
 			return nil
 		}
 
-		secondary, _, err := secondaryPath.Eval(nil, true)
-		if err != nil {
+		primary, ok := epath.(string)
+		if !ok {
+			return nil
+		}
+
+		epath, err = secondaryPath.Eval(nil, true)
+		if err != nil || epath == nil {
+			return nil
+		}
+
+		secondary, ok := epath.(string)
+		if !ok {
 			return nil
 		}
 
@@ -179,6 +189,7 @@ func (oh *outHandler) groupMessages(messages []ByteArray, primaryPath, secondary
 		primaries[primary] = secondaries
 	} else {
 		var (
+			ok        bool
 			primary   string
 			secondary string
 		)
@@ -187,23 +198,30 @@ func (oh *outHandler) groupMessages(messages []ByteArray, primaryPath, secondary
 		isSecondaryStatic := secondaryPath.IsStatic()
 
 		if isPrimaryStatic {
-			s, _, err := primaryPath.Eval(nil, true)
-			if err != nil || len(s) == 0 {
-				return nil
-			}
-			primary = s
-		}
-
-		if isSecondaryStatic {
-			s, _, err := secondaryPath.Eval(nil, true)
+			path, err := primaryPath.Eval(nil, true)
 			if err != nil {
 				return nil
 			}
-			secondary = s
+
+			primary, ok = path.(string)
+			if !ok || len(primary) == 0 {
+				return nil
+			}
+		}
+
+		if isSecondaryStatic {
+			path, err := secondaryPath.Eval(nil, true)
+			if err != nil {
+				return nil
+			}
+			secondary, ok = path.(string)
+			if !ok || len(primary) == 0 {
+				return nil
+			}
 		}
 
 		var (
-			ok            bool
+			path          interface{}
 			secondaryList []ByteArray
 			primaryMap    map[string][]ByteArray
 		)
@@ -220,15 +238,25 @@ func (oh *outHandler) groupMessages(messages []ByteArray, primaryPath, secondary
 				}
 
 				if !isPrimaryStatic {
-					primary, _, err = primaryPath.Eval(data, true)
+					path, err = primaryPath.Eval(data, true)
 					if err != nil || len(primary) == 0 {
+						continue
+					}
+
+					primary, ok = path.(string)
+					if !ok || len(primary) == 0 {
 						continue
 					}
 				}
 
 				if !isSecondaryStatic {
-					secondary, _, err = secondaryPath.Eval(data, true)
+					path, err = secondaryPath.Eval(data, true)
 					if err != nil {
+						continue
+					}
+
+					secondary, ok = path.(string)
+					if !ok || len(secondary) == 0 {
 						continue
 					}
 				}
