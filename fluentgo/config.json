@@ -202,13 +202,14 @@
             { 
                 "type": "file",
                 "params": [
-                    { "name": "enabled", "value": true },
-                    { "name": "path", "value": "" },
+                    { "name": "enabled", "value": false },
+                    { "name": "path", "value": "/fluentgo/fileout" },
+                    { "name": "subPath", "value": "2006-01-02T15" },
                     { "name": "prefix", "value": "sdp" },
                     { "name": "extension", "value": "txt" },
                     { "name": "multiLog", "value": true },
                     { "name": "roll.count", "value": 100 },
-                    { "name": "roll.size", "value": 10240 },
+                    { "name": "roll.size", "value": 1024000 },
                     { "name": "roll.onEverySec", "value": 5 },
                     { "name": "compressed", "value": false }
                 ]
@@ -362,7 +363,7 @@
                 "type": "mongo",
                 "params": [
                     { "name": "enabled", "value": false },
-                    { "name": "servers", "value": "localhost" },
+                    { "name": "servers", "value": "127.0.0.1:27017" },
                     { "name": "db", "value": "logdb" },
                     { "name": "collection", "value": "logcol" },
                     { "name": "dialTimeoutMSec", "value": 0 }

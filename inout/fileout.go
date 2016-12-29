@@ -62,6 +62,7 @@ type fileOut struct {
 	sync.Mutex
 	outHandler
 	outputDir string
+	subPath   string
 	prefix    string
 	extension string
 	multiLog  bool
@@ -131,6 +132,11 @@ func newFileOut(manager InOutManager, params map[string]interface{}) OutSender {
 		}
 	}
 
+	subPath, ok := config.ParamAsString(params, "subPath")
+	if ok && subPath != "" {
+		subPath = strings.TrimSpace(subPath)
+	}
+
 	extension, ok := config.ParamAsString(params, "extension")
 	if !ok {
 		extension = ".log"
@@ -174,6 +180,7 @@ func newFileOut(manager InOutManager, params map[string]interface{}) OutSender {
 	fo := &fileOut{
 		outHandler: *oh,
 		outputDir:  outputDir,
+		subPath:    subPath,
 		prefix:     prefix,
 		extension:  extension,
 		multiLog:   multiLog,
@@ -208,7 +215,28 @@ func (fo *fileOut) nextLogFile() string {
 		newName string
 	)
 
-	fileName := fo.outputDir + prefix
+	outpath := fo.outputDir
+	if fo.subPath != "" {
+		subPath := func(sp string) (result string) {
+			result = sp
+			defer func() {
+				if err := recover(); err != nil {
+					result = sp
+				}
+				if result != "" {
+					result = strings.TrimSpace(result)
+				}
+			}()
+			result = time.Now().Format(sp)
+			return
+		}(fo.subPath)
+
+		if subPath != "" {
+			outpath = lib.PreparePath(outpath + subPath)
+		}
+	}
+
+	fileName := outpath + fo.prefix + prefix
 
 	for i := start; i < math.MaxInt32; i++ {
 		if fo.multiLog {
@@ -221,6 +249,9 @@ func (fo *fileOut) nextLogFile() string {
 
 		exists, err = lib.FileExists(newName)
 		if !exists && err == nil {
+			if exists, err := lib.PathExists(outpath); !exists || err != nil {
+				os.MkdirAll(outpath, 0777)
+			}
 			return newName
 		}
 	}
