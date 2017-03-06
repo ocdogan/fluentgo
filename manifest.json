@@ -1,0 +1,58 @@
+{
+    "dependencies": {
+        "github.com/aws/aws-sdk-go": {
+            "branch": "master"
+        },
+        "github.com/buaazp/fasthttprouter": {
+            "branch": "master"
+        },
+        "github.com/cloudfoundry/gosigar": {
+            "branch": "master"
+        },
+        "github.com/garyburd/redigo": {
+            "branch": "master"
+        },
+        "github.com/golang/snappy": {
+            "branch": "master"
+        },
+        "github.com/klauspost/compress": {
+            "branch": "master"
+        },
+        "github.com/klauspost/cpuid": {
+            "branch": "master"
+        },
+        "github.com/klauspost/crc32": {
+            "branch": "master"
+        },
+        "github.com/mohae/utilitybelt": {
+            "branch": "master"
+        },
+        "github.com/oliveagle/jsonpath": {
+            "branch": "master"
+        },
+        "github.com/optiopay/kafka": {
+            "branch": "master"
+        },
+        "github.com/streadway/amqp": {
+            "branch": "master"
+        },
+        "github.com/valyala/bytebufferpool": {
+            "branch": "master"
+        },
+        "github.com/valyala/fasthttp": {
+            "branch": "master"
+        },
+        "golang.org/x/net": {
+            "branch": "master"
+        },
+        "golang.org/x/tools": {
+            "branch": "master"
+        },
+        "gopkg.in/mgo.v2": {
+            "branch": "v2"
+        },
+        "gopkg.in/olivere/elastic.v2": {
+            "branch": "master"
+        }
+    }
+}

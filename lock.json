@@ -1,0 +1,189 @@
+{
+    "memo": "693e930e698bc3ee393efe4e4bd70f4a0dd9b04690acc49afd3bd80626f0c1a6",
+    "projects": [
+        {
+            "name": "github.com/aws/aws-sdk-go",
+            "branch": "master",
+            "revision": "0cec6f30ed2e73632df90a507b537cb988436171",
+            "packages": [
+                "aws",
+                "aws/awserr",
+                "aws/awsutil",
+                "aws/client",
+                "aws/client/metadata",
+                "aws/corehandlers",
+                "aws/credentials",
+                "aws/credentials/ec2rolecreds",
+                "aws/credentials/endpointcreds",
+                "aws/credentials/stscreds",
+                "aws/defaults",
+                "aws/ec2metadata",
+                "aws/endpoints",
+                "aws/request",
+                "aws/session",
+                "aws/signer/v4",
+                "private/protocol",
+                "private/protocol/json/jsonutil",
+                "private/protocol/jsonrpc",
+                "private/protocol/query",
+                "private/protocol/query/queryutil",
+                "private/protocol/rest",
+                "private/protocol/restxml",
+                "private/protocol/xml/xmlutil",
+                "private/waiter",
+                "service/kinesis",
+                "service/s3",
+                "service/sqs",
+                "service/sts"
+            ]
+        },
+        {
+            "name": "github.com/buaazp/fasthttprouter",
+            "branch": "master",
+            "revision": "77780601b5188bd7a24725a3454893cd369d00a7",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/cloudfoundry/gosigar",
+            "branch": "master",
+            "revision": "c32d31af94b0e9d3b2877e49c1a581ad5a793343",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/garyburd/redigo",
+            "branch": "master",
+            "revision": "0708def8b0cf3a05acdf44a7f28b864c2958921d",
+            "packages": [
+                "internal",
+                "redis"
+            ]
+        },
+        {
+            "name": "github.com/go-ini/ini",
+            "version": "v1.25.2",
+            "revision": "74bdc99692c3408cb103221e38675ce8fda0a718",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/golang/snappy",
+            "branch": "master",
+            "revision": "d9eb7a3d35ec988b8585d4a0068e462c27d28380",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/jmespath/go-jmespath",
+            "version": "0.2.2",
+            "revision": "3433f3ea46d9f8019119e7dd41274e112a2359a9",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/klauspost/compress",
+            "branch": "master",
+            "revision": "e3b7981a12dd3cab49afa1d3a50e715846f23732",
+            "packages": [
+                "flate",
+                "gzip",
+                "zlib"
+            ]
+        },
+        {
+            "name": "github.com/klauspost/cpuid",
+            "branch": "master",
+            "revision": "09cded8978dc9e80714c4d85b0322337b0a1e5e0",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/klauspost/crc32",
+            "branch": "master",
+            "revision": "cb6bfca970f6908083f26f39a79009d608efd5cd",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/mohae/utilitybelt",
+            "branch": "master",
+            "revision": "d4f15c760e5a10346e7a4f25537ae32d3c839d83",
+            "packages": [
+                "deepcopy"
+            ]
+        },
+        {
+            "name": "github.com/oliveagle/jsonpath",
+            "branch": "master",
+            "revision": "46b039cf586ce41b6ef05286230e38b648bbffe2",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/optiopay/kafka",
+            "branch": "master",
+            "revision": "7dc62e5c2c2158ae9cf3d8e8ebfd8aae00f9d76d",
+            "packages": [
+                ".",
+                "proto"
+            ]
+        },
+        {
+            "name": "github.com/streadway/amqp",
+            "branch": "master",
+            "revision": "cb4fb930736ebd61a54da180a6aa4e92b206ff13",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/valyala/bytebufferpool",
+            "branch": "master",
+            "revision": "e746df99fe4a3986f4d4f79e13c1e0117ce9c2f7",
+            "packages": [
+                "."
+            ]
+        },
+        {
+            "name": "github.com/valyala/fasthttp",
+            "branch": "master",
+            "revision": "1dc5bc133b3436ba3e2a3a0690e94e26b9d823b2",
+            "packages": [
+                ".",
+                "fasthttputil",
+                "stackless"
+            ]
+        },
+        {
+            "name": "gopkg.in/mgo.v2",
+            "branch": "v2",
+            "revision": "3f83fa5005286a7fe593b055f0d7771a7dce4655",
+            "packages": [
+                ".",
+                "bson",
+                "internal/json",
+                "internal/sasl",
+                "internal/scram"
+            ]
+        },
+        {
+            "name": "gopkg.in/olivere/elastic.v2",
+            "branch": "master",
+            "revision": "4f4a971f9bff46f4a26e5bd3e889197c1659b112",
+            "packages": [
+                ".",
+                "backoff",
+                "uritemplates"
+            ]
+        }
+    ]
+}
