@@ -34,7 +34,6 @@ type InOutManager interface {
 	Processing() bool
 	SignalOnComplete(signal chan<- bool)
 	RemoveCompleteSignal(signal chan<- bool)
-	HandleOrphans()
 	FindInput(id string) IOClient
 	FindOutput(id string) IOClient
 	GetInputs() []InOutInfo

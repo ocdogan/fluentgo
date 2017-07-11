@@ -278,15 +278,6 @@ func (cfg *OutputsConfig) GetMaxMessageSize() int {
 	return lib.MaxInt(-1, val)
 }
 
-func (cfg *OutputsConfig) GetFlushOnEverySec() time.Duration {
-	var val int64
-	if cfg != nil {
-		val = int64(cfg.FlushOnEverySec)
-	}
-
-	return time.Duration(lib.MinInt64(600, lib.MaxInt64(2, val))) * time.Second
-}
-
 func (cfg *OutputsConfig) GetSleepOnEverySec() time.Duration {
 	var val int64
 	if cfg != nil {

@@ -531,7 +531,7 @@ func (m *InManager) doOrphanAction(searchFor string, remove bool) {
 	}
 }
 
-func (m *InManager) HandleOrphans() {
+func (m *InManager) handleOrphans() {
 	defer recover()
 
 	exists, err := lib.PathExists(m.inputDir)
@@ -686,6 +686,9 @@ func (m *InManager) processInputs() {
 	if m.logger != nil {
 		m.logger.Println("* Starting 'IN' manager...")
 	}
+
+	// Handle orphan files before async process start
+	m.handleOrphans()
 
 	if len(m.inputs) > 0 {
 		for _, in := range m.inputs {

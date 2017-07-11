@@ -54,7 +54,6 @@ type OutManager struct {
 	timestampFormat   string
 	bulkCount         int
 	maxMessageSize    int
-	flushOnEverySec   time.Duration
 	sleepOnEverySec   time.Duration
 	sleepForMSec      time.Duration
 	lastFlushTime     time.Time
@@ -131,7 +130,6 @@ func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
 		timestampFormat: (&config.Outputs).GetTimestampFormat(),
 		bulkCount:       (&config.Outputs).GetBulkCount(),
 		maxMessageSize:  (&config.Outputs).GetMaxMessageSize(),
-		flushOnEverySec: (&config.Outputs).GetFlushOnEverySec(),
 		sleepOnEverySec: (&config.Outputs).GetSleepOnEverySec(),
 		sleepForMSec:    (&config.Outputs).GetSleepForMillisec(),
 		orphanDelete:    (&config.Outputs.OrphanFiles).GetDeleteAll(),
@@ -389,6 +387,9 @@ func (m *OutManager) feedOutputs() {
 	if m.logger != nil {
 		m.logger.Println("* Starting 'OUT' manager...")
 	}
+
+	// Handle orphan files before async process start
+	m.handleOrphans()
 
 	if m.outputs != nil {
 		for _, out := range m.outputs {
@@ -749,7 +750,7 @@ func (m *OutManager) doOrphanAction(searchFor string, movePath string, remove bo
 	}
 }
 
-func (m *OutManager) HandleOrphans() {
+func (m *OutManager) handleOrphans() {
 	defer recover()
 
 	exists, err := lib.PathExists(m.dataPath)

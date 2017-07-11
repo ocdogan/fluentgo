@@ -15,8 +15,7 @@
         "maxMessageSize": -1,
         "queue": {
             "maxSize": 10240000,
-            "maxCount": 2000,
-            "onEverySec": 5
+            "maxCount": 2000
         },
         "buffer": {
             "path": "/fluentgo/buffer",
@@ -27,7 +26,7 @@
             "flush": {
                 "count": 1000,
                 "size": 1024000,
-                "onEverySec": 5
+                "onEverySec": 15
             },
             "diskWatchDog": {
                 "enabled": true,
@@ -42,16 +41,15 @@
             "deleteAll": false,
             "replayLastXDays": 10
         },
-        "producers": [
-            {
+        "producers": [{
                 "type": "redischan",
                 "description": "Register to Redis pub-sub log channel for ElasticSearch out.",
-                "params":[
+                "params": [
                     { "name": "enabled", "value": true },
                     { "name": "poolName", "value": "pubsub" },
-                    { "name": "command", "value": "psubscribe" },                    
+                    { "name": "command", "value": "psubscribe" },
                     { "name": "compressed", "value": false },
-                    { "name": "server", "value": "localhost:6379" },
+                    { "name": "server", "value": "172.28.10.221:6379" },
                     { "name": "password", "value": null },
                     { "name": "channel", "value": "logstas*" },
                     { "name": "readTimeoutMSec", "value": 5000 },
@@ -61,10 +59,10 @@
             },
             {
                 "type": "redislist",
-                "params":[
+                "params": [
                     { "name": "enabled", "value": false },
                     { "name": "poolName", "value": "list" },
-                    { "name": "command", "value": "lpop" },                    
+                    { "name": "command", "value": "lpop" },
                     { "name": "compressed", "value": false },
                     { "name": "server", "value": "localhost:6379" },
                     { "name": "password", "value": null },
@@ -73,7 +71,7 @@
                     { "name": "writeTimeoutMSec", "value": 0 }
                 ]
             },
-            { 
+            {
                 "type": "sqs",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -83,13 +81,13 @@
                     { "name": "region", "value": "" },
                     { "name": "queueURL", "value": "" },
                     { "name": "disableSSL", "value": false },
-                    { "name": "maxRetries", "value": 1},
+                    { "name": "maxRetries", "value": 1 },
                     { "name": "logLevel", "value": 0 },
                     { "name": "maxNumberOfMessages", "value": 10 },
                     { "name": "waitTimeSeconds", "value": 0 }
                 ]
             },
-            { 
+            {
                 "type": "kinesis",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -98,7 +96,7 @@
                     { "name": "sessionToken", "value": "" },
                     { "name": "region", "value": "" },
                     { "name": "disableSSL", "value": false },
-                    { "name": "maxRetries", "value": 1},
+                    { "name": "maxRetries", "value": 1 },
                     { "name": "logLevel", "value": 0 },
                     { "name": "streamName", "value": "" },
                     { "name": "shardIterator", "value": "" },
@@ -109,11 +107,11 @@
                 "type": "rabbit",
                 "params": [
                     { "name": "enabled", "value": false },
-                    { "name": "host", "value": "localhost" },                    
+                    { "name": "host", "value": "localhost" },
                     { "name": "port", "value": "5672" },
-                    { "name": "compressed", "value": false },                    
+                    { "name": "compressed", "value": false },
                     { "name": "vhost", "value": null },
-                    { "name": "username", "value": null },                    
+                    { "name": "username", "value": null },
                     { "name": "password", "value": null },
                     { "name": "exchangeDeclare", "value": false },
                     { "name": "exchange", "value": "logstash" },
@@ -151,7 +149,7 @@
             },
             {
                 "type": "tcp",
-                "params":[
+                "params": [
                     { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost:12345" },
                     { "name": "compressed", "value": false },
@@ -161,7 +159,7 @@
             },
             {
                 "type": "udp",
-                "params":[
+                "params": [
                     { "name": "enabled", "value": false },
                     { "name": "host", "value": "localhost:23456" },
                     { "name": "compressed", "value": false }
@@ -186,20 +184,19 @@
             "deleteAll": false,
             "replayLastXDays": 10
         },
-        "consumers": [
-            { 
+        "consumers": [{
                 "type": "std",
                 "params": [
-                    { "name": "enabled", "value": true }
+                    { "name": "enabled", "value": false }
                 ]
             },
-            { 
+            {
                 "type": "null",
                 "params": [
                     { "name": "enabled", "value": false }
                 ]
             },
-            { 
+            {
                 "type": "file",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -214,7 +211,7 @@
                     { "name": "compressed", "value": false }
                 ]
             },
-            { 
+            {
                 "type": "s3",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -226,12 +223,12 @@
                     { "name": "prefix", "value": "" },
                     { "name": "acl", "value": "" },
                     { "name": "disableSSL", "value": false },
-                    { "name": "maxRetries", "value": 1},
+                    { "name": "maxRetries", "value": 1 },
                     { "name": "logLevel", "value": 0 },
                     { "name": "compressed", "value": false }
                 ]
             },
-            { 
+            {
                 "type": "kinesis",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -240,14 +237,14 @@
                     { "name": "sessionToken", "value": "" },
                     { "name": "region", "value": "" },
                     { "name": "disableSSL", "value": false },
-                    { "name": "maxRetries", "value": 1},
+                    { "name": "maxRetries", "value": 1 },
                     { "name": "logLevel", "value": 0 },
                     { "name": "partitionKey", "value": "" },
                     { "name": "streamName", "value": "" },
                     { "name": "explicitHashKeys", "value": "" }
                 ]
             },
-            { 
+            {
                 "type": "sqs",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -258,13 +255,13 @@
                     { "name": "queueURL", "value": "" },
                     { "name": "delaySeconds", "value": 0 },
                     { "name": "disableSSL", "value": false },
-                    { "name": "maxRetries", "value": 1},
+                    { "name": "maxRetries", "value": 1 },
                     { "name": "logLevel", "value": 0 }
                 ]
             },
-            { 
-                "type": "elasticsearch",            
-                "params":[
+            {
+                "type": "elasticsearch",
+                "params": [
                     { "name": "enabled", "value": false },
                     { "name": "url", "value": "http://localhost:9200" },
                     { "name": "userName", "value": null },
@@ -300,7 +297,7 @@
                     { "name": "logging.trace.path", "value": "/fluentgo/logs/estracelogs" }
                 ]
             },
-            { 
+            {
                 "type": "redis",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -317,11 +314,11 @@
                 "type": "rabbit",
                 "params": [
                     { "name": "enabled", "value": false },
-                    { "name": "host", "value": "localhost" },                    
+                    { "name": "host", "value": "localhost" },
                     { "name": "port", "value": "5672" },
-                    { "name": "compressed", "value": false },                    
+                    { "name": "compressed", "value": false },
                     { "name": "vhost", "value": null },
-                    { "name": "username", "value": null },                    
+                    { "name": "username", "value": null },
                     { "name": "password", "value": null },
                     { "name": "exchangeDeclare", "value": false },
                     { "name": "exchange", "value": "logstash" },
@@ -344,10 +341,10 @@
                 "type": "kafka",
                 "params": [
                     { "name": "enabled", "value": false },
-                    { "name": "servers", "value": "localhost:9092;localhost:9093" },                    
-                    { "name": "compressed", "value": false },                    
-                    { "name": "partition", "value": 0 },                    
-                    { "name": "offset", "value": "newest" },                    
+                    { "name": "servers", "value": "localhost:9092;localhost:9093" },
+                    { "name": "compressed", "value": false },
+                    { "name": "partition", "value": 0 },
+                    { "name": "offset", "value": "newest" },
                     { "name": "dialTimeoutMSec", "value": 10000 },
                     { "name": "dialRetryWaitMSec", "value": 500 },
                     { "name": "dialRetryLimit", "value": 10 },
@@ -359,7 +356,7 @@
                     { "name": "topic", "value": "logstash" }
                 ]
             },
-            { 
+            {
                 "type": "mongo",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -369,7 +366,7 @@
                     { "name": "dialTimeoutMSec", "value": 0 }
                 ]
             },
-            { 
+            {
                 "type": "tcp",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -380,7 +377,7 @@
                     { "name": "keyFile", "value": "" }
                 ]
             },
-            { 
+            {
                 "type": "udp",
                 "params": [
                     { "name": "enabled", "value": false },
@@ -388,6 +385,6 @@
                     { "name": "compressed", "value": false }
                 ]
             }
-       ]
+        ]
     }
 }

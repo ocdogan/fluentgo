@@ -59,14 +59,6 @@ func (iao *InAndOuts) Process() {
 		return
 	}
 
-	// Handle orphan files before async process start
-	if imActive {
-		iao.iman.HandleOrphans()
-	}
-	if omActive {
-		iao.oman.HandleOrphans()
-	}
-
 	// Start processes
 	imCompleted := make(chan bool)
 	omCompleted := make(chan bool)
