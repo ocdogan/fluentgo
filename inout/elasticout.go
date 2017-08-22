@@ -224,7 +224,7 @@ func (eo *elasticOut) putMessages(messages []ByteArray, indexName, indexType str
 		if len(msg) > 0 {
 			doSend = true
 
-			req := elastic.NewBulkIndexRequest().Index(indexName).Type(indexType).Doc(msg)
+			req := elastic.NewBulkIndexRequest().Index(indexName).Type(indexType).Doc(string(msg))
 			bulkRequest = bulkRequest.Add(req)
 		}
 	}
