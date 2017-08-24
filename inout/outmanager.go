@@ -50,6 +50,7 @@ type OutManager struct {
 	sync.Mutex
 	dataPath          string
 	dataPattern       string
+	debug             bool
 	timestampKey      string
 	timestampFormat   string
 	bulkCount         int
@@ -126,6 +127,7 @@ func NewOutManager(config *config.FluentConfig, logger log.Logger) *OutManager {
 		lastFlushTime:   time.Now(),
 		logger:          logger,
 		outputs:         make(map[lib.UUID]OutSender),
+		debug:           (&config.Outputs).GetDebugIsOn(),
 		timestampKey:    strings.TrimSpace(config.Outputs.TimestampKey),
 		timestampFormat: (&config.Outputs).GetTimestampFormat(),
 		bulkCount:       (&config.Outputs).GetBulkCount(),
@@ -702,20 +704,37 @@ func (m *OutManager) fileProcessed(filename string) {
 		if e := recover(); e != nil {
 			defer recover()
 
-			dir := filepath.Dir(filename)
-			if dir[len(dir)-1] != byte(os.PathSeparator) {
-				dir += string(os.PathSeparator)
-			}
+			if ok, _ := lib.FileExists(filename); ok {
+				dir := filepath.Dir(filename)
+				if dir[len(dir)-1] != byte(os.PathSeparator) {
+					dir += string(os.PathSeparator)
+				}
 
-			dir += "processed" + string(os.PathSeparator)
-			if exists, err := lib.PathExists(dir); !exists || err != nil {
-				os.MkdirAll(dir, 0777)
-			}
+				dir += "processed" + string(os.PathSeparator)
+				if exists, err := lib.PathExists(dir); !exists || err != nil {
+					os.MkdirAll(dir, 0777)
+				}
 
-			os.Rename(filename, dir+filepath.Base(filename))
+				os.Rename(filename, dir+filepath.Base(filename))
+			}
 		}
 	}()
-	os.Remove(filename)
+
+	if !m.debug {
+		os.Remove(filename)
+	} else if ok, _ := lib.FileExists(filename); ok {
+		dir := filepath.Dir(filename)
+		if dir[len(dir)-1] != byte(os.PathSeparator) {
+			dir += string(os.PathSeparator)
+		}
+
+		dir += "debug" + string(os.PathSeparator)
+		if exists, err := lib.PathExists(dir); !exists || err != nil {
+			os.MkdirAll(dir, 0777)
+		}
+
+		os.Rename(filename, dir+filepath.Base(filename))
+	}
 }
 
 func (m *OutManager) DoSleep(lastSleepTime time.Time) bool {

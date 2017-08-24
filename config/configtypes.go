@@ -103,6 +103,7 @@ type OutQConfig struct {
 }
 
 type OutputsConfig struct {
+	Debug            bool          `json:"debug,omitempty"`
 	BulkCount        int           `json:"bulkCount"`
 	MaxMessageSize   int           `json:"maxMessageSize"`
 	TimestampKey     string        `json:"timestampKey,omitempty"`
@@ -255,6 +256,13 @@ func (cfg *OutputsConfig) GetDataPath(inCfg *InputsConfig) string {
 	}
 
 	return lib.PreparePath(dir)
+}
+
+func (cfg *OutputsConfig) GetDebugIsOn() bool {
+	if cfg != nil {
+		return cfg.Debug
+	}
+	return false
 }
 
 func (cfg *OutputsConfig) GetBulkCount() int {
