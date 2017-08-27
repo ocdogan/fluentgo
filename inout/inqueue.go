@@ -43,19 +43,13 @@ type InQueue struct {
 	maxSize  uint64
 	head     *inQNode
 	tail     *inQNode
-	ready    chan bool
 }
 
 func NewInQueue(maxCount int, maxSize uint64) *InQueue {
 	return &InQueue{
 		maxCount: maxCount,
 		maxSize:  maxSize,
-		ready:    make(chan bool),
 	}
-}
-
-func (q *InQueue) Ready() <-chan bool {
-	return q.ready
 }
 
 func (q *InQueue) nextID() uint32 {
@@ -73,7 +67,6 @@ func (q *InQueue) Push(data []byte) {
 	defer q.Unlock()
 
 	q.put(data)
-	q.ready <- true
 }
 
 func (q *InQueue) put(data []byte) {

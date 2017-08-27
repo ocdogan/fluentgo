@@ -96,7 +96,7 @@ func (ri *redisListIn) funcReceive() {
 				return
 			}
 
-			ri.Connect()
+			ri.Connect(true)
 
 			conn := ri.conn
 			if conn == nil {

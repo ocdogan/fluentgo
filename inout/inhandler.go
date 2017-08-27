@@ -22,9 +22,7 @@
 
 package inout
 
-import (
-	"github.com/ocdogan/fluentgo/lib"
-)
+import "github.com/ocdogan/fluentgo/lib"
 
 type inHandler struct {
 	ioHandler

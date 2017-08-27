@@ -193,7 +193,7 @@ func (rio *redisIO) ping(conn redis.Conn) error {
 	return subsErr
 }
 
-func (rio *redisIO) Connect() {
+func (rio *redisIO) Connect(ping bool) {
 	defer func() {
 		if err := recover(); err != nil {
 			if rio.logger != nil {
@@ -210,7 +210,15 @@ func (rio *redisIO) Connect() {
 	if hasConn {
 		connErr = conn.Err()
 		if connErr != nil {
-			rio.conn = nil
+			if ping {
+				err := rio.ping(conn)
+				if err == nil {
+					connErr = nil
+				}
+			}
+			if connErr != nil {
+				rio.conn = nil
+			}
 		}
 	}
 

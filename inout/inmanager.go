@@ -83,7 +83,9 @@ type InManager struct {
 }
 
 var (
-	inputMethods = make(map[string]FuncNewIn)
+	cyclingBuffer    int32
+	flushingForEvery int32
+	inputMethods     = make(map[string]FuncNewIn)
 )
 
 func RegisterIn(providerType string, fn FuncNewIn) {
@@ -389,20 +391,19 @@ func (m *InManager) processQueue() {
 		return
 	}
 
-	defer func() {
-		defer atomic.StoreInt32(&m.poppingQueue, 0)
-		recover()
-	}()
+	defer recover()
+	defer atomic.StoreInt32(&m.poppingQueue, 0)
+
+	m.prepareBuffer(0)
 	m.lastProcessTime = time.Now()
 
 	var (
 		data []byte
 		ok   bool
+		ln   int
 	)
 
-	var ln int
-
-	for m.Processing() && m.inQ.Count() > 0 {
+	for m.Processing() {
 		data, ok = m.inQ.Pop()
 		if !ok {
 			break
@@ -455,56 +456,6 @@ func (m *InManager) nextBufferFile() string {
 		}
 	}
 	return ""
-}
-
-func (m *InManager) cycleBuffer() {
-	m.prepareBuffer(0)
-}
-
-func (m *InManager) prepareBuffer(dataLen int) {
-	if !atomic.CompareAndSwapInt32(&m.preparing, 0, 1) {
-		return
-	}
-	defer atomic.StoreInt32(&m.preparing, 0)
-
-	bf := m.bufFile
-	dataLen = lib.MaxInt(0, dataLen)
-
-	changeFile := bf == nil ||
-		(m.flushSize > 0 && bf.size+dataLen > m.flushSize) ||
-		(m.flushCount > 0 && bf.count+1 > m.flushCount) ||
-		(time.Now().Sub(m.lastFlushTime) >= m.flushOnEverySec)
-
-	if !changeFile {
-		return
-	}
-
-	defer func(manager *InManager) {
-		manager.lastFlushTime = time.Now()
-	}(m)
-
-	m.bufFile = nil
-	m.doFileCompleted(bf)
-
-	var file *os.File
-	filename := m.nextBufferFile()
-
-	if filename != "" {
-		var err error
-		file, err = os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-		if err != nil {
-			if file != nil {
-				f := file
-				file = nil
-
-				f.Close()
-			}
-		}
-	}
-
-	m.bufFile = &bufferFile{
-		file: file,
-	}
 }
 
 func (m *InManager) doOrphanAction(searchFor string, remove bool) {
@@ -649,15 +600,63 @@ func (m *InManager) writeToBuffer(data []byte) {
 	fi.count++
 }
 
+func (m *InManager) prepareBuffer(dataLen int) {
+	if !atomic.CompareAndSwapInt32(&m.preparing, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&m.preparing, 0)
+
+	bf := m.bufFile
+	dataLen = lib.MaxInt(0, dataLen)
+
+	changeFile := bf == nil || (bf.size > 0 &&
+		((m.flushSize > 0 && bf.size+dataLen > m.flushSize) ||
+			(m.flushCount > 0 && bf.count+1 > m.flushCount) ||
+			(time.Now().Sub(m.lastFlushTime) >= m.flushOnEverySec)))
+
+	if !changeFile {
+		return
+	}
+
+	defer func(manager *InManager) {
+		manager.lastFlushTime = time.Now()
+	}(m)
+
+	m.bufFile = nil
+	defer func() {
+		if bf != nil {
+			go m.doFileCompleted(bf)
+		}
+	}()
+
+	var file *os.File
+	filename := m.nextBufferFile()
+
+	if filename != "" {
+		var err error
+		file, err = os.OpenFile(filename, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
+		if err != nil {
+			if file != nil {
+				f := file
+				file = nil
+
+				f.Close()
+			}
+		}
+	}
+
+	m.bufFile = &bufferFile{
+		file: file,
+	}
+}
+
 func (m *InManager) processInputs() {
 	completed := false
 	completeSignal := m.completed
 
 	defer func() {
-		defer func() {
-			recover()
-			m.signalCompleted()
-		}()
+		defer recover()
+		defer m.signalCompleted()
 
 		recover()
 		atomic.StoreInt32(&m.processing, 0)
@@ -697,50 +696,20 @@ func (m *InManager) processInputs() {
 			}
 		}
 	}
-
-	if m.flushOnEverySec > 0 {
-		ticker := time.NewTicker(m.flushOnEverySec)
-		if ticker != nil {
-			defer ticker.Stop()
-
-			go func(manager *InManager, ticker *time.Ticker) {
-				var cycling int32
-				flushSleep := lib.MaxDuration(manager.flushOnEverySec-time.Second, 1)
-
-				for range ticker.C {
-					if !manager.Processing() {
-						break
-					}
-
-					if atomic.CompareAndSwapInt32(&cycling, 0, 1) {
-						defer atomic.StoreInt32(&cycling, 0)
-						manager.cycleBuffer()
-						if flushSleep > 0 {
-							time.Sleep(flushSleep)
-						}
-					}
-				}
-			}(m, ticker)
-		}
-	}
+	m.prepareBuffer(0)
 
 	for !completed {
 		select {
 		case <-completeSignal:
 			completed = true
 			return
-		case <-m.inQ.Ready():
+		case <-time.After(1 * time.Second):
 			if completed {
 				return
 			}
 			if atomic.LoadInt32(&m.poppingQueue) == 0 {
-				t := time.Now()
-				if t.Sub(m.lastProcessTime) >= time.Second {
-					time.Sleep(time.Millisecond)
-					go m.processQueue()
-				}
+				go m.processQueue()
 			}
 		}
 	}
-
 }

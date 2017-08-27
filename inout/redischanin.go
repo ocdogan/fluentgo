@@ -137,7 +137,7 @@ func (ri *redisChanIn) funcReceive() {
 				return
 			}
 
-			ri.Connect()
+			ri.Connect(true)
 
 			pConn := ri.pConn
 			if pConn == nil {

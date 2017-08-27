@@ -80,6 +80,22 @@ func IsTimeoutError(err error) bool {
 	return false
 }
 
+func IsReadTimeoutError(err error) bool {
+	if err != nil {
+		neterr, ok := err.(*net.OpError)
+		return (ok && neterr != nil && neterr.Timeout() && neterr.Op == "read")
+	}
+	return false
+}
+
+func IsWriteTimeoutError(err error) bool {
+	if err != nil {
+		neterr, ok := err.(*net.OpError)
+		return (ok && neterr != nil && neterr.Timeout() && neterr.Op == "write")
+	}
+	return false
+}
+
 func BytesToString(b []byte) string {
 	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 	sh := reflect.StringHeader{bh.Data, bh.Len}

@@ -138,7 +138,7 @@ func (ro *redisOut) putMessages(messages []ByteArray, channel string) {
 					sendErr, _ = recover().(error)
 				}()
 
-				ro.Connect()
+				ro.Connect(true)
 
 				conn = ro.conn
 				if conn != nil {
