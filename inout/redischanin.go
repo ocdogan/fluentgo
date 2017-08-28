@@ -148,11 +148,11 @@ func (ri *redisChanIn) funcReceive() {
 			switch m := pConn.Receive().(type) {
 			case redis.Message:
 				if !completed {
-					go ri.queueMessage(m.Data, maxMessageSize)
+					ri.queueMessage(m.Data, maxMessageSize)
 				}
 			case redis.PMessage:
 				if !completed {
-					go ri.queueMessage(m.Data, maxMessageSize)
+					ri.queueMessage(m.Data, maxMessageSize)
 				}
 			case error:
 				if !completed {
