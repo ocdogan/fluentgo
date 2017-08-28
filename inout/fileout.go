@@ -373,6 +373,10 @@ func (fo *fileOut) writeToLog(msg ByteArray) {
 
 				ofile.size += ln + len(nln)
 				ofile.count++
+
+				if ofile.count%100 == 0 {
+					f.Sync()
+				}
 			}
 		}
 	}
