@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
-
+	"strings"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -151,6 +151,18 @@ func (s3o *s3Out) putMessages(messages []ByteArray, bucket, filename string) {
 		return
 	}
 
+	paths := strings.Split(bucket,"/")
+	folder := ""
+	
+	if len(paths) > 1 {
+		bucket = paths[0]
+		var folderParts []string
+		for i := 1; i <len(paths); i++ {
+			folderParts = append(folderParts,paths[i])
+		}
+		folder = strings.Join(folderParts,"/")
+	}
+
 	count := 0
 	var buffer *bytes.Buffer
 
@@ -185,7 +197,13 @@ func (s3o *s3Out) putMessages(messages []ByteArray, bucket, filename string) {
 			ContentLength: aws.Int64(int64(len(body))),
 		}
 
+		if len(folder)>0 {
+			keyParts := []string{folder,filename}
+			filename = strings.Join(keyParts,"/")
+		}
+
 		if s3o.compressed {
+		
 			params.Key = aws.String(filename + ".gz")
 			params.ContentType = aws.String("application/x-gzip")
 		} else {
